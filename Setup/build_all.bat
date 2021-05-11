@@ -67,7 +67,7 @@ IF NOT DEFINED YEARS (
 FOR %%C IN (%BUILD_CONFIGURATIONS%) DO (
   FOR %%P IN (%PLATFORMS%) DO (
     FOR %%Y IN (%YEARS%) DO (
-      %__ECHO3% CALL "%TOOLS%\set_%%Y.bat"
+      %__ECHO3% CALL "%TOOLS%\set_year_%%Y.bat"
 
       IF ERRORLEVEL 1 (
         ECHO Could not set variables for %%Y.
@@ -115,5 +115,4 @@ GOTO no_errors
   GOTO end_of_file
 
 :end_of_file
-::Do not exit, in the end.
-::%__ECHO% EXIT /B %ERRORLEVEL%
+%__ECHO% EXIT /B %ERRORLEVEL%

@@ -65,6 +65,19 @@ SET TOOLS=%TOOLS:~0,-1%
 
 %_VECHO% Tools = '%TOOLS%'
 
+SET EXTERNALS=%ROOT%\Externals
+SET EXTERNALS=%EXTERNALS:\\=\%
+
+%_VECHO% Externals = '%EXTERNALS%'
+
+IF NOT DEFINED VSWHERE_EXE (
+  SET VSWHERE_EXE=%EXTERNALS%\vswhere\vswhere.exe
+)
+
+SET VSWHERE_EXE=%VSWHERE_EXE:\\=\%
+
+%_VECHO% VsWhereExe = '%VSWHERE_EXE%'
+
 IF EXIST "%TOOLS%\set_%CONFIGURATION%_%PLATFORM%.bat" (
   CALL :fn_ResetErrorLevel
 
@@ -121,47 +134,119 @@ IF NOT DEFINED MSBUILD (
 
 %_VECHO% MsBuild = '%MSBUILD%'
 
+IF NOT DEFINED DOTNET (
+  SET DOTNET=dotnet.exe
+)
+
+%_VECHO% DotNet = '%DOTNET%'
+
 IF NOT DEFINED CSC (
   SET CSC=csc.exe
 )
 
 %_VECHO% Csc = '%CSC%'
 
+REM ****************************************************************************
+REM ********************* .NET Framework Version Overrides *********************
+REM ****************************************************************************
+
 REM
-REM TODO: When the next version of Visual Studio is released, this section
-REM       may need updating.
+REM TODO: When the next version of Visual Studio is released, this section may
+REM       need updating.
 REM
+IF DEFINED NETCORE20ONLY (
+  %_AECHO% Forcing the use of the .NET Core 2.0...
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETCORE20YEAR (
+      SET YEAR=%NETCORE20YEAR%
+    ) ELSE (
+      SET YEAR=NetStandard20
+    )
+  )
+  CALL :fn_VerifyDotNetCore
+  IF ERRORLEVEL 1 GOTO errors
+  SET NOBUILDTOOLDIR=1
+  SET USEDOTNET=1
+  GOTO setup_buildToolDir
+)
+
+IF DEFINED NETCORE30ONLY (
+  %_AECHO% Forcing the use of the .NET Core 3.0...
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETCORE30YEAR (
+      SET YEAR=%NETCORE30YEAR%
+    ) ELSE (
+      SET YEAR=NetStandard21
+    )
+  )
+  CALL :fn_VerifyDotNetCore
+  IF ERRORLEVEL 1 GOTO errors
+  SET NOBUILDTOOLDIR=1
+  SET USEDOTNET=1
+  GOTO setup_buildToolDir
+)
+
 IF DEFINED NETFX20ONLY (
   %_AECHO% Forcing the use of the .NET Framework 2.0...
-  SET YEAR=2005
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX20YEAR (
+      SET YEAR=%NETFX20YEAR%
+    ) ELSE (
+      SET YEAR=2005
+    )
+  )
   CALL :fn_CheckFrameworkDir v2.0.50727
   GOTO setup_buildToolDir
 )
 
 IF DEFINED NETFX35ONLY (
   %_AECHO% Forcing the use of the .NET Framework 3.5...
-  SET YEAR=2008
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX35YEAR (
+      SET YEAR=%NETFX35YEAR%
+    ) ELSE (
+      SET YEAR=2008
+    )
+  )
   CALL :fn_CheckFrameworkDir v3.5
   GOTO setup_buildToolDir
 )
 
 IF DEFINED NETFX40ONLY (
   %_AECHO% Forcing the use of the .NET Framework 4.0...
-  SET YEAR=2010
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX40YEAR (
+      SET YEAR=%NETFX40YEAR%
+    ) ELSE (
+      SET YEAR=2010
+    )
+  )
   CALL :fn_CheckFrameworkDir v4.0.30319
   GOTO setup_buildToolDir
 )
 
 IF DEFINED NETFX45ONLY (
   %_AECHO% Forcing the use of the .NET Framework 4.5...
-  SET YEAR=2012
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX45YEAR (
+      SET YEAR=%NETFX45YEAR%
+    ) ELSE (
+      SET YEAR=2012
+    )
+  )
   CALL :fn_CheckFrameworkDir v4.0.30319
   GOTO setup_buildToolDir
 )
 
 IF DEFINED NETFX451ONLY (
   %_AECHO% Forcing the use of the .NET Framework 4.5.1...
-  SET YEAR=2013
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX451YEAR (
+      SET YEAR=%NETFX451YEAR%
+    ) ELSE (
+      SET YEAR=2013
+    )
+  )
   CALL :fn_CheckFrameworkDir v4.0.30319
   CALL :fn_CheckMsBuildDir 12.0
   GOTO setup_buildToolDir
@@ -169,7 +254,13 @@ IF DEFINED NETFX451ONLY (
 
 IF DEFINED NETFX452ONLY (
   %_AECHO% Forcing the use of the .NET Framework 4.5.2...
-  SET YEAR=2013
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX452YEAR (
+      SET YEAR=%NETFX452YEAR%
+    ) ELSE (
+      SET YEAR=2013
+    )
+  )
   CALL :fn_CheckFrameworkDir v4.0.30319
   CALL :fn_CheckMsBuildDir 12.0
   GOTO setup_buildToolDir
@@ -177,7 +268,13 @@ IF DEFINED NETFX452ONLY (
 
 IF DEFINED NETFX46ONLY (
   %_AECHO% Forcing the use of the .NET Framework 4.6...
-  SET YEAR=2015
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX46YEAR (
+      SET YEAR=%NETFX46YEAR%
+    ) ELSE (
+      SET YEAR=2015
+    )
+  )
   CALL :fn_CheckFrameworkDir v4.0.30319
   CALL :fn_CheckMsBuildDir 14.0
   GOTO setup_buildToolDir
@@ -185,11 +282,113 @@ IF DEFINED NETFX46ONLY (
 
 IF DEFINED NETFX461ONLY (
   %_AECHO% Forcing the use of the .NET Framework 4.6.1...
-  SET YEAR=2015
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX461YEAR (
+      SET YEAR=%NETFX461YEAR%
+    ) ELSE (
+      SET YEAR=2015
+    )
+  )
   CALL :fn_CheckFrameworkDir v4.0.30319
   CALL :fn_CheckMsBuildDir 14.0
   GOTO setup_buildToolDir
 )
+
+IF DEFINED NETFX462ONLY (
+  %_AECHO% Forcing the use of the .NET Framework 4.6.2...
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX462YEAR (
+      SET YEAR=%NETFX462YEAR%
+    ) ELSE (
+      SET YEAR=2015
+    )
+  )
+  CALL :fn_CheckFrameworkDir v4.0.30319
+  CALL :fn_CheckMsBuildDir 14.0
+  GOTO setup_buildToolDir
+)
+
+IF DEFINED NETFX47ONLY (
+  %_AECHO% Forcing the use of the .NET Framework 4.7...
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX47YEAR (
+      SET YEAR=%NETFX47YEAR%
+    ) ELSE (
+      SET YEAR=2017
+    )
+  )
+  IF NOT DEFINED NOUSEPACKAGERESTORE (
+    IF NOT DEFINED USEPACKAGERESTORE (
+      SET USEPACKAGERESTORE=1
+    )
+  )
+  CALL :fn_CheckFrameworkDir v4.0.30319
+  CALL :fn_CheckMsBuildDir 14.0
+  CALL :fn_CheckVisualStudioMsBuildDir 15.0 15.0
+  GOTO setup_buildToolDir
+)
+
+IF DEFINED NETFX471ONLY (
+  %_AECHO% Forcing the use of the .NET Framework 4.7.1...
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX471YEAR (
+      SET YEAR=%NETFX471YEAR%
+    ) ELSE (
+      SET YEAR=2017
+    )
+  )
+  IF NOT DEFINED NOUSEPACKAGERESTORE (
+    IF NOT DEFINED USEPACKAGERESTORE (
+      SET USEPACKAGERESTORE=1
+    )
+  )
+  CALL :fn_CheckFrameworkDir v4.0.30319
+  CALL :fn_CheckMsBuildDir 14.0
+  CALL :fn_CheckVisualStudioMsBuildDir 15.0 15.0
+  GOTO setup_buildToolDir
+)
+
+IF DEFINED NETFX472ONLY (
+  %_AECHO% Forcing the use of the .NET Framework 4.7.2...
+  IF NOT DEFINED YEAR (
+    IF DEFINED NETFX472YEAR (
+      SET YEAR=%NETFX472YEAR%
+    ) ELSE (
+      SET YEAR=2017
+    )
+  )
+  IF NOT DEFINED NOUSEPACKAGERESTORE (
+    IF NOT DEFINED USEPACKAGERESTORE (
+      SET USEPACKAGERESTORE=1
+    )
+  )
+  CALL :fn_CheckFrameworkDir v4.0.30319
+  CALL :fn_CheckMsBuildDir 14.0
+  CALL :fn_CheckVisualStudioMsBuildDir 15.0 15.0
+  GOTO setup_buildToolDir
+)
+
+REM
+REM TODO: When the next version of Visual Studio and/or MSBuild is released,
+REM       this section may need updating.
+REM
+IF NOT DEFINED VISUALSTUDIOMSBUILDDIR (
+  CALL :fn_CheckVisualStudioMsBuildDir 15.0 15.0
+  IF DEFINED VISUALSTUDIOMSBUILDDIR (
+    IF NOT DEFINED YEAR (
+      SET YEAR=2017
+    )
+    IF NOT DEFINED NOUSEPACKAGERESTORE (
+      IF NOT DEFINED USEPACKAGERESTORE (
+        SET USEPACKAGERESTORE=1
+      )
+    )
+  )
+)
+
+REM ****************************************************************************
+REM ************************ MSBuild Version Detection *************************
+REM ****************************************************************************
 
 REM
 REM TODO: When the next version of MSBuild is released, this section may need
@@ -213,9 +412,13 @@ IF NOT DEFINED MSBUILDDIR (
   )
 )
 
+REM ****************************************************************************
+REM ********************* .NET Framework Version Detection *********************
+REM ****************************************************************************
+
 REM
-REM TODO: When the next version of Visual Studio is released, this section
-REM       may need updating.
+REM TODO: When the next version of Visual Studio is released, this section may
+REM       need updating.
 REM
 IF NOT DEFINED FRAMEWORKDIR (
   CALL :fn_CheckFrameworkDir v4.0.30319
@@ -244,29 +447,46 @@ IF NOT DEFINED FRAMEWORKDIR (
   )
 )
 
+REM ****************************************************************************
+REM *************************** Build Tool Detection ***************************
+REM ****************************************************************************
+
 :setup_buildToolDir
 
-IF DEFINED BUILDTOOLDIR (
-  %_AECHO% Forcing the use of build tool directory "%BUILDTOOLDIR%"...
-) ELSE (
-  CALL :fn_CheckBuildToolDir
-  CALL :fn_VerifyBuildToolDir
+%_VECHO% NoBuildToolDir = '%NOBUILDTOOLDIR%'
+%_VECHO% UseDotNet = '%USEDOTNET%'
+%_VECHO% UsePackageRestore = '%USEPACKAGERESTORE%'
+
+IF NOT DEFINED NOBUILDTOOLDIR (
+  IF DEFINED BUILDTOOLDIR (
+    %_AECHO% Forcing the use of build tool directory "%BUILDTOOLDIR%"...
+  ) ELSE (
+    CALL :fn_CheckBuildToolDir
+    CALL :fn_VerifyBuildToolDir
+  )
 )
 
 %_VECHO% Year = '%YEAR%'
 %_VECHO% FrameworkDir = '%FRAMEWORKDIR%'
 %_VECHO% MsBuildDir = '%MSBUILDDIR%'
+%_VECHO% VisualStudioMsBuildDir = '%VISUALSTUDIOMSBUILDDIR%'
 %_VECHO% BuildToolDir = '%BUILDTOOLDIR%'
 
-IF NOT DEFINED BUILDTOOLDIR (
-  ECHO.
-  ECHO No directory containing MSBuild could be found.
-  ECHO.
-  ECHO Please install the .NET Framework or set the "FRAMEWORKDIR"
-  ECHO environment variable to the location where it is installed.
-  ECHO.
-  GOTO errors
+IF NOT DEFINED NOBUILDTOOLDIR (
+  IF NOT DEFINED BUILDTOOLDIR (
+    ECHO.
+    ECHO No directory containing MSBuild could be found.
+    ECHO.
+    ECHO Please install the .NET Framework or set the "FRAMEWORKDIR"
+    ECHO environment variable to the location where it is installed.
+    ECHO.
+    GOTO errors
+  )
 )
+
+REM ****************************************************************************
+REM ****************************** Save Directory ******************************
+REM ****************************************************************************
 
 CALL :fn_ResetErrorLevel
 
@@ -277,74 +497,75 @@ IF ERRORLEVEL 1 (
   GOTO errors
 )
 
-SET PATH=%BUILDTOOLDIR%;%PATH%
+REM ****************************************************************************
+REM ************************* Augment Executable Path **************************
+REM ****************************************************************************
+
+IF NOT DEFINED NOBUILDTOOLDIR (
+  CALL :fn_PrependToPath BUILDTOOLDIR
+)
 
 %_VECHO% Path = '%PATH%'
 
-IF NOT DEFINED SOLUTION (
-  IF DEFINED COREONLY (
-    %_AECHO% Building core managed project...
-    SET SOLUTION=.\System.Data.SQLite\System.Data.SQLite.%YEAR%.csproj
-  )
-)
+REM ****************************************************************************
+REM **************************** Solution Handling *****************************
+REM ****************************************************************************
 
-IF NOT DEFINED SOLUTION (
-  IF DEFINED BUILD_FULL (
-    %_AECHO% Building all projects...
-    SET SOLUTION=.\SQLite.NET.%YEAR%.sln
-  ) ELSE (
-    %_AECHO% Building all projects...
-    SET SOLUTION=.\SQLite.NET.%YEAR%.MSBuild.sln
-  )
-)
+CALL :fn_SetupSolution
 
 %_VECHO% Solution = '%SOLUTION%'
+
+IF NOT DEFINED SOLUTION (
+  ECHO Solution file is not defined.
+  GOTO errors
+)
 
 IF NOT EXIST "%SOLUTION%" (
   ECHO Solution file "%SOLUTION%" does not exist.
   GOTO errors
 )
 
-IF NOT DEFINED TARGET (
-  SET TARGET=Rebuild
+FOR /F %%E IN ('ECHO %SOLUTION%') DO (SET SOLUTIONEXT=%%~xE)
+CALL :fn_ResetErrorLevel
+
+%_VECHO% SolutionExt = '%SOLUTIONEXT%'
+
+IF /I "%SOLUTIONEXT%" == ".csproj" (
+  SET MSBUILD_CONFIGURATION=%BASE_CONFIGURATION%
+) ELSE (
+  SET MSBUILD_CONFIGURATION=%CONFIGURATION%
 )
+
+%_VECHO% MsBuildConfiguration = '%MSBUILD_CONFIGURATION%'
+
+REM ****************************************************************************
+REM ***************************** Target Handling ******************************
+REM ****************************************************************************
+
+CALL :fn_SetupTarget
 
 %_VECHO% Target = '%TARGET%'
 
-IF NOT DEFINED TEMP (
-  ECHO Temporary directory must be defined.
-  GOTO errors
-)
+REM ****************************************************************************
+REM ******************************* Log Handling *******************************
+REM ****************************************************************************
+
+CALL :fn_SetupLogging
+IF ERRORLEVEL 1 GOTO errors
 
 %_VECHO% Temp = '%TEMP%'
-
-IF NOT DEFINED LOGDIR (
-  SET LOGDIR=%TEMP%
-)
-
+%_VECHO% LogAsm = '%LOGASM%'
 %_VECHO% LogDir = '%LOGDIR%'
-
-IF NOT DEFINED LOGPREFIX (
-  SET LOGPREFIX=System.Data.SQLite.Build
-)
-
 %_VECHO% LogPrefix = '%LOGPREFIX%'
-
-IF NOT DEFINED LOGSUFFIX (
-  SET LOGSUFFIX=Unknown
-)
-
 %_VECHO% LogSuffix = '%LOGSUFFIX%'
+%_VECHO% Logging = '%LOGGING%'
 
-IF DEFINED LOGGING GOTO skip_setLogging
-IF DEFINED NOLOG GOTO skip_setLogging
-
-SET LOGGING="/logger:FileLogger,Microsoft.Build.Engine;Logfile=%LOGDIR%\%LOGPREFIX%_%CONFIGURATION%_%PLATFORM%_%YEAR%_%LOGSUFFIX%.log;Verbosity=diagnostic"
-
-:skip_setLogging
+REM ****************************************************************************
+REM ************************ Extra Properties Handling *************************
+REM ****************************************************************************
 
 IF NOT DEFINED NOPROPS (
-  IF EXIST Externals\Eagle\bin\EagleShell.exe (
+  IF EXIST Externals\Eagle\bin\netFramework40\EagleShell.exe (
     IF DEFINED INTEROP_EXTRA_PROPS_FILE (
       REM
       REM HACK: This is used to work around a limitation of Visual Studio 2005
@@ -352,7 +573,8 @@ IF NOT DEFINED NOPROPS (
       REM       value from working correctly when it refers to a property that
       REM       evaluates to an empty string.
       REM
-      %__ECHO% Externals\Eagle\bin\EagleShell.exe -evaluate "set fileName {SQLite.Interop/props/include.vsprops}; set data [readFile $fileName]; regsub -- {	InheritedPropertySheets=\"\"} $data {	InheritedPropertySheets=\"$^(INTEROP_EXTRA_PROPS_FILE^)\"} data; writeFile $fileName $data"
+      %_CECHO% Externals\Eagle\bin\netFramework40\EagleShell.exe -evaluate "set fileName {SQLite.Interop/props/include.vsprops}; set data [readFile $fileName]; regsub -- {	InheritedPropertySheets=\"\"} $data {	InheritedPropertySheets=\"$^(INTEROP_EXTRA_PROPS_FILE^)\"} data; writeFile $fileName $data"
+      %__ECHO% Externals\Eagle\bin\netFramework40\EagleShell.exe -evaluate "set fileName {SQLite.Interop/props/include.vsprops}; set data [readFile $fileName]; regsub -- {	InheritedPropertySheets=\"\"} $data {	InheritedPropertySheets=\"$^(INTEROP_EXTRA_PROPS_FILE^)\"} data; writeFile $fileName $data"
 
       IF ERRORLEVEL 1 (
         ECHO Property file modification of "SQLite.Interop\props\include.vsprops" failed.
@@ -368,16 +590,22 @@ IF NOT DEFINED NOPROPS (
   ECHO WARNING: Property file modification skipped, disabled via NOPROPS environment variable.
 )
 
+REM ****************************************************************************
+REM *************************** Version Tag Handling ***************************
+REM ****************************************************************************
+
 IF NOT DEFINED NOTAG (
-  IF EXIST Externals\Eagle\bin\EagleShell.exe (
-    %__ECHO% Externals\Eagle\bin\EagleShell.exe -file Setup\sourceTag.eagle SourceIdMode SQLite.Interop\src\generic\interop.h
+  IF EXIST Externals\Eagle\bin\netFramework40\EagleShell.exe (
+    %_CECHO% Externals\Eagle\bin\netFramework40\EagleShell.exe -file Setup\sourceTag.eagle SourceIdMode SQLite.Interop\src\generic\interop.h
+    %__ECHO% Externals\Eagle\bin\netFramework40\EagleShell.exe -file Setup\sourceTag.eagle SourceIdMode SQLite.Interop\src\generic\interop.h
 
     IF ERRORLEVEL 1 (
       ECHO Source tagging of "SQLite.Interop\src\generic\interop.h" failed.
       GOTO errors
     )
 
-    %__ECHO% Externals\Eagle\bin\EagleShell.exe -file Setup\sourceTag.eagle SourceIdMode System.Data.SQLite\SQLitePatchLevel.cs
+    %_CECHO% Externals\Eagle\bin\netFramework40\EagleShell.exe -file Setup\sourceTag.eagle SourceIdMode System.Data.SQLite\SQLitePatchLevel.cs
+    %__ECHO% Externals\Eagle\bin\netFramework40\EagleShell.exe -file Setup\sourceTag.eagle SourceIdMode System.Data.SQLite\SQLitePatchLevel.cs
 
     IF ERRORLEVEL 1 (
       ECHO Source tagging of "System.Data.SQLite\SQLitePatchLevel.cs" failed.
@@ -390,15 +618,45 @@ IF NOT DEFINED NOTAG (
   ECHO WARNING: Source tagging skipped, disabled via NOTAG environment variable.
 )
 
+REM ****************************************************************************
+REM ****************************** Build Solution ******************************
+REM ****************************************************************************
+
 CALL :fn_CopyVariable MSBUILD_ARGS_%BASE_CONFIGURATION% MSBUILD_ARGS_CFG
 
-%_VECHO% Logging = '%LOGGING%'
+IF DEFINED USEDOTNET (
+  SET MSBUILD=%DOTNET%
+  SET BUILD_SUBCOMMANDS=build
+  SET TARGET=Build
+) ELSE (
+  CALL :fn_UnsetVariable BUILD_SUBCOMMANDS
+)
+
+IF NOT DEFINED RESTORE_SUBCOMMANDS (
+  SET RESTORE_SUBCOMMANDS=restore
+)
+
+%_VECHO% MsBuild = '%MSBUILD%'
+%_VECHO% BuildSubCommands = '%BUILD_SUBCOMMANDS%'
+%_VECHO% Target = '%TARGET%'
 %_VECHO% BuildArgs = '%BUILD_ARGS%'
 %_VECHO% MsBuildArgs = '%MSBUILD_ARGS%'
 %_VECHO% MsBuildArgsCfg = '%MSBUILD_ARGS_CFG%'
+%_VECHO% RestoreSubCommands = '%RESTORE_SUBCOMMANDS%'
+
+IF DEFINED USEPACKAGERESTORE (
+  %_CECHO% "%DOTNET%" %RESTORE_SUBCOMMANDS% "%SOLUTION%"
+  %__ECHO% "%DOTNET%" %RESTORE_SUBCOMMANDS% "%SOLUTION%"
+
+  IF ERRORLEVEL 1 (
+    ECHO Restore failed.
+    GOTO errors
+  )
+)
 
 IF NOT DEFINED NOBUILD (
-  %__ECHO% "%MSBUILD%" "%SOLUTION%" "/target:%TARGET%" "/property:Configuration=%CONFIGURATION%" "/property:Platform=%PLATFORM%" %LOGGING% %BUILD_ARGS% %MSBUILD_ARGS% %MSBUILD_ARGS_CFG%
+  %_CECHO% "%MSBUILD%" %BUILD_SUBCOMMANDS% "%SOLUTION%" "/target:%TARGET%" "/property:Configuration=%MSBUILD_CONFIGURATION%" "/property:Platform=%PLATFORM%" %LOGGING% %BUILD_ARGS% %MSBUILD_ARGS% %MSBUILD_ARGS_CFG%
+  %__ECHO% "%MSBUILD%" %BUILD_SUBCOMMANDS% "%SOLUTION%" "/target:%TARGET%" "/property:Configuration=%MSBUILD_CONFIGURATION%" "/property:Platform=%PLATFORM%" %LOGGING% %BUILD_ARGS% %MSBUILD_ARGS% %MSBUILD_ARGS_CFG%
 
   IF ERRORLEVEL 1 (
     ECHO Build failed.
@@ -408,6 +666,10 @@ IF NOT DEFINED NOBUILD (
   ECHO WARNING: Build skipped, disabled via NOBUILD environment variable.
 )
 
+REM ****************************************************************************
+REM **************************** Restore Directory *****************************
+REM ****************************************************************************
+
 %__ECHO2% POPD
 
 IF ERRORLEVEL 1 (
@@ -415,7 +677,15 @@ IF ERRORLEVEL 1 (
   GOTO errors
 )
 
+REM ****************************************************************************
+REM *********************************** Done ***********************************
+REM ****************************************************************************
+
 GOTO no_errors
+
+REM ****************************************************************************
+REM ****************** Epilogue / Functions / Return Handling ******************
+REM ****************************************************************************
 
 :fn_CheckFrameworkDir
   IF DEFINED NOFRAMEWORKDIR GOTO :EOF
@@ -524,11 +794,67 @@ GOTO no_errors
   %_AECHO% MSBuild directory "%MSBUILDDIR%" verified.
   GOTO :EOF
 
+:fn_CheckVisualStudioMsBuildDir
+  IF DEFINED NOVISUALSTUDIOMSBUILDDIR GOTO :EOF
+  SET MSBUILDVER=%1
+  SET VISUALSTUDIOVER=%2
+  %_AECHO% Checking for MSBuild "%MSBUILDVER%" within Visual Studio "%VISUALSTUDIOVER%"...
+  IF NOT DEFINED MSBUILDVER GOTO :EOF
+  IF NOT DEFINED VISUALSTUDIOVER GOTO :EOF
+  IF NOT DEFINED VSWHERE_EXE GOTO :EOF
+  IF NOT EXIST "%VSWHERE_EXE%" GOTO :EOF
+  SET VS_WHEREIS_CMD="%VSWHERE_EXE%" -version %VISUALSTUDIOVER% -products * -requires Microsoft.Component.MSBuild -property installationPath -latest
+  IF DEFINED __ECHO (
+    %__ECHO% %VS_WHEREIS_CMD%
+    SET VISUALSTUDIOINSTALLDIR=C:\Program Files\Microsoft Visual Studio\2017\Community
+    GOTO skip_visualStudioInstallDir
+  )
+  FOR /F "delims=" %%D IN ('%VS_WHEREIS_CMD%') DO (SET VISUALSTUDIOINSTALLDIR=%%D)
+  :skip_visualStudioInstallDir
+  IF NOT DEFINED VISUALSTUDIOINSTALLDIR (
+    %_AECHO% Visual Studio "%VISUALSTUDIOVER%" is not installed.
+    GOTO :EOF
+  )
+  %_AECHO% Visual Studio "%VISUALSTUDIOVER%" is installed.
+  SET VISUALSTUDIOMSBUILDDIR=%VISUALSTUDIOINSTALLDIR%\MSBuild\%MSBUILDVER%\bin
+  SET VISUALSTUDIOMSBUILDDIR=%VISUALSTUDIOMSBUILDDIR:\\=\%
+  CALL :fn_VerifyVisualStudioMsBuildDir
+  GOTO :EOF
+
+:fn_VerifyVisualStudioMsBuildDir
+  IF DEFINED NOVISUALSTUDIOMSBUILDDIR GOTO :EOF
+  IF NOT DEFINED VISUALSTUDIOMSBUILDDIR (
+    %_AECHO% Visual Studio directory is not defined.
+    GOTO :EOF
+  )
+  IF DEFINED VISUALSTUDIOMSBUILDDIR IF NOT EXIST "%VISUALSTUDIOMSBUILDDIR%" (
+    %_AECHO% Visual Studio directory does not exist, unsetting...
+    CALL :fn_UnsetVariable VISUALSTUDIOMSBUILDDIR
+    GOTO :EOF
+  )
+  IF DEFINED VISUALSTUDIOMSBUILDDIR IF NOT EXIST "%VISUALSTUDIOMSBUILDDIR%\%MSBUILD%" (
+    %_AECHO% File "%MSBUILD%" not in Visual Studio directory, unsetting...
+    CALL :fn_UnsetVariable VISUALSTUDIOMSBUILDDIR
+    GOTO :EOF
+  )
+  IF DEFINED VISUALSTUDIOMSBUILDDIR IF NOT EXIST "%VISUALSTUDIOMSBUILDDIR%\Roslyn\%CSC%" (
+    %_AECHO% File "%CSC%" not in Visual Studio directory, unsetting...
+    CALL :fn_UnsetVariable VISUALSTUDIOMSBUILDDIR
+    GOTO :EOF
+  )
+  %_AECHO% Visual Studio directory "%VISUALSTUDIOMSBUILDDIR%" verified.
+  GOTO :EOF
+
 :fn_CheckBuildToolDir
   %_AECHO% Checking for build tool directories...
+  IF DEFINED VISUALSTUDIOMSBUILDDIR GOTO set_visualstudio_msbuild_tools
   IF DEFINED MSBUILDDIR GOTO set_msbuild_tools
   IF DEFINED FRAMEWORKDIR GOTO set_framework_tools
   %_AECHO% No build tool directories found.
+  GOTO :EOF
+  :set_visualstudio_msbuild_tools
+  %_AECHO% Using Visual Studio MSBuild directory "%VISUALSTUDIOMSBUILDDIR%"...
+  CALL :fn_CopyVariable VISUALSTUDIOMSBUILDDIR BUILDTOOLDIR
   GOTO :EOF
   :set_msbuild_tools
   %_AECHO% Using MSBuild directory "%MSBUILDDIR%"...
@@ -554,12 +880,98 @@ GOTO no_errors
     CALL :fn_UnsetVariable BUILDTOOLDIR
     GOTO :EOF
   )
-  IF DEFINED BUILDTOOLDIR IF NOT EXIST "%BUILDTOOLDIR%\%CSC%" (
+  IF DEFINED BUILDTOOLDIR IF NOT EXIST "%BUILDTOOLDIR%\%CSC%" IF NOT EXIST "%BUILDTOOLDIR%\Roslyn\%CSC%" (
     %_AECHO% File "%CSC%" not in build tool directory, unsetting...
     CALL :fn_UnsetVariable BUILDTOOLDIR
     GOTO :EOF
   )
   %_AECHO% Build tool directory "%BUILDTOOLDIR%" verified.
+  GOTO :EOF
+
+:fn_VerifyDotNetCore
+  FOR %%T IN (%DOTNET%) DO (
+    SET %%T_PATH=%%~dp$PATH:T
+  )
+  IF NOT DEFINED %DOTNET%_PATH (
+    ECHO The .NET Core executable "%DOTNET%" is required to be in the PATH.
+    CALL :fn_SetErrorLevel
+    GOTO :EOF
+  )
+  GOTO :EOF
+
+:fn_SetupSolution
+  IF DEFINED SOLUTION (
+    %_AECHO% Building the specified project/solution only...
+    GOTO :EOF
+  )
+  IF DEFINED COREONLY (
+    %_AECHO% Building core managed project...
+    SET SOLUTION=.\System.Data.SQLite\System.Data.SQLite.%YEAR%.csproj
+    GOTO :EOF
+  )
+  IF DEFINED INTEROPONLY (
+    IF DEFINED STATICONLY (
+      %_AECHO% Building static core interop project...
+      FOR /F "delims=" %%F IN ('DIR /B /S ".\SQLite.Interop\SQLite.Interop.Static.%YEAR%.vc?proj" 2^> NUL') DO (
+        SET SOLUTION=%%F
+      )
+      IF NOT DEFINED SOLUTION (
+        ECHO Could not locate static core interop project for %YEAR%.
+        CALL :fn_SetErrorLevel
+      )
+      GOTO :EOF
+    ) ELSE (
+      %_AECHO% Building normal core interop project...
+      FOR /F "delims=" %%F IN ('DIR /B /S ".\SQLite.Interop\SQLite.Interop.%YEAR%.vc?proj" 2^> NUL') DO (
+        SET SOLUTION=%%F
+      )
+      IF NOT DEFINED SOLUTION (
+        ECHO Could not locate normal core interop project for %YEAR%.
+        CALL :fn_SetErrorLevel
+      )
+      GOTO :EOF
+    )
+  )
+  IF DEFINED BUILD_FULL (
+    %_AECHO% Building all projects...
+    SET SOLUTION=.\SQLite.NET.%YEAR%.sln
+    GOTO :EOF
+  )
+  %_AECHO% Building all projects...
+  SET SOLUTION=.\SQLite.NET.%YEAR%.MSBuild.sln
+  GOTO :EOF
+
+:fn_SetupTarget
+  IF NOT DEFINED TARGET (
+    SET TARGET=Rebuild
+  )
+  GOTO :EOF
+
+:fn_SetupLogging
+  IF NOT DEFINED TEMP (
+    ECHO The TEMP environment variable must be set first.
+    CALL :fn_SetErrorLevel
+    GOTO :EOF
+  )
+  IF NOT DEFINED LOGASM (
+    IF DEFINED USEDOTNET (
+      SET LOGASM=Microsoft.Build
+    ) ELSE (
+      SET LOGASM=Microsoft.Build.Engine
+    )
+  )
+  IF NOT DEFINED LOGDIR (
+    SET LOGDIR=%TEMP%
+  )
+  IF NOT DEFINED LOGPREFIX (
+    SET LOGPREFIX=System.Data.SQLite.Build
+  )
+  IF NOT DEFINED LOGSUFFIX (
+    SET LOGSUFFIX=Unknown
+  )
+  IF DEFINED LOGGING GOTO :EOF
+  IF DEFINED NOLOG GOTO :EOF
+  SET LOGGING="/logger:FileLogger,%LOGASM%;Logfile=%LOGDIR%\%LOGPREFIX%_%CONFIGURATION%_%PLATFORM%_%YEAR%_%LOGSUFFIX%.log;Verbosity=diagnostic"
   GOTO :EOF
 
 :fn_UnquoteVariable
@@ -572,6 +984,18 @@ GOTO no_errors
   SET VALUE=%VALUE:"=%
   REM "
   ENDLOCAL && SET %1=%VALUE%
+  GOTO :EOF
+
+:fn_PrependToPath
+  IF NOT DEFINED %1 GOTO :EOF
+  SETLOCAL
+  SET __ECHO_CMD=ECHO %%%1%%
+  FOR /F "delims=" %%V IN ('%__ECHO_CMD%') DO (
+    SET VALUE=%%V
+  )
+  SET VALUE=%VALUE:"=%
+  REM "
+  ENDLOCAL && SET PATH=%VALUE%;%PATH%
   GOTO :EOF
 
 :fn_CopyVariable

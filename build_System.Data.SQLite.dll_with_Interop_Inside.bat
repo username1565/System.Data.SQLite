@@ -5,6 +5,8 @@ set fdir=%WINDIR%\Microsoft.NET\Framework
 set msbuild=%fdir%\v4.0.30319\msbuild.exe
 
 ::	Build System.Data.SQLite.dll without SQLite.Interop.dll
+::		This file can compile dll from minimal source.
+::		This minimal source is a just 4 folders: "Keys", "SQLite.Interop", "System.Data.SQLite", and "Targets"-folder, with this file near this folders.
 
 ::%msbuild% System.Data.SQLite\System.Data.SQLite.2010.csproj
 :: out file: \sqlite-netFx-source-1.0.113.0\bin\2010\Debug\bin\System.Data.SQLite.dll not contains "SQLite.Interop.dll"

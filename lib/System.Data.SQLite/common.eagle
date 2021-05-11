@@ -37,9 +37,48 @@ namespace eval ::Eagle {
       }
     }
 
+    proc getSQLiteCompileOptionPrefix {} {
+      #
+      # NOTE: See if the compile option prefix setting has been overridden
+      #       by the user (e.g. on the command line).
+      #
+      if {[info exists ::compile_option_prefix] && \
+          [string length $::compile_option_prefix] > 0} then {
+        #
+        # NOTE: Use the specified compile option prefix.
+        #
+        return $::compile_option_prefix
+      } else {
+        #
+        # NOTE: Use the default compile option prefix.
+        #
+        return compileOption.SQLite.
+      }
+    }
+
     proc haveSQLiteDefineConstant { name } {
       return [haveConstraint \
           [appendArgs [getSQLiteDefineConstantPrefix] $name]]
+    }
+
+    proc haveSQLiteCompileOption { name } {
+      return [haveConstraint \
+          [appendArgs [getSQLiteCompileOptionPrefix] $name]]
+    }
+
+    proc getBuildNative {} {
+      #
+      # NOTE: Check if we are being forced to treat this as a native build.
+      #       This is normally done (automatically) only when the mixed-mode
+      #       assembly is in use; however, in some circumstances it is useful
+      #       to force this behavior.
+      #
+      if {[info exists ::test_native] && \
+          [string is boolean -strict $::test_native]} then {
+        return $::test_native
+      } else {
+        return false
+      }
     }
 
     proc getBuildYear {} {
@@ -47,9 +86,9 @@ namespace eval ::Eagle {
       # NOTE: See if the "year" setting has been overridden by the user (e.g.
       #       on the command line).  This helps control exactly which set of
       #       binaries we are testing, those produced using the Visual Studio
-      #       2005, 2008, 2010, 2012, 2013, or 2015 build systems.  To override
-      #       this value via the command line, enter a command similar to one
-      #       of the following (all on one line):
+      #       2005, 2008, 2010, 2012, 2013, 2015, or 2017 build systems.  To
+      #       override this value via the command line, enter a command similar
+      #       to one of the following (all on one line):
       #
       #       EagleShell.exe -anyInitialize "set test_year 2005"
       #         -file .\path\to\all.eagle
@@ -69,6 +108,9 @@ namespace eval ::Eagle {
       #       EagleShell.exe -anyInitialize "set test_year 2015"
       #         -file .\path\to\all.eagle
       #
+      #       EagleShell.exe -anyInitialize "set test_year 2017"
+      #         -file .\path\to\all.eagle
+      #
       #       EagleShell.exe -anyInitialize "unset -nocomplain test_year"
       #         -file .\path\to\all.eagle
       #
@@ -82,9 +124,9 @@ namespace eval ::Eagle {
       } else {
         #
         # NOTE: If Eagle has been compiled against the CLR v4.0, use "2010" by
-        #       default (we could use "2012", "2013", or "2015" in that case as
-        #       well) as the test year; otherwise, use "2008" by default (we
-        #       could use "2005" in that case as well).  If another major
+        #       default (we could use "2012", "2013", "2015", or "2017" in that
+        #       case as well) as the test year; otherwise, use "2008" by default
+        #       (we could use "2005" in that case as well).  If another major
         #       [incompatible] version of the CLR is released, this check will
         #       have to be changed.  The default test year to use for a
         #       particular CLR version may be overridden by setting the global
@@ -118,6 +160,57 @@ namespace eval ::Eagle {
             return 2008; # TODO: Good "fallback" default?
           }
         }
+      }
+    }
+
+    proc getBuildNativeYear {} {
+      if {[info exists ::test_native_year] && \
+          [string length $::test_native_year] > 0} then {
+        #
+        # NOTE: Use the specified test year for native binaries.  If this
+        #       variable is not set, the value returned by [getBuildYear]
+        #       will be used.
+        #
+        return $::test_native_year
+      } else {
+        #
+        # NOTE: Fallback on the (normal) build year for managed binaries.
+        #
+        return [getBuildYear]
+      }
+    }
+
+    proc getBuildNativeYearForDotNetCore { year } {
+      if {[isDotNetCore] && [isWindows]} then {
+        return 2015; # HACK: Special case, use 2015 native binaries.
+      } elseif {[string length $year] > 0} then {
+        return $year
+      } else {
+        return [getBuildNativeYear]
+      }
+    }
+
+    proc getBuildYears {} {
+      #
+      # NOTE: See if the list of test years has been overridden by the user
+      #       (e.g. on the command line).
+      #
+      if {[info exists ::test_years] && [llength $::test_years] > 0} then {
+        #
+        # NOTE: Use the specified list of test years.
+        #
+        return $::test_years
+      } elseif {[isDotNetCore]} then {
+        #
+        # NOTE: Running on .NET Core, prioritize its list of test years.
+        #
+        return [list NetStandard20 NetStandard21]
+      } else {
+        #
+        # NOTE: Use the default list of test years (i.e. all).
+        #
+        return [list \
+            2005 2008 2010 2012 2013 2015 2017 NetStandard20 NetStandard21]
       }
     }
 
@@ -172,24 +265,6 @@ namespace eval ::Eagle {
       }
     }
 
-    proc getBuildYears {} {
-      #
-      # NOTE: See if the list of test years has been overridden by the user
-      #       (e.g. on the command line).
-      #
-      if {[info exists ::test_years] && [llength $::test_years] > 0} then {
-        #
-        # NOTE: Use the specified list of test years.
-        #
-        return $::test_years
-      } else {
-        #
-        # NOTE: Use the default list of test years (i.e. all).
-        #
-        return [list 2005 2008 2010 2012 2013 2015]
-      }
-    }
-
     proc getBuildNetFx {} {
       #
       # NOTE: See if the test .NET Framework setting has been overridden by
@@ -235,7 +310,16 @@ namespace eval ::Eagle {
               return netFx451; # TODO: Or "netFx452"?
             }
             2015 {
-              return netFx46; # TODO: Or "netFx461"?
+              return netFx46; # TODO: Or "netFx461" / "netFx462"?
+            }
+            2017 {
+              return netFx47; # TODO: Or "netFx471" / "netFx472"?
+            }
+            NetStandard20 {
+              return netStandard20
+            }
+            NetStandard21 {
+              return netStandard21
             }
             default {
               return netFx35; # TODO: Good "fallback" default?
@@ -249,7 +333,7 @@ namespace eval ::Eagle {
     # NOTE: This procedure should return non-zero if the configured test
     #       platform is most likely the default for this machine.
     #
-    proc isDefaultBuildPlatform { {verbose false} } {
+    proc isDefaultBuildPlatform { {verbose true} } {
       #
       # NOTE: Running on WoW64 is never the default platform.
       #
@@ -258,6 +342,7 @@ namespace eval ::Eagle {
           tputs $::test_channel \
               "---- detected non-default platform (WoW64)\n"
         }
+
         return false
       }
 
@@ -267,6 +352,7 @@ namespace eval ::Eagle {
       if {$verbose} then {
         tputs $::test_channel "---- detected default platform\n"
       }
+
       return true
     }
 
@@ -274,8 +360,10 @@ namespace eval ::Eagle {
       if {[info exists ::test_platform] && \
           [string length $::test_platform] > 0} then {
         #
-        # NOTE: Use the specified test platform.  If this variable is not set,
-        #       the default value will be based on the machine architecture.
+        # NOTE: Possibly use the specified test platform.  If this variable
+        #       is not set, the default value will be based on the machine
+        #       architecture.  Normally, this is done for builds that involve
+        #       the mixed-mode assembly.
         #
         return [expr {$native ? $::test_platform : ""}]
       } elseif {[info exists ::test_machine] && \
@@ -283,7 +371,8 @@ namespace eval ::Eagle {
         #
         # NOTE: For native builds, return the platform name corresponding to
         #       the test machine architecture; otherwise, return an empty
-        #       string.
+        #       string.  Normally, this is done for builds that involve the
+        #       mixed-mode assembly.
         #
         return [expr {
           $native ? [machineToPlatform $::test_machine] : ""
@@ -292,6 +381,8 @@ namespace eval ::Eagle {
         #
         # NOTE: For native builds, return the platform name corresponding to
         #       the machine architecture; otherwise, return an empty string.
+        #       Normally, this is done for builds that involve the mixed-mode
+        #       assembly.
         #
         return [expr {
           $native ? [machineToPlatform $::tcl_platform(machine)] : ""
@@ -359,6 +450,169 @@ namespace eval ::Eagle {
         # NOTE: Use the default list of test configurations.
         #
         return [list Debug Release]
+      }
+    }
+
+    proc getBuildConfigurationSuffix {} {
+      #
+      # NOTE: See if the test configuration suffix has been overridden by
+      #       the user (e.g. on the command line).
+      #
+      if {[info exists ::test_configuration_suffix] && \
+          [string length $::test_configuration_suffix] > 0} then {
+        #
+        # NOTE: Use the specified test configuration suffix.
+        #
+        return $::test_configuration_suffix
+      } else {
+        #
+        # NOTE: Use the default test configuration suffix, which should be
+        #       an empty string.
+        #
+        return ""
+      }
+    }
+
+    proc getBuildNativeConfigurationSuffix {} {
+      #
+      # NOTE: See if the test native configuration suffix has been
+      #       overridden by the user (e.g. on the command line).
+      #
+      if {[info exists ::test_native_configuration_suffix] && \
+          [string length $::test_native_configuration_suffix] > 0} then {
+        #
+        # NOTE: Use the specified test native configuration suffix.
+        #
+        return $::test_native_configuration_suffix
+      } else {
+        #
+        # NOTE: Use the default test native configuration suffix, which
+        #       should be an empty string.
+        #
+        return ""
+      }
+    }
+
+    proc getBuildNativeConfigurationSuffixForDotNetCore { suffix } {
+      if {[isDotNetCore] && [isWindows]} then {
+        return NativeOnly; # HACK: Special case, use 2015 native binaries.
+      } elseif {[string length $suffix] > 0} then {
+        return $suffix
+      } else {
+        return [getBuildNativeConfigurationSuffix]
+      }
+    }
+
+    proc getBuildNativeExtraForDotNetCore { extra } {
+      if {[isDotNetCore] && [isWindows]} then {
+        return ""
+      } elseif {[string length $extra] > 0} then {
+        return $extra
+      } else {
+        return [getBuildNativeExtra]
+      }
+    }
+
+    proc getBuildConfigurationSuffixes {} {
+      #
+      # NOTE: See if the list of test configuration suffixes has been
+      #       overridden by the user (e.g. on the command line).
+      #
+      if {[info exists ::test_configuration_suffixes] && \
+          [llength $::test_configuration_suffixes] > 0} then {
+        #
+        # NOTE: Use the specified list of test configurations suffixes.
+        #
+        return $::test_configuration_suffixes
+      } elseif {[isDotNetCore]} then {
+        #
+        # NOTE: Running on .NET Core, prioritize its test configuration
+        #       suffixes for library files.
+        #
+        return [list NetStandard20 NetStandard21 ""]
+      } else {
+        #
+        # NOTE: Use the default list of test configurations suffixes.
+        #
+        return [list ""]
+      }
+    }
+
+    proc getBuildExtra {} {
+      if {[info exists ::test_extra] && \
+          [string length $::test_extra] > 0} then {
+        #
+        # NOTE: Use the specified extra output directory.
+        #
+        return $::test_extra
+      } elseif {[isDotNetCore]} then {
+        #
+        # NOTE: Running on .NET Core, use the extra output directory for
+        #       library files.
+        #
+        return netstandard2.0
+      } else {
+        #
+        # NOTE: No extra output directory is required.
+        #
+        return ""
+      }
+    }
+
+    proc getBuildExtras {} {
+      #
+      # NOTE: See if the list of extra output directories has been overridden
+      #       by the user (e.g. on the command line).
+      #
+      if {[info exists ::test_extras] && \
+          [llength $::test_extras] > 0} then {
+        #
+        # NOTE: Use the specified list of extra output directories.
+        #
+        return $::test_extras
+      } elseif {[isDotNetCore]} then {
+        #
+        # NOTE: Running on .NET Core, prioritize its extra output directory
+        #       for library files.
+        #
+        return [list netstandard2.0 netstandard2.1 ""]
+      } else {
+        #
+        # NOTE: Use default list of extra output directories, which is one
+        #       empty string (no-op).
+        #
+        return [list ""]
+      }
+    }
+
+    proc getBuildNativeExtra {} {
+      if {[info exists ::test_native_extra] && \
+          [string length $::test_native_extra] > 0} then {
+        #
+        # NOTE: Use the specified native extra output directory.
+        #
+        return $::test_native_extra
+      } else {
+        #
+        # NOTE: No native extra output directory is required.
+        #
+        return ""
+      }
+    }
+
+    proc getBuildNativeExtras {} {
+      if {[info exists ::test_native_extras] && \
+          [llength $::test_native_extras] > 0} then {
+        #
+        # NOTE: Use the specified list of native extra output directories.
+        #
+        return $::test_native_extras
+      } else {
+        #
+        # NOTE: Use default list of native extra output directories, which
+        #       is none.
+        #
+        return [list]
       }
     }
 
@@ -503,6 +757,12 @@ namespace eval ::Eagle {
       return false
     }
 
+    proc isDarwin {} {
+      return [expr {
+        [info exists ::tcl_platform(os)] && $::tcl_platform(os) eq "Darwin"
+      }]
+    }
+
     proc getNativeLibraryFileNamesOnly {} {
       #
       # NOTE: First, check if the list of native library file names has been
@@ -517,17 +777,30 @@ namespace eval ::Eagle {
         return $::native_library_file_names
       } elseif {[isWindows]} then {
         #
-        # NOTE: Otherwise, on Windows, always use the default file name
-        #       "sqlite3.dll".
+        # NOTE: Otherwise, on Win32, always use the standard native library
+        #       file name "sqlite3.dll".
         #
         return [list sqlite3.dll]
+      } elseif {[isDotNetCore]} then {
+        #
+        #       When running on .NET Core, return the same native library
+        #       file name that is used on Windows (i.e. otherwise, assume
+        #       we are running on Mono and use its P/Invoke conventions).
+        #
+        return [list sqlite3.dll]
+      } elseif {[isDarwin]} then {
+        #
+        # NOTE: When running on Darwin (i.e. the kernel of iOS / Mac OS X),
+        #       return the Mac OS X native library file name.  This file
+        #       name is normally required for Mono.
+        #
+        return [list libsqlite3.dylib]
       } else {
         #
-        # NOTE: Otherwise, return both the generic POSIX file name and the
-        #       Mac OS X file name, since we do not currently have an easy
-        #       way to detect which of those platforms we are running on.
+        # NOTE: Otherwise, return the generic POSIX native library file
+        #       name.  This file name is normally required for Mono.
         #
-        return [list libsqlite3.dylib libsqlite3.so]
+        return [list libsqlite3.so]
       }
     }
 
@@ -545,17 +818,30 @@ namespace eval ::Eagle {
         return $::interop_assembly_file_names
       } elseif {[isWindows]} then {
         #
-        # NOTE: Otherwise, on Windows, always use the default file name
-        #       "SQLite.Interop.dll".
+        # NOTE: Otherwise, on Win32, always use the interop assembly file
+        #       name "SQLite.Interop.dll".
         #
         return [list SQLite.Interop.dll]
+      } elseif {[isDotNetCore]} then {
+        #
+        #       When running on .NET Core, return the same interp assembly
+        #       file name that is used on Windows (i.e. otherwise, assume
+        #       we are running on Mono and use its P/Invoke conventions).
+        #
+        return [list SQLite.Interop.dll]
+      } elseif {[isDarwin]} then {
+        #
+        # NOTE: When running on Darwin (i.e. the kernel of iOS / Mac OS X),
+        #       return the Mac OS X interp assembly file name.  This file
+        #       name is normally required for Mono.
+        #
+        return [list libSQLite.Interop.dylib]
       } else {
         #
-        # NOTE: Otherwise, return both the generic POSIX file name and the
-        #       Mac OS X file name, since we do not currently have an easy
-        #       way to detect which of those platforms we are running on.
+        # NOTE: Otherwise, return the generic POSIX interp assembly file
+        #       name.  This file name is normally required for Mono.
         #
-        return [list libSQLite.Interop.dylib libSQLite.Interop.so]
+        return [list libSQLite.Interop.so]
       }
     }
 
@@ -569,7 +855,7 @@ namespace eval ::Eagle {
       return $default
     }
 
-    proc isBuildAvailable { native directory {varName ""} } {
+    proc isBuildAvailable { native skipNative directory {varName ""} } {
       #
       # NOTE: Build the fully qualified file name for the primary assembly
       #       containing the System.Data.SQLite managed components.  It
@@ -581,6 +867,14 @@ namespace eval ::Eagle {
 
       if {![file exists $fileName]} then {
         return false
+      }
+
+      #
+      # NOTE: If we are skipping looking for the native components, stop
+      #       now.
+      #
+      if {$skipNative} then {
+        return true
       }
 
       #
@@ -601,6 +895,14 @@ namespace eval ::Eagle {
       #
       if {$native} then {
         return true
+      }
+
+      #
+      # NOTE: If the machine name is unavailable, there is nothing else we
+      #       can do.
+      #
+      if {![info exists ::tcl_platform(machine)]} then {
+        return false
       }
 
       #
@@ -681,22 +983,22 @@ namespace eval ::Eagle {
         upvar 1 $varName $varName
       }
 
-      return [isBuildAvailable "" $directory $varName]
+      return [isBuildAvailable "" false $directory $varName]
     }
 
-    proc joinBuildDirectory { native path year platform configuration } {
+    proc joinBuildDirectory { native path year platform configuration extra } {
       #
       # NOTE: Figure out and then return the fully qualified path to the build
       #       directory based on all the arguments provided by our caller.
       #
       if {$native} then {
-        return [file join $path bin $year $platform $configuration]
+        return [file join $path bin $year $platform $configuration $extra]
       } else {
-        return [file join $path bin $year $configuration bin]
+        return [file join $path bin $year $configuration bin $extra]
       }
     }
 
-    proc getBuildDirectory {} {
+    proc getBuildDirectory { managedOnly } {
       #
       # NOTE: See if the "native" runtime option has been set.  If so, use the
       #       directory for the mixed-mode assembly (a.k.a. the native interop
@@ -762,10 +1064,16 @@ namespace eval ::Eagle {
         #       Refer to the comments in [getBuildYear] for more information on
         #       how to set this variable.
         #
-        set native [hasRuntimeOption native]
+        set native [expr {
+          !$managedOnly && ([getBuildNative] || [hasRuntimeOption native])
+        }]
 
         return [joinBuildDirectory $native [getBuildBaseDirectory] \
-            [getBuildYear] [getBuildPlatform $native] [getBuildConfiguration]]
+            [expr {$managedOnly ? [getBuildYear] : [getBuildNativeYear]}] \
+            [getBuildPlatform $native] [appendArgs [getBuildConfiguration] \
+            [expr {$managedOnly ? [getBuildConfigurationSuffix] : \
+            [getBuildNativeConfigurationSuffix]}]] [expr {$managedOnly ? \
+            [getBuildExtra] : [getBuildNativeExtra]}]]
       }
     }
 
@@ -791,14 +1099,15 @@ namespace eval ::Eagle {
       }
     }
 
-    proc getBuildFileName { fileName {platform ""} } {
+    proc getBuildFileName { fileName managedOnly {platform ""} } {
       #
       # NOTE: Returns the specified file name as if it were located in the
       #       build directory, discarding any directory information present
       #       in the file name as provided by our caller.
       #
       set result [file nativename \
-          [file join [getBuildDirectory] $platform [file tail $fileName]]]
+          [file join [getBuildDirectory $managedOnly] $platform \
+          [file tail $fileName]]]
 
       #
       # HACK: When running on WoW64, assume the test executables are present
@@ -816,7 +1125,8 @@ namespace eval ::Eagle {
       # NOTE: This procedure returns the directory where the external binary
       #       files are located.
       #
-      return [file nativename [file dirname [file dirname [info binary]]]]
+      return [file nativename \
+          [file dirname [file dirname [file dirname [info binary]]]]]
     }
 
     proc getBinaryDirectory {} {
@@ -1070,6 +1380,10 @@ namespace eval ::Eagle {
       }
     }
 
+    proc getStringMapForTclEscape {} {
+      return [list \\ \\\\ \[ \\\[ \] \\\] \$ \\\$]
+    }
+
     proc getTestOverridesPreamble { {extraVarNames ""} } {
       set varNames [list]
 
@@ -1111,7 +1425,8 @@ namespace eval ::Eagle {
           # NOTE: Append a script fragment to the result that will correctly
           #       copy any contained value to another interpreter context.
           #
-          append result \n "set " $fullVarName " \{" [set $fullVarName] \}
+          append result \n "set " $fullVarName " \{" [string map \
+              [getStringMapForTclEscape] [set $fullVarName]] \}
         }
       }
 
@@ -1126,15 +1441,16 @@ namespace eval ::Eagle {
       return $result
     }
 
-    proc moveSystemDataSQLiteDllConfig { {restore false} {verbose false} } {
-      set directory [object invoke AppDomain CurrentDomain.BaseDirectory]
+    proc moveSystemDataSQLiteDllConfig { {restore false} {verbose true} } {
+      set directory [getBinaryDirectory]
 
       if {[string length $directory] == 0} then {
         if {$verbose} then {
           tputs $::test_channel [appendArgs \
               "---- skipped moving \"System.Data.SQLite.dll.config\", " \
-              "no base directory\n"]
+              "no binary directory\n"]
         }
+
         return
       }
 
@@ -1176,6 +1492,111 @@ namespace eval ::Eagle {
           }
         }
       }
+    }
+
+    proc writeSystemDataSQLiteDllConfig { data {verbose true} } {
+      set directory [getBinaryDirectory]
+
+      if {[string length $directory] == 0} then {
+        if {$verbose} then {
+          tputs $::test_channel [appendArgs \
+              "---- skipped moving \"System.Data.SQLite.dll.config\", " \
+              "no binary directory\n"]
+        }
+
+        return
+      }
+
+      set fileName [file normalize \
+          [file join $directory System.Data.SQLite.dll.config]]
+
+      writeFile $fileName $data
+
+      if {$verbose} then {
+        tputs $::test_channel \
+            "---- wrote \"System.Data.SQLite.dll.config\"\n"
+      }
+
+      return $fileName
+    }
+
+    proc moveEagleShellMdaConfig { {restore false} {verbose true} } {
+      set directory [getBinaryDirectory]
+
+      if {[string length $directory] == 0} then {
+        if {$verbose} then {
+          tputs $::test_channel [appendArgs \
+              "---- skipped moving \"EagleShell.exe.mda.config\", " \
+              "no binary directory\n"]
+        }
+
+        return
+      }
+
+      set fileName(1) [file normalize \
+          [file join $directory EagleShell.exe.mda.config]]
+
+      set fileName(2) [appendArgs $fileName(1) .moved]
+
+      if {$restore} then {
+        if {[file exists $fileName(2)]} then {
+          file rename $fileName(2) $fileName(1)
+
+          if {$verbose} then {
+            tputs $::test_channel [appendArgs \
+                "---- moved \"" $fileName(2) "\" to \"" \
+                $fileName(1) \"\n]
+          }
+        } else {
+          if {$verbose} then {
+            tputs $::test_channel [appendArgs \
+                "---- skipped moving \"" $fileName(2) \
+                "\", it does not exist\n"]
+          }
+        }
+      } else {
+        if {[file exists $fileName(1)]} then {
+          file rename $fileName(1) $fileName(2)
+
+          if {$verbose} then {
+            tputs $::test_channel [appendArgs \
+                "---- moved \"" $fileName(1) "\" to \"" \
+                $fileName(2) \"\n]
+          }
+        } else {
+          if {$verbose} then {
+            tputs $::test_channel [appendArgs \
+                "---- skipped moving \"" $fileName(1) \
+                "\", it does not exist\n"]
+          }
+        }
+      }
+    }
+
+    proc writeEagleShellMdaConfig { data {verbose true} } {
+      set directory [getBinaryDirectory]
+
+      if {[string length $directory] == 0} then {
+        if {$verbose} then {
+          tputs $::test_channel [appendArgs \
+              "---- skipped moving \"EagleShell.exe.mda.config\", " \
+              "no binary directory\n"]
+        }
+
+        return
+      }
+
+      set fileName [file normalize \
+          [file join $directory EagleShell.exe.mda.config]]
+
+      writeFile $fileName $data
+
+      if {$verbose} then {
+        tputs $::test_channel \
+            "---- wrote \"EagleShell.exe.mda.config\"\n"
+      }
+
+      return $fileName
     }
 
     proc getAppDomainPreamble { {prefix ""} {suffix ""} } {
@@ -1221,7 +1642,7 @@ namespace eval ::Eagle {
     }
 
     proc tryCopyExternalFile {
-            fileName {platform ""} {newFileName ""} {verbose false} } {
+            fileName {platform ""} {newFileName ""} {verbose true} } {
       set sourceFileName [getExternalFileName $fileName]
 
       if {![file exists $sourceFileName]} then {
@@ -1230,6 +1651,7 @@ namespace eval ::Eagle {
               "---- skipped copying external file \"" $sourceFileName \
               "\", it does not exist\n"]
         }
+
         return
       }
 
@@ -1245,6 +1667,7 @@ namespace eval ::Eagle {
         if {![file exists $targetDirectory]} then {
           file mkdir $targetDirectory
         }
+
         file copy -force $sourceFileName $targetFileName
       }] == 0} then {
         tputs $::test_channel [appendArgs \
@@ -1258,7 +1681,8 @@ namespace eval ::Eagle {
     }
 
     proc tryCopyBinaryFile {
-            fileName {platform ""} {newFileName ""} {verbose false} } {
+            fileName managedOnly {platform ""} {newFileName ""}
+            {verbose true} } {
       set sourceFileName [getBinaryFileName $fileName $platform]
 
       if {![file exists $sourceFileName]} then {
@@ -1267,13 +1691,16 @@ namespace eval ::Eagle {
               "---- skipped copying binary file \"" $sourceFileName \
               "\", it does not exist\n"]
         }
+
         return
       }
 
       if {[string length $newFileName] > 0} then {
-        set targetFileName [getBuildFileName $newFileName $platform]
+        set targetFileName [getBuildFileName \
+            $newFileName $managedOnly $platform]
       } else {
-        set targetFileName [getBuildFileName $fileName $platform]
+        set targetFileName [getBuildFileName \
+            $fileName $managedOnly $platform]
       }
 
       set targetDirectory [file dirname $targetFileName]
@@ -1282,6 +1709,7 @@ namespace eval ::Eagle {
         if {![file exists $targetDirectory]} then {
           file mkdir $targetDirectory
         }
+
         file copy -force $sourceFileName $targetFileName
       }] == 0} then {
         tputs $::test_channel [appendArgs \
@@ -1295,8 +1723,9 @@ namespace eval ::Eagle {
     }
 
     proc tryCopyBuildFile {
-            fileName {platform ""} {newFileName ""} {verbose false} } {
-      set sourceFileName [getBuildFileName $fileName $platform]
+            fileName managedOnly {platform ""} {newFileName ""}
+            {verbose true} } {
+      set sourceFileName [getBuildFileName $fileName $managedOnly $platform]
 
       if {![file exists $sourceFileName]} then {
         if {$verbose} then {
@@ -1304,6 +1733,7 @@ namespace eval ::Eagle {
               "---- skipped copying build file \"" $sourceFileName \
               "\", it does not exist\n"]
         }
+
         return
       }
 
@@ -1319,6 +1749,7 @@ namespace eval ::Eagle {
         if {![file exists $targetDirectory]} then {
           file mkdir $targetDirectory
         }
+
         file copy -force $sourceFileName $targetFileName
       }] == 0} then {
         tputs $::test_channel [appendArgs \
@@ -1331,7 +1762,7 @@ namespace eval ::Eagle {
       }
     }
 
-    proc tryDeleteBinaryFile { fileName {platform ""} {verbose false} } {
+    proc tryDeleteBinaryFile { fileName {platform ""} {verbose true} } {
       set fileName [getBinaryFileName $fileName $platform]
 
       if {![file exists $fileName]} then {
@@ -1340,6 +1771,7 @@ namespace eval ::Eagle {
               "---- skipped deleting binary file \"" $fileName \
               "\", it does not exist\n"]
         }
+
         return
       }
 
@@ -1352,8 +1784,9 @@ namespace eval ::Eagle {
       }
     }
 
-    proc tryDeleteBuildFile { fileName {platform ""} {verbose false} } {
-      set fileName [getBuildFileName $fileName $platform]
+    proc tryDeleteBuildFile {
+            fileName managedOnly {platform ""} {verbose true} } {
+      set fileName [getBuildFileName $fileName $managedOnly $platform]
 
       if {![file exists $fileName]} then {
         if {$verbose} then {
@@ -1361,6 +1794,7 @@ namespace eval ::Eagle {
               "---- skipped deleting build file \"" $fileName \
               "\", it does not exist\n"]
         }
+
         return
       }
 
@@ -1374,17 +1808,17 @@ namespace eval ::Eagle {
     }
 
     proc tryCopyAssembly {
-            fileName {platform ""} {pdb true} {verbose false} } {
-      tryCopyBuildFile $fileName $platform "" $verbose
+            fileName managedOnly {platform ""} {pdb true} {verbose true} } {
+      tryCopyBuildFile $fileName $managedOnly $platform "" $verbose
 
       if {$pdb} then {
         tryCopyBuildFile [appendArgs \
-            [file rootname $fileName] .pdb] $platform "" $verbose
+            [file rootname $fileName] .pdb] $managedOnly $platform "" $verbose
       }
     }
 
     proc tryDeleteAssembly {
-            fileName {platform ""} {pdb true} {verbose false} } {
+            fileName {platform ""} {pdb true} {verbose true} } {
       tryDeleteBinaryFile $fileName $platform $verbose
 
       if {$pdb} then {
@@ -1446,6 +1880,14 @@ namespace eval ::Eagle {
       }
 
       #
+      # NOTE: If the machine name is unavailable, there is nothing else we
+      #       can do.
+      #
+      if {![info exists ::tcl_platform(machine)]} then {
+        return false
+      }
+
+      #
       # NOTE: Does the specified platform match up to the current process?
       #
       if {$platform eq [machineToPlatform $::tcl_platform(machine)]} then {
@@ -1494,6 +1936,7 @@ namespace eval ::Eagle {
               INTEROP_EXTENSION_FUNCTIONS INTEROP_FTS5_EXTENSION \
               INTEROP_JSON1_EXTENSION INTEROP_PERCENTILE_EXTENSION \
               INTEROP_REGEXP_EXTENSION INTEROP_TEST_EXTENSION \
+              INTEROP_SESSION_EXTENSION INTEROP_SHA1_EXTENSION \
               INTEROP_TOTYPE_EXTENSION INTEROP_VIRTUAL_TABLE \
               USE_INTEROP_DLL] {
             addConstraint [appendArgs \
@@ -1536,66 +1979,93 @@ namespace eval ::Eagle {
       foreach native [list false true] {
         foreach year [getBuildYears] {
           foreach configuration [getBuildConfigurations] {
-            #
-            # NOTE: Figure out the effective build platform.  This is
-            #       based on whether or not a [primarily] native build
-            #       is being used.  For [primarily] non-native builds,
-            #       this will be an empty string.
-            #
-            set platform [getBuildPlatform $native]
-
-            tputs $channel [appendArgs \
-                "---- checking for System.Data.SQLite build \"" [expr \
-                {$native ? "native/" : ""}] [expr {[string length \
-                $platform] > 0 ? [appendArgs $platform /] : ""}] $year \
-                / $configuration "\"... "]
-
-            #
-            # NOTE: Build the fully qualified directory where the necessary
-            #       components for System.Data.SQLite should be found.
-            #
-            set directory [joinBuildDirectory $native \
-                [getBuildBaseDirectory] $year $platform $configuration]
-
-            #
-            # NOTE: Do the necessary files exist?  Currently, no other steps
-            #       are taken to verify this build is actually viable.
-            #
-            if {[isBuildAvailable $native $directory]} then {
-              #
-              # NOTE: When in "select" mode, automatically select the first
-              #       available build of System.Data.SQLite and then return
-              #       immediately.
-              #
-              if {$select && [matchPlatform $platform]} then {
+            foreach suffix [getBuildConfigurationSuffixes] {
+              foreach extra [getBuildExtras] {
                 #
-                # NOTE: Manually override all the build directory selection
-                #       related test settings in order to force this build
-                #       of System.Data.SQLite to be used.
+                # NOTE: Figure out the effective build platform.  This is
+                #       based on whether or not a [primarily] native build
+                #       is being used.  For [primarily] non-native builds,
+                #       this will be an empty string.
                 #
-                if {![changeNativeRuntimeOption $native]} then {
-                  tputs $channel [appendArgs \
-                      "no, failed to " [expr {$native ? "add" : "remove"}] \
-                      " the \"native\" runtime option\n"]
+                set platform [getBuildPlatform $native]
 
-                  return false
-                }
-
-                set ::test_year $year
-                set ::test_platform $platform
-                set ::test_configuration $configuration
+                #
+                # NOTE: Build the fully qualified directory where the
+                #       necessary components for System.Data.SQLite should
+                #       be found.
+                #
+                set directory [joinBuildDirectory $native \
+                    [getBuildBaseDirectory] $year $platform [appendArgs \
+                    $configuration $suffix] $extra]
 
                 tputs $channel [appendArgs \
-                    "yes, selected (" [expr {$native ? "native/" : ""}] \
-                    [expr {[string length $platform] > 0 ? [appendArgs \
-                    $platform /] : ""}] $year / $configuration ")\n"]
+                    "---- checking for System.Data.SQLite build \"" [expr \
+                    {$native ? "native/" : ""}] [expr {[string length \
+                    $platform] > 0 ? [appendArgs $platform /] : ""}] \
+                    $year / [appendArgs $configuration $suffix] "\"... "]
 
-                return true
-              } else {
-                tputs $channel yes\n
+                #
+                # NOTE: Do the necessary files exist?  Currently, no other
+                #       steps are taken to verify this build is actually
+                #       viable.
+                #
+                set skipNative [expr {[isDotNetCore] && [isWindows]}]
+
+                if {[isBuildAvailable $native $skipNative $directory]} then {
+                  #
+                  # NOTE: When in "select" mode, automatically select the
+                  #       first available build of System.Data.SQLite and
+                  #       then return immediately.
+                  #
+                  if {$select && [matchPlatform $platform]} then {
+                    #
+                    # NOTE: Manually override all the build directory
+                    #       selection related test settings in order to
+                    #       force this build of System.Data.SQLite to be
+                    #       used.
+                    #
+                    if {![changeNativeRuntimeOption $native]} then {
+                      tputs $channel [appendArgs \
+                          "no, failed to " [expr {$native ? "add" : \
+                          "remove"}] " the \"native\" runtime option\n"]
+
+                      return false
+                    }
+
+                    set ::test_native $skipNative
+                    set ::test_year $year
+
+                    set ::test_native_year \
+                        [getBuildNativeYearForDotNetCore $year]
+
+                    set ::test_platform $platform
+                    set ::test_configuration $configuration
+                    set ::test_configuration_suffix $suffix
+
+                    set ::test_native_configuration_suffix \
+                        [getBuildNativeConfigurationSuffixForDotNetCore \
+                        $suffix]
+
+                    set ::test_extra $extra
+
+                    set ::test_native_extra \
+                        [getBuildNativeExtraForDotNetCore $extra]
+
+                    tputs $channel [appendArgs \
+                        "yes, selected (" [expr {$native ? "native/" : ""}] \
+                        [expr {[string length $platform] > 0 ? [appendArgs \
+                        $platform /] : ""}] $year / [appendArgs \
+                        $configuration $suffix] [expr {[string length \
+                        $extra] > 0 ? [appendArgs / $extra] : ""}] ")\n"]
+
+                    return true
+                  } else {
+                    tputs $channel yes\n
+                  }
+                } else {
+                  tputs $channel no\n
+                }
               }
-            } else {
-              tputs $channel no\n
             }
           }
         }
@@ -1639,6 +2109,15 @@ namespace eval ::Eagle {
           }
         } else {
           tputs $channel no\n
+
+          if {![file exists $directory] || \
+              ![file isdirectory $directory]} then {
+            tputs $channel [appendArgs \
+                "---- environment variable \"System.Data.SQLite\" is an " \
+                "invalid directory, skipping check for releases...\n"]
+
+            return false
+          }
 
           foreach path [lsort -decreasing [file list $directory *]] {
             if {[file exists $path] && [file isdirectory $path]} then {
@@ -1716,6 +2195,15 @@ namespace eval ::Eagle {
         # NOTE: Yes, the SQLite core library appears to be available.
         #
         addConstraint SQLite
+
+        #
+        # NOTE: Record version of the SQLite core library for later use
+        #       by test constraint expressions, etc.  If this value has
+        #       already been set (or overridden), skip setting it.
+        #
+        if {![info exists ::core_library_version]} then {
+          set ::core_library_version $version
+        }
 
         tputs $channel [appendArgs "yes (" $version " " $sourceId ")\n"]
       } else {
@@ -1806,7 +2294,55 @@ namespace eval ::Eagle {
       }
     }
 
-    proc getDateTimeFormat {} {
+    proc checkForSQLiteCompileOption { channel name } {
+      tputs $channel [appendArgs \
+          "---- checking for SQLite interop assembly compile option \"" \
+          $name "\"... "]
+
+      if {[catch {
+        object invoke -flags +NonPublic \
+            System.Data.SQLite.SQLite3 InteropCompileOptions
+      } compileOptions] == 0} then {
+        if {[lsearch -exact -nocase $compileOptions $name] != -1} then {
+          #
+          # NOTE: Yes, this compile option was enabled when the interop
+          #       assembly was compiled.
+          #
+          addConstraint [appendArgs [getSQLiteCompileOptionPrefix] $name]
+
+          tputs $channel yes\n
+        } else {
+          tputs $channel no\n
+        }
+      } else {
+        tputs $channel error\n
+      }
+
+      tputs $channel [appendArgs \
+          "---- checking for SQLite core library compile option \"" \
+          $name "\"... "]
+
+      if {[catch {
+        object invoke -flags +NonPublic \
+            System.Data.SQLite.SQLite3 SQLiteCompileOptions
+      } compileOptions] == 0} then {
+        if {[lsearch -exact -nocase $compileOptions $name] != -1} then {
+          #
+          # NOTE: Yes, this compile option was enabled when the SQLite
+          #       core library was compiled.
+          #
+          addConstraint [appendArgs [getSQLiteCompileOptionPrefix] $name]
+
+          tputs $channel yes\n
+        } else {
+          tputs $channel no\n
+        }
+      } else {
+        tputs $channel error\n
+      }
+    }
+
+    proc getDateTimeFormat { {timeZone true} } {
       #
       # NOTE: This procedure simply returns the "default" DateTime format used
       #       by the test suite.
@@ -1824,8 +2360,144 @@ namespace eval ::Eagle {
         #       DateTime class of the framework.  If this value is changed,
         #       various tests may fail.
         #
-        return "yyyy-MM-dd HH:mm:ss.FFFFFFFK"
+        return [appendArgs \
+            "yyyy-MM-dd HH:mm:ss.FFFFFFF" [expr {$timeZone ? "K" : ""}]]
       }
+    }
+
+    proc getDateTimeTicks { value {local ""} {default ""} } {
+      if {[string length $value] == 0} then {
+        return $default
+      }
+
+      if {[catch {
+        set dateTime [object invoke -create \
+            -parametertypes [list String String IFormatProvider \
+            System.Globalization.DateTimeStyles] DateTime ParseExact \
+            $value [getDateTimeFormat] null AdjustToUniversal]
+      }]} then {
+        return $default
+      }
+
+      if {[string is boolean -strict $local]} then {
+        set dateTime [object invoke -create DateTime SpecifyKind \
+            $dateTime Utc]
+      } else {
+        return [object invoke $dateTime Ticks]
+      }
+
+      if {$local} then {
+        return [object invoke $dateTime ToLocalTime.Ticks]
+      } else {
+        return [object invoke $dateTime ToUniversalTime.Ticks]
+      }
+    }
+
+    proc getProperties { object varName } {
+      upvar 1 $varName properties
+
+      set count 0
+      set names [list]
+
+      if {[isObjectHandle $object] && $object ne "null"} then {
+        eval lappend names [object members \
+            -membertypes Property -nameonly $object]
+
+        eval lappend names [object members \
+            -membertypes Field -nameonly $object]
+      }
+
+      foreach name $names {
+        if {[catch {
+          object invoke -objectflags +NoDispose $object $name
+        } value] == 0} then {
+          if {[isObjectHandle $value] && $value ne "null"} then {
+            set error null; object invoke -flags +NonPublic \
+                -marshalflags +NoHandle Interpreter.GetActive \
+                AddObjectReference Ok $value error
+
+            lappend properties(objects) [list $name $value]
+          } else {
+            lappend properties(values) [list $name $value]
+          }
+
+          incr count
+        } else {
+          lappend properties(errors) [list $name $::errorCode]
+        }
+      }
+
+      return $count
+    }
+
+    proc getAllProperties { object varName } {
+      upvar 1 $varName properties
+      set value $object
+
+      while {true} {
+        if {![info exists properties(seenObjects)] || \
+            $value ni $properties(seenObjects)} then {
+          getProperties $value properties
+          lappend properties(seenObjects) $value
+        }
+
+        if {![info exists properties(objects)]} then {
+          break
+        }
+
+        if {[llength $properties(objects)] == 0} then {
+          unset properties(objects); break
+        }
+
+        set value [lindex [lindex $properties(objects) 0] end]
+        set properties(objects) [lrange $properties(objects) 1 end]
+      }
+
+      if {[info exists properties(seenObjects)]} then {
+        foreach value $properties(seenObjects) {
+          if {$value eq $object} continue
+          catch {object dispose $value}
+        }
+
+        unset properties(seenObjects)
+      }
+    }
+
+    proc getVariables { varNames {objects false} } {
+      set result [list]
+
+      foreach varName $varNames {
+        if {[uplevel 1 [list array exists $varName]]} then {
+          set arrayName $varName
+
+          foreach elementName [uplevel 1 [list array names $arrayName]] {
+            set name [appendArgs $arrayName ( $elementName )]
+            set varValue [uplevel 1 [list set $name]]
+
+            if {$objects && [isObjectHandle $varValue]} then {
+              unset -nocomplain properties
+              getAllProperties $varValue properties
+
+              lappend result [list $name [array get properties]]
+            } else {
+              lappend result [list $name $varValue]
+            }
+          }
+        } else {
+          set varValue [uplevel 1 [list set $varName]]
+
+          if {$objects && [isObjectHandle $varValue]} then {
+            unset -nocomplain properties
+            getAllProperties $varValue properties
+
+            lappend result [list $varName [array get properties]]
+          } else {
+            lappend result [list $varName $varValue]
+          }
+        }
+      }
+
+      return $result
     }
 
     proc enumerableToList { enumerable } {
@@ -1877,54 +2549,95 @@ namespace eval ::Eagle {
       }
     }
 
+    proc resetException {} {
+      #
+      # NOTE: Reset exception associated with this interpreter (to null).
+      #       This (private) property is maintained on a per-thread basis.
+      #
+      object invoke -flags +NonPublic Interpreter.GetActive Exception null
+      return ""
+    }
+
+    proc catchAndSetException { script {varName ""} } {
+      #
+      # NOTE: Evaluate the script provided by our caller in their context.
+      #
+      catch {uplevel 1 $script}
+
+      #
+      # NOTE: Grab the (private) exception property from this interpreter,
+      #       for this thread, and add as an opaque object handle in the
+      #       context of our caller.
+      #
+      if {[string length $varName] > 0} then {
+        upvar 1 $varName exception
+      }
+
+      set exception [object invoke \
+          -alias -flags +NonPublic Interpreter.GetActive Exception]
+
+      return ""
+    }
+
     proc compileCSharpWith {
             text memory symbols strict resultsVarName errorsVarName fileNames
             args } {
-      #
-      # NOTE: Since we are going to use this method name a lot, assign it to a
-      #       variable first.
-      #
-      set add ReferencedAssemblies.Add
+      try {
+        #
+        # NOTE: Since we are going to use this method name a lot, assign
+        #       it to a variable first.
+        #
+        set add ReferencedAssemblies.Add
 
-      #
-      # NOTE: Create the base command to evaluate and add the property settings
-      #       that are almost always needed by our unit tests (i.e. the System
-      #       and System.Data assembly references).
-      #
-      set command [list \
-          compileCSharp $text $memory $symbols $strict results errors \
-          $add System.dll $add System.Data.dll $add System.Transactions.dll \
-          $add System.Xml.dll]
+        #
+        # NOTE: Create the base command to evaluate and add the property
+        #       settings that are almost always needed by our unit tests
+        #       (e.g. System and System.Data assembly references, etc).
+        #
+        set command [list \
+            compileCSharp $text $memory $symbols $strict results errors \
+            $add System.dll $add System.Data.dll $add System.Xml.dll \
+            $add System.Transactions.dll]
 
-      #
-      # NOTE: Add all the provided file names as assembly references.
-      #
-      foreach fileName $fileNames {
-        lappend command $add [getBinaryFileName $fileName]
+        #
+        # NOTE: Add all the provided file names as assembly references.
+        #
+        foreach fileName $fileNames {
+          lappend command $add [getBinaryFileName $fileName]
+        }
+
+        #
+        # NOTE: Add extra arguments, if any, to the command to evaluate.
+        #
+        eval lappend command $args
+
+        #
+        # NOTE: Alias the compiler local results and errors variables to
+        #       the variable names provided by our caller.
+        #
+        if {[string length $resultsVarName] > 0} then {
+          upvar 1 $resultsVarName results
+        }
+
+        if {[string length $errorsVarName] > 0} then {
+          upvar 1 $errorsVarName errors
+        }
+
+        #
+        # NOTE: Evaluate the constructed [compileCSharp] command and
+        #       return the result.
+        #
+        eval $command
+      } finally {
+        #
+        # NOTE: If the C# compiler was invoked using [exec], reset the
+        #       previous process identifier now (i.e. that way, it does
+        #       not show up as being "leaked").
+        #
+        if {[isDotNetCore]} then {
+          catch {info previouspid true}
+        }
       }
-
-      #
-      # NOTE: Add the extra arguments, if any, to the command to evaluate.
-      #
-      eval lappend command $args
-
-      #
-      # NOTE: Alias the compiler local results and errors variables to the
-      #       variable names provided by our caller.
-      #
-      if {[string length $resultsVarName] > 0} then {
-        upvar 1 $resultsVarName results
-      }
-
-      if {[string length $errorsVarName] > 0} then {
-        upvar 1 $errorsVarName errors
-      }
-
-      #
-      # NOTE: Evaluate the constructed [compileCSharp] command and return the
-      #       result.
-      #
-      eval $command
     }
 
     proc isMemoryDb { fileName } {
@@ -1961,26 +2674,18 @@ namespace eval ::Eagle {
     }
 
     proc getDbDefaultPageSize {} {
-      try {
-        set db [sql open -type SQLite {Data Source=:memory:;}]
-        return [sql execute -execute scalar $db "PRAGMA page_size;"]
-      } finally {
-        if {[info exists db]} then {
-          catch {sql close $db}
-          unset -nocomplain db
-        }
+      if {[catch {executeSql "PRAGMA page_size;" scalar} result] == 0} then {
+        return $result
+      } else {
+        return 0
       }
     }
 
     proc getDbDefaultCacheSize {} {
-      try {
-        set db [sql open -type SQLite {Data Source=:memory:;}]
-        return [sql execute -execute scalar $db "PRAGMA cache_size;"]
-      } finally {
-        if {[info exists db]} then {
-          catch {sql close $db}
-          unset -nocomplain db
-        }
+      if {[catch {executeSql "PRAGMA cache_size;" scalar} result] == 0} then {
+        return $result
+      } else {
+        return 0
       }
     }
 
@@ -2002,6 +2707,33 @@ namespace eval ::Eagle {
           [sql execute -execute scalar $db "PRAGMA cache_size;"]]
     }
 
+    proc getOutputEncodingName {} {
+      #
+      # HACK: Account for differences between Console output encodings on
+      #       the .NET Framework versus .NET Core, on Windows and POSIX.
+      #       Mono is not supported by this procedure as it is only used
+      #       by tests that do not run on Mono.
+      #
+      if {[isDotNetCore]} then {
+        if {[isWindows]} then {
+          #
+          # TODO: The reported output encoding for the Console on Windows
+          #       is actually "Codepage - 437".  Why?
+          #
+          return iso-8859-1
+        } else {
+          return utf-8
+        }
+      } else {
+        return Windows-1252
+      }
+    }
+
+    proc normalizeExceptionMessage { value } {
+      if {[string length $value] == 0} then {return $value}
+      return [string map [list \r\n " ==> " \n " ==> "] $value]
+    }
+
     proc extractSystemDataSQLiteExceptionMessage { value } {
       #
       # NOTE: If the string conforms to format of the normal exception
@@ -2009,8 +2741,10 @@ namespace eval ::Eagle {
       #       portion itself.
       #
       set patterns [list \
-      {System\.Data\.SQLite\.SQLiteException \(0x80004005\): (.+?)  (?: )?at} \
-      {System\.Data\.SQLite\.SQLiteException: (.+?)  (?: )?at}]
+      {System\.Data\.SQLite\.SQLiteException \(0x(?:0|8)[0-9A-Fa-f]{7}\):\
+          (.+?)  (?: )?at} \
+      {System\.Data\.SQLite\.SQLiteException: (.+?)  (?: )?at} \
+      {Eagle\._Components\.Public\.ScriptException: (.+?)  (?: )?at}]
 
       foreach pattern $patterns {
         if {[regexp -- $pattern $value dummy message]} then {
@@ -2044,7 +2778,13 @@ namespace eval ::Eagle {
         return [uplevel 1 [list \
             sql execute -execute $execute -format $format $db $sql]]
       } finally {
-        cleanupDb $fileName db false false false
+        set connection [getDbConnection]
+
+        try {
+          cleanupDb $fileName db false false false
+        } finally {
+          object flags $connection -NoDispose; freeDbConnection
+        }
       }
     }
 
@@ -2083,6 +2823,13 @@ namespace eval ::Eagle {
           set database <unknown>
         }
       }
+
+      #
+      # NOTE: Even though there is only one source of flags so far, they
+      #       must be combined using the correct syntax for enumerated
+      #       flag values for the .NET Framework.
+      #
+      set flags [combineFlags $flags ""]
 
       #
       # NOTE: Show (and log) the local connection flags and the associated
@@ -2195,7 +2942,7 @@ namespace eval ::Eagle {
 
         object invoke Utility TryParseFlagsEnum "" \
             System.Data.SQLite.SQLiteConnectionFlags "" $flags null true \
-            true error
+            true true error
       } value]} then {
         #
         # NOTE: Attempting to parse the connection flags caused a script
@@ -2229,6 +2976,31 @@ namespace eval ::Eagle {
       return ""
     }
 
+    proc getTestProperties { {flags ""} {quiet false} } {
+      #
+      # NOTE: Start with "Flags" property for the new connection, if any.
+      #
+      set result [getFlagsProperty $flags $quiet]
+
+      #
+      # NOTE: Add the name of the current test file, if available.  This is
+      #       only used for debugging.
+      #
+      if {[info exists ::test_file]} then {
+        append result TestFile= $::test_file \;
+      }
+
+      #
+      # NOTE: Add the name of the current test, if available.  This is only
+      #       used for debugging.
+      #
+      if {[info exists ::eagle_tests(CurrentName)]} then {
+        append result TestName= $::eagle_tests(CurrentName) \;
+      }
+
+      return $result
+    }
+
     proc enableSharedCache { channel enable {quiet false} } {
       if {[catch {
         object invoke -flags +NonPublic \
@@ -2247,6 +3019,31 @@ namespace eval ::Eagle {
               ")... error: " \n\t $result \n]
         }
       }
+    }
+
+    proc getDbFileHeader {} {
+      return "SQLite format 3\0"
+    }
+
+    proc readDbFileHeader { fileName } {
+      set channel [open $fileName RDONLY]
+      makeBinaryChannel $channel
+      set header [getDbFileHeader]
+      set result [read $channel [string length $header]]
+      close $channel
+      return $result
+    }
+
+    proc page1MustBeEncrypted {} {
+      if {[haveConstraint System.Data.SQLite.SEE]} then {
+        return true
+      }
+
+      if {[info exists ::env(SQLite_LegacyEncryptPage1)]} then {
+        return true
+      }
+
+      return false
     }
 
     proc setupDb {
@@ -2359,6 +3156,27 @@ namespace eval ::Eagle {
       if {[string length $extra] > 0} then {
         append connection \; $extra
       }
+
+      #
+      # NOTE: Add the name of the current test file, if available.  This is
+      #       only used for debugging.
+      #
+      if {[info exists ::test_file]} then {
+        append connection {;TestFile=${::test_file}}
+      }
+
+      #
+      # NOTE: Add the name of the current test, if available.  This is only
+      #       used for debugging.
+      #
+      if {[info exists ::eagle_tests(CurrentName)]} then {
+        append connection {;TestName=${::eagle_tests(CurrentName)}}
+      }
+
+      #
+      # NOTE: For clarity, append a final semicolon to the connection string.
+      #
+      append connection \;
 
       #
       # NOTE: Open the database connection now, placing the opaque handle value
@@ -2486,7 +3304,16 @@ namespace eval ::Eagle {
           $db $connection
     }
 
-    proc getRowsFromDataTable { dataTable } {
+    proc removeDbTransaction { transaction } {
+      #
+      # NOTE: Remove the database transaction provided by our caller from the
+      #       list of those known to the Eagle interpreter.
+      #
+      object invoke -flags +NonPublic Interpreter.GetActive.transactions \
+          Remove $transaction
+    }
+
+    proc getRowsFromDataTable { dataTable {valueCallback ""} } {
       set rows [list]
       set count [$dataTable Columns.Count]
 
@@ -2495,17 +3322,57 @@ namespace eval ::Eagle {
         set names($index) [$dataColumn ColumnName]
       }
 
+      #
+      # NOTE: Setup some Tcl return code constants.
+      #
+      set Ok 0; set Error 1; set Return 2; set Break 3; set Continue 4
+
       object foreach -alias dataRow [set dataRows [$dataTable Rows]] {
         set row [list]
 
         for {set index 0} {$index < $count} {incr index} {
           set value [$dataRow -create -alias get_Item $index]
 
-          if {[string length $value] > 0 && \
-              ![object invoke Convert IsDBNull $value]} then {
-            lappend row [list $names($index) [$value ToString]]
+          if {[string length $valueCallback] > 0} then {
+            set code [catch {
+              $valueCallback $dataTable $dataRow $index $value
+            } newValue]
+
+            if {$code == $Ok} then {
+              #
+              # NOTE: Use the specified (new?) row value.
+              #
+              lappend row [list $names($index) $newValue]
+            } elseif {$code == $Error} then {
+              #
+              # NOTE: Use the (new?) NULL row value.
+              #
+              lappend row [list $names($index)]
+            } elseif {$code == $Return} then {
+              #
+              # NOTE: Skip remaining values for this row.
+              #
+              break
+            } elseif {$code == $Break} then {
+              #
+              # NOTE: Skip processing this row value.
+              #
+            } elseif {$code == $Continue} then {
+              #
+              # NOTE: Use default row value handling.
+              #
+            }
           } else {
-            lappend row [list $names($index)]
+            set code $Continue
+          }
+
+          if {$code == $Continue} then {
+            if {[string length $value] > 0 && \
+                ![object invoke Convert IsDBNull $value]} then {
+              lappend row [list $names($index) [$value ToString]]
+            } else {
+              lappend row [list $names($index)]
+            }
           }
         }
 
@@ -2583,43 +3450,88 @@ namespace eval ::Eagle {
       }
 
       #
-      # NOTE: Check if the file still exists.
+      # NOTE: Check if the file still exists; initially, assume all files will
+      #       be deleted successfully, if necessary.
       #
+      set success true
+
       if {!$isMemory && $delete && [file exists $fileName]} then {
         #
         # NOTE: Skip deleting database files if somebody sets the global
         #       variable to prevent it.
         #
-        if {![info exists ::no(cleanupDbFile)]} then {
+        if {![info exists ::no(cleanupDbFiles)]} then {
+          #
+          # NOTE: Attempt to delete the test WAL file, if any, now.
+          #
+          set walFileName [appendArgs $fileName -wal]
+
+          if {[file exists $walFileName]} then {
+            #
+            # NOTE: If there is a WAL file, it should be zero bytes at this
+            #       point.
+            #
+            if {[set size [file size $walFileName]] == 0} then {
+              #
+              # NOTE: We somehow failed to delete the WAL file, report why.
+              #
+              if {[catch {file delete $walFileName} error]} then {
+                tputs $::test_channel [appendArgs \
+                    "==== WARNING: failed to delete WAL file \"" $walFileName \
+                    "\" during cleanup, error: " \n\t $error \n]
+
+                set success false
+              }
+            } else {
+              tputs $::test_channel [appendArgs \
+                  "==== WARNING: WAL file \"" $walFileName "\" is " $size \
+                  " bytes in size, skipping all file deletions...\n"]
+
+              return 1; # error
+            }
+          }
+
+          #
+          # NOTE: Attempt to delete the test SHM file, if any, now.
+          #
+          set shmFileName [appendArgs $fileName -shm]
+
+          if {[file exists $shmFileName] && \
+              [catch {file delete $shmFileName} error]} then {
+            #
+            # NOTE: We somehow failed to delete the SHM file, report why.
+            #
+            tputs $::test_channel [appendArgs \
+                "==== WARNING: failed to delete SHM file \"" $shmFileName \
+                "\" during cleanup, error: " \n\t $error \n]
+
+            set success false
+          }
+
           #
           # NOTE: Attempt to delete the test database file now.
           #
-          if {[set code [catch {file delete $fileName} error]]} then {
+          if {[catch {file delete $fileName} error]} then {
             #
             # NOTE: We somehow failed to delete the file, report why.
             #
             tputs $::test_channel [appendArgs \
                 "==== WARNING: failed to delete database file \"" $fileName \
                 "\" during cleanup, error: " \n\t $error \n]
+
+            set success false
           }
         } else {
           #
           # NOTE: Show that we skipped deleting the file.
           #
-          set code 0
-
           tputs $::test_channel [appendArgs \
               "==== WARNING: skipped deleting database file \"" $fileName \
               "\" during cleanup\n"]
         }
-      } else {
-        #
-        # NOTE: The file does not exist, success!
-        #
-        set code 0
       }
 
-      return $code
+      return [expr {$success ? 0 : 1}]
     }
 
     proc saveEnvironmentVariables { names {varName ""} } {
@@ -2684,12 +3596,60 @@ namespace eval ::Eagle {
       }
     }
 
+    proc saveEagleShellEnvironment {} {
+      upvar 1 savedEnv savedEnv
+
+      saveEnvironmentVariables [list NoMutexes] savedEnv
+    }
+
+    proc restoreEagleShellEnvironment {} {
+      upvar 1 savedEnv savedEnv
+
+      restoreEnvironmentVariables [list NoMutexes] savedEnv
+    }
+
+    proc saveMdaConfigEnvironment {} {
+      upvar 1 savedEnv savedEnv
+
+      saveEnvironmentVariables [list COMPLUS_MDA] savedEnv
+    }
+
+    proc restoreMdaConfigEnvironment {} {
+      upvar 1 savedEnv savedEnv
+
+      restoreEnvironmentVariables [list COMPLUS_MDA] savedEnv
+    }
+
+    proc saveGetSettingValueEnvironment {} {
+      upvar 1 savedEnv savedEnv
+
+      saveEnvironmentVariables [list \
+          No_Expand No_SQLiteGetSettingValue No_SQLiteXmlConfigFile] \
+          savedEnv
+    }
+
+    proc restoreGetSettingValueEnvironment {} {
+      upvar 1 savedEnv savedEnv
+
+      restoreEnvironmentVariables [list \
+          No_Expand No_SQLiteGetSettingValue No_SQLiteXmlConfigFile] \
+          savedEnv
+    }
+
     proc saveSQLiteConnectionEnvironment {} {
       upvar 1 savedEnv savedEnv
 
       saveEnvironmentVariables [list \
           DefaultFlags_SQLiteConnection No_SQLiteConnectionNewParser] \
           savedEnv
+
+      upvar 1 savedConnectionFlags savedConnectionFlags
+
+      if {[info exists ::connection_flags]} then {
+        set savedConnectionFlags $::connection_flags
+      } else {
+        unset -nocomplain savedConnectionFlags
+      }
     }
 
     proc restoreSQLiteConnectionEnvironment {} {
@@ -2698,6 +3658,15 @@ namespace eval ::Eagle {
       restoreEnvironmentVariables [list \
           DefaultFlags_SQLiteConnection No_SQLiteConnectionNewParser] \
           savedEnv
+
+      upvar 1 savedConnectionFlags savedConnectionFlags
+
+      if {[info exists savedConnectionFlags]} then {
+        set ::connection_flags $savedConnectionFlags
+        unset -nocomplain savedConnectionFlags
+      } else {
+        unset -nocomplain ::connection_flags
+      }
     }
 
     proc saveSQLiteConvertEnvironment {} {
@@ -2721,7 +3690,8 @@ namespace eval ::Eagle {
 
       if {[catch {
         saveEnvironmentVariables [list \
-            quietFindInterpreterTestPath quietSetupInterpreterTestPath]
+            quietFindInterpreterTestPath quietSetupInterpreterTestPath \
+            quietCheckForSecurityProtocols]
 
         try {
           #
@@ -2730,6 +3700,7 @@ namespace eval ::Eagle {
           #
           set ::env(quietFindInterpreterTestPath) 1
           set ::env(quietSetupInterpreterTestPath) 1
+          set ::env(quietCheckForSecurityProtocols) 1
 
           #
           # NOTE: Make sure the script debugger and the isolated interpreter
@@ -2797,7 +3768,8 @@ namespace eval ::Eagle {
           }}
         } finally {
           restoreEnvironmentVariables [list \
-              quietFindInterpreterTestPath quietSetupInterpreterTestPath]
+              quietFindInterpreterTestPath quietSetupInterpreterTestPath \
+              quietCheckForSecurityProtocols]
         }
       } error] == 0} then {
         addConstraint interruptCallback.sqlite3
@@ -2965,9 +3937,11 @@ namespace eval ::Eagle {
                 $result " bytes\n"]
           }
         } else {
-          tputs $channel [appendArgs \
-              "==== WARNING: failed to get CLR memory usage, error: " \
-              \n\t $result \n]
+          if {!$quiet} then {
+            tputs $channel [appendArgs \
+                "==== WARNING: failed to get CLR memory usage, error: " \
+                \n\t $result \n]
+          }
         }
       }
 
@@ -2990,9 +3964,11 @@ namespace eval ::Eagle {
           if {[catch {
             object invoke GC GetTotalMemory true
           } error]} then {
-            tputs $channel [appendArgs \
-                "==== WARNING: failed full garbage collection, error: " \
-                \n\t $error \n]
+            if {!$quiet} then {
+              tputs $channel [appendArgs \
+                  "==== WARNING: failed full garbage collection, error: " \
+                  \n\t $error \n]
+            }
           }
 
           set now [clock seconds]
@@ -3011,9 +3987,11 @@ namespace eval ::Eagle {
                 $result " bytes\n"]
           }
         } else {
-          tputs $channel [appendArgs \
-              "==== WARNING: failed to get CLR memory usage, error: " \
-              \n\t $result \n]
+          if {!$quiet} then {
+            tputs $channel [appendArgs \
+                "==== WARNING: failed to get CLR memory usage, error: " \
+                \n\t $result \n]
+          }
         }
       }
     }
@@ -3026,7 +4004,8 @@ namespace eval ::Eagle {
         #
         # NOTE: Add each critical handle count to the resulting list.
         #
-        foreach name [list connectionCount statementCount backupCount] {
+        foreach name [list \
+            connectionCount statementCount backupCount blobCount] {
           if {[catch {
             object invoke -flags +NonPublic \
                 System.Data.SQLite.DebugData $name
@@ -3038,9 +4017,11 @@ namespace eval ::Eagle {
 
             lappend result $value
           } else {
-            tputs $channel [appendArgs \
-                "==== WARNING: failed to get critical handle count \"" \
-                $name "\", error: " \n\t $value \n]
+            if {!$quiet} then {
+              tputs $channel [appendArgs \
+                  "==== WARNING: failed to get critical handle count \"" \
+                  $name "\", error: " \n\t $value \n]
+            }
           }
         }
       } elseif {!$quiet} then {
@@ -3131,42 +4112,246 @@ namespace eval ::Eagle {
       }
     }
 
+    proc getSettingReadCount { name {viaFile false} } {
+      if {[haveConstraint buildConfiguration.Debug] && [catch {
+        object invoke -flags +NonPublic -alias \
+            System.Data.SQLite.DebugData GetSettingReadCounts $viaFile
+      } settingReadCounts] == 0} then {
+        if {[string length $name] > 0} then {
+          if {[$settingReadCounts TryGetValue $name value]} then {
+            tputs $::test_channel [appendArgs \
+                "---- setting \"" $name "\" was read " $value " times" \
+                [expr {$viaFile ? " from the configuration file" : ""}] \n]
+
+            return $value
+          }
+        } else {
+          set nameCount [$settingReadCounts Count]
+          set valueCount 0
+
+          object foreach -alias pair $settingReadCounts {
+            incr valueCount [$pair Value]
+
+            tputs $::test_channel [appendArgs \
+                "---- setting \"" [$pair Key] "\" was read " [$pair Value] \
+                " times" [expr {$viaFile ? " from the configuration file" : \
+                ""}] \n]
+          }
+
+          return [list $nameCount $valueCount]
+        }
+      }
+
+      if {[string length $name] > 0} then {
+        tputs $::test_channel [appendArgs \
+            "---- setting \"" $name "\" was not read" [expr {$viaFile ? \
+            " from the configuration file" : ""}] \n]
+      } else {
+        tputs $::test_channel [appendArgs \
+            "---- no settings were read" [expr {$viaFile ? \
+            " from the configuration file" : ""}] \n]
+      }
+
+      return -1
+    }
+
+    proc getOtherCount { name } {
+      if {[haveConstraint buildConfiguration.Debug] && [catch {
+        object invoke -flags +NonPublic -alias \
+            System.Data.SQLite.DebugData GetOtherCounts
+      } otherCounts] == 0} then {
+        if {[string length $name] > 0} then {
+          if {[$otherCounts TryGetValue $name value]} then {
+            tputs $::test_channel [appendArgs \
+                "---- other counter \"" $name "\" has value " $value \n]
+
+            return $value
+          }
+        } else {
+          set nameCount [$otherCounts Count]
+          set valueCount 0
+
+          object foreach -alias pair $otherCounts {
+            incr valueCount [$pair Value]
+
+            tputs $::test_channel [appendArgs \
+                "---- other counter \"" [$pair Key] "\" has value " \
+                [$pair Value] \n]
+          }
+
+          return [list $nameCount $valueCount]
+        }
+      }
+
+      if {[string length $name] > 0} then {
+        tputs $::test_channel [appendArgs \
+            "---- other counter \"" $name "\" has no value\n"]
+      } else {
+        tputs $::test_channel "---- there are no other counters\n"
+      }
+
+      return -1
+    }
+
     proc reportSQLiteResources {
             channel {quiet false} {reset true} {collect true} } {
+      #
+      # NOTE: If possible, always reset the cached assembly directory
+      #       and the cached XML configuration file name.
+      #
+      if {[haveSQLiteObjectCommand]} then {
+        if {[catch {
+          object invoke -flags +NonPublic \
+              System.Data.SQLite.UnsafeNativeMethods \
+              ResetCachedAssemblyDirectory
+        } error] == 0} then {
+          if {!$quiet} then {
+            tputs $channel "---- reset cached assembly directory\n"
+          }
+        } else {
+          if {!$quiet} then {
+            tputs $channel [appendArgs \
+                "==== WARNING: failed to reset cached assembly directory, " \
+                "error: " \n\t $error \n]
+          }
+        }
+
+        if {[catch {
+          object invoke -flags +NonPublic \
+              System.Data.SQLite.UnsafeNativeMethods \
+              ResetCachedXmlConfigFileName
+        } error] == 0} then {
+          if {!$quiet} then {
+            tputs $channel "---- reset cached XML configuration file name\n"
+          }
+        } else {
+          if {!$quiet} then {
+            tputs $channel [appendArgs \
+                "==== WARNING: failed to reset cached XML configuration " \
+                "file name, error: " \n\t $error \n]
+          }
+        }
+      }
+
       #
       # NOTE: If available, report on (and possibly reset) the runtime
       #       configuration statistics.
       #
       if {[haveSQLiteObjectCommand] && \
-          [haveConstraint buildConfiguration.Debug] && [catch {
-        object invoke -flags +NonPublic -alias \
-            System.Data.SQLite.DebugData settingReadCounts
-      } settingReadCounts] == 0} then {
-        set nameCount [$settingReadCounts Count]
-        set valueCount 0
+          [haveConstraint buildConfiguration.Debug]} then {
+        if {[catch {
+          object invoke -flags +NonPublic -alias \
+              System.Data.SQLite.DebugData GetSettingReadCounts false
+        } settingReadCounts] == 0} then {
+          set nameCount [$settingReadCounts Count]
+          set valueCount 0
 
-        object foreach -alias pair $settingReadCounts {
-          incr valueCount [$pair Value]
+          object foreach -alias pair $settingReadCounts {
+            incr valueCount [$pair Value]
 
-          if {!$quiet} then {
-            tputs $channel [appendArgs \
-                "---- setting \"" [$pair Key] "\" was read " \
-                [$pair Value] " times\n"]
+            if {!$quiet} then {
+              tputs $channel [appendArgs \
+                  "---- setting \"" [$pair Key] "\" was read " \
+                  [$pair Value] " times\n"]
+            }
+          }
+
+          if {$reset} then {
+            if {[catch {
+              object invoke -flags +NonPublic -alias \
+                  System.Data.SQLite.DebugData ClearSettingReadCounts false
+            } error] == 0} then {
+              if {!$quiet} then {
+                tputs $channel [appendArgs \
+                    "---- reset setting statistics for the previous " \
+                    $nameCount " names and " $valueCount " values read\n"]
+              }
+            } else {
+              if {!$quiet} then {
+                tputs $channel [appendArgs \
+                    "==== WARNING: failed to reset setting statistics for " \
+                    "the previous " $nameCount " names and " $valueCount \
+                    " values read, error: " \n\t $error \n]
+              }
+            }
           }
         }
 
-        if {$reset} then {
-          if {[catch {$settingReadCounts Clear} error] == 0} then {
+        if {[catch {
+          object invoke -flags +NonPublic -alias \
+              System.Data.SQLite.DebugData GetSettingReadCounts true
+        } settingFileReadCounts] == 0} then {
+          set nameCount [$settingFileReadCounts Count]
+          set valueCount 0
+
+          object foreach -alias pair $settingFileReadCounts {
+            incr valueCount [$pair Value]
+
             if {!$quiet} then {
               tputs $channel [appendArgs \
-                  "---- reset setting statistics for the previous " \
-                  $nameCount " names and " $valueCount " values read\n"]
+                  "---- setting \"" [$pair Key] "\" was read " \
+                  [$pair Value] " times from the configuration file\n"]
             }
-          } else {
-            tputs $channel [appendArgs \
-                "==== WARNING: failed to reset setting statistics for " \
-                "the previous " $nameCount " names and " $valueCount \
-                " values read, error: " \n\t $error \n]
+          }
+
+          if {$reset} then {
+            if {[catch {
+              object invoke -flags +NonPublic -alias \
+                  System.Data.SQLite.DebugData ClearSettingReadCounts true
+            } error] == 0} then {
+              if {!$quiet} then {
+                tputs $channel [appendArgs \
+                    "---- reset setting statistics for the previous " \
+                    $nameCount " names and " $valueCount " values read " \
+                    "from the configuration file\n"]
+              }
+            } else {
+              if {!$quiet} then {
+                tputs $channel [appendArgs \
+                    "==== WARNING: failed to reset setting statistics for " \
+                    "the previous " $nameCount " names and " $valueCount \
+                    " values read from the configuration file, error: " \n\t \
+                    $error \n]
+              }
+            }
+          }
+        }
+
+        if {[catch {
+          object invoke -flags +NonPublic -alias \
+              System.Data.SQLite.DebugData GetOtherCounts
+        } otherCounts] == 0} then {
+          set nameCount [$otherCounts Count]
+          set valueCount 0
+
+          object foreach -alias pair $otherCounts {
+            incr valueCount [$pair Value]
+
+            if {!$quiet} then {
+              tputs $channel [appendArgs \
+                  "---- other counter \"" [$pair Key] "\" has value " \
+                  [$pair Value] \n]
+            }
+          }
+
+          if {$reset} then {
+            if {[catch {
+              object invoke -flags +NonPublic -alias \
+                  System.Data.SQLite.DebugData ClearOtherCounts
+            } error] == 0} then {
+              if {!$quiet} then {
+                tputs $channel [appendArgs \
+                    "---- reset other counters for the previous " \
+                    $nameCount " names and " $valueCount " values\n"]
+              }
+            } else {
+              if {!$quiet} then {
+                tputs $channel [appendArgs \
+                    "==== WARNING: failed to reset other counters for " \
+                    "the previous " $nameCount " names and " $valueCount \
+                    " values, error: " \n\t $error \n]
+              }
+            }
           }
         }
       }
@@ -3317,6 +4502,56 @@ namespace eval ::Eagle {
       return $result
     }
 
+    proc resetSQLiteDirectories { channel native } {
+      #
+      # NOTE: Attempt to use the native API (via the managed assembly)?
+      #
+      if {$native} then {
+        #
+        # NOTE: Now make sure the database and temporary directories are
+        #       reset their default values, which should be null for both.
+        #       Since the sqlite3_win32_set_directory function is available,
+        #       use it.
+        #
+        for {set index 1} {$index < 3} {incr index} {
+          if {[catch {
+            object invoke -flags +NonPublic \
+                System.Data.SQLite.UnsafeNativeMethods \
+                sqlite3_win32_set_directory $index null
+          } result] == 0} then {
+            tputs $channel [appendArgs \
+                "---- call sqlite3_win32_set_directory(" $index \
+                ", null)... ok: " $result \n]
+          } else {
+            tputs $channel [appendArgs \
+                "---- call sqlite3_win32_set_directory(" $index \
+                ", null)... error: " \n\t $result \n]
+          }
+        }
+      } else {
+        #
+        # NOTE: Now make sure the database and temporary directories are
+        #       reset their default values, which should be null for both.
+        #       Since the sqlite3_win32_set_directory function does not
+        #       appear to be available, use the associated PRAGMA commands
+        #       instead.
+        #
+        foreach directory [list data_store_directory temp_store_directory] {
+          set sql [appendArgs "PRAGMA " $directory " = \"\";"]
+
+          if {[catch {executeSql $sql} result] == 0} then {
+            tputs $channel [appendArgs \
+                "---- execute PRAGMA " $directory "... ok: \"" \
+                $result \"\n]
+          } else {
+            tputs $channel [appendArgs \
+                "---- execute PRAGMA " $directory "... error: " \
+                \n\t $result \n]
+          }
+        }
+      }
+    }
+
     proc checkForSQLiteDirectories { channel {reset false} } {
       #
       # NOTE: Check if the sqlite3_win32_set_directory function is available.
@@ -3350,27 +4585,7 @@ namespace eval ::Eagle {
         # NOTE: Does our caller want to reset the directories?
         #
         if {$reset} then {
-          #
-          # NOTE: Now make sure the database and temporary directories are
-          #       reset their default values, which should be null for both.
-          #       Since the sqlite3_win32_set_directory function is available,
-          #       use it.
-          #
-          for {set index 1} {$index < 3} {incr index} {
-            if {[catch {
-              object invoke -flags +NonPublic \
-                  System.Data.SQLite.UnsafeNativeMethods \
-                  sqlite3_win32_set_directory $index null
-            } result] == 0} then {
-              tputs $channel [appendArgs \
-                  "---- call sqlite3_win32_set_directory(" $index \
-                  ", null)... ok: " $result \n]
-            } else {
-              tputs $channel [appendArgs \
-                  "---- call sqlite3_win32_set_directory(" $index \
-                  ", null)... error: " \n\t $result \n]
-            }
-          }
+          resetSQLiteDirectories $channel true
         }
       } else {
         tputs $channel no\n
@@ -3381,26 +4596,7 @@ namespace eval ::Eagle {
         #       suite.
         #
         if {$reset && [isSQLiteReady]} then {
-          #
-          # NOTE: Now make sure the database and temporary directories are
-          #       reset their default values, which should be null for both.
-          #       Since the sqlite3_win32_set_directory function does not
-          #       appear to be available, use the associated PRAGMA commands
-          #       instead.
-          #
-          foreach directory [list data_store_directory temp_store_directory] {
-            set sql [appendArgs "PRAGMA " $directory " = \"\";"]
-
-            if {[catch {executeSql $sql} result] == 0} then {
-              tputs $channel [appendArgs \
-                  "---- execute PRAGMA " $directory "... ok: \"" \
-                  $result \"\n]
-            } else {
-              tputs $channel [appendArgs \
-                  "---- execute PRAGMA " $directory "... error: " \
-                  \n\t $result \n]
-            }
-          }
+          resetSQLiteDirectories $channel false
         }
       }
 
@@ -3494,6 +4690,212 @@ namespace eval ::Eagle {
       }
     }
 
+    proc copySampleDatabaseFiles {} {
+      uplevel 1 {
+        #
+        # NOTE: Copy (or re-copy) the reference database file used for this
+        #       unit test to the build directory in case it has been changed
+        #       by a previous test run.
+        #
+        file copy -force $northwindEfDbFile \
+          [file join [getBuildDirectory true] [file tail $northwindEfDbFile]]
+      }
+    }
+
+    proc moveTestLogFile { path } {
+      if {[info exists ::test_log] && [file exists $::test_log]} then {
+        set old_test_log $::test_log
+        set new_test_log [file join $path [file tail $old_test_log]]
+
+        file copy $old_test_log $new_test_log; file delete $old_test_log
+        set ::test_log $new_test_log
+
+        if {[info exists ::test_log_path]} then {
+          set ::test_log_path $path
+        }
+
+        tputs $::test_channel [appendArgs \
+            "---- moved test log from \"" $old_test_log "\" to \"" \
+            $new_test_log \"\n]
+      }
+    }
+
+    proc showSQLiteBuildParameters { channel } {
+      #
+      # NOTE: Check if the native build flag has been forcibly set.
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build native override... "
+
+      set native [getBuildNative]
+
+      if {[string length $native] > 0} then {
+        addConstraint [appendArgs buildNative. $native]
+        tputs $channel [appendArgs \" $native \"\n]
+      } else {
+        addConstraint buildNative.none
+        tputs $channel <none>\n
+      }
+
+      #
+      # NOTE: Check the current build year.  Basically, this indicates
+      #       which version of MSBuild and/or Visual Studio was used to
+      #       compile the assembly binaries under test.
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build year... "
+
+      set year [getBuildYear]
+
+      if {[string length $year] > 0} then {
+        addConstraint [appendArgs buildYear. $year]
+        tputs $channel [appendArgs \" $year \"\n]
+      } else {
+        addConstraint buildYear.none
+        tputs $channel <none>\n
+      }
+
+      tputs $channel \
+          "---- checking for System.Data.SQLite build native year... "
+
+      set year [getBuildNativeYear]
+
+      if {[string length $year] > 0} then {
+        addConstraint [appendArgs buildNativeYear. $year]
+        tputs $channel [appendArgs \" $year \"\n]
+      } else {
+        addConstraint buildNativeYear.none
+        tputs $channel <none>\n
+      }
+
+      tputs $channel \
+          "---- checking for System.Data.SQLite build platform... "
+
+      set platform [getBuildPlatform true]
+
+      if {[string length $platform] > 0} then {
+        addConstraint [appendArgs buildPlatform. $platform]
+        tputs $channel [appendArgs \" $platform \"\n]
+      } else {
+        addConstraint buildPlatform.none
+        tputs $channel <none>\n
+      }
+
+      set architecture [architectureForPlatform $platform]
+
+      tputs $channel \
+          "---- checking for System.Data.SQLite build architecture... "
+
+      if {[string length $architecture] > 0} then {
+        addConstraint [appendArgs buildArchitecture. $architecture]
+        tputs $channel [appendArgs \" $architecture \"\n]
+      } else {
+        addConstraint buildArchitecture.none
+        tputs $channel <none>\n
+      }
+
+      #
+      # NOTE: Check the current build .NET Framework.  Basically, this
+      #       indicates which version of the .NET Framework is being
+      #       used by the assembly binaries under test.
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build .NET Framework... "
+
+      set netFx [getBuildNetFx]
+
+      if {[string length $netFx] > 0} then {
+        addConstraint [appendArgs buildFramework. $netFx]
+        tputs $channel [appendArgs \" $netFx \"\n]
+      } else {
+        addConstraint buildFramework.none
+        tputs $channel <none>\n
+      }
+
+      #
+      # NOTE: Check the current build configuration.  This should normally
+      #       be either "Debug" or "Release".
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build configuration... "
+
+      set configuration [getBuildConfiguration]
+
+      if {[string length $configuration] > 0} then {
+        addConstraint [appendArgs buildConfiguration. $configuration]
+        tputs $channel [appendArgs \" $configuration \"\n]
+      } else {
+        addConstraint buildConfiguration.none
+        tputs $channel <none>\n
+      }
+
+      #
+      # NOTE: Check the current build configuration suffix.  This will
+      #       normally be either "NetStandard20" or "NetStandard21" or
+      #       an empty string.
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build configuration suffix... "
+
+      set suffix [getBuildConfigurationSuffix]
+
+      if {[string length $suffix] > 0} then {
+        addConstraint [appendArgs buildConfigurationSuffix. $suffix]
+        tputs $channel [appendArgs \" $suffix \"\n]
+      } else {
+        addConstraint buildConfigurationSuffix.none
+        tputs $channel <none>\n
+      }
+
+      tputs $channel [appendArgs \
+          "---- checking for System.Data.SQLite build native configuration " \
+          "suffix... "]
+
+      set suffix [getBuildNativeConfigurationSuffix]
+
+      if {[string length $suffix] > 0} then {
+        addConstraint [appendArgs buildNativeConfigurationSuffix. $suffix]
+        tputs $channel [appendArgs \" $suffix \"\n]
+      } else {
+        addConstraint buildNativeConfigurationSuffix.none
+        tputs $channel <none>\n
+      }
+
+      #
+      # NOTE: Check the current build extra directory.  This will normally
+      #       be either "netstandard2.0" or an empty string.
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build extra... "
+
+      set extra [getBuildExtra]
+
+      if {[string length $extra] > 0} then {
+        addConstraint [appendArgs buildExtra. $extra]
+        tputs $channel [appendArgs \" $extra \"\n]
+      } else {
+        addConstraint buildExtra.none
+        tputs $channel <none>\n
+      }
+
+      #
+      # NOTE: Check the current build native extra directory.  This will
+      #       normally be an empty string.
+      #
+      tputs $channel \
+          "---- checking for System.Data.SQLite build native extra... "
+
+      set extra [getBuildNativeExtra]
+
+      if {[string length $extra] > 0} then {
+        addConstraint [appendArgs buildNativeExtra. $extra]
+        tputs $channel [appendArgs \" $extra \"\n]
+      } else {
+        addConstraint buildNativeExtra.none
+        tputs $channel <none>\n
+      }
+    }
+
     proc runSQLiteTestPrologue {} {
       #
       # NOTE: Skip running our custom prologue if the main one has been
@@ -3501,10 +4903,29 @@ namespace eval ::Eagle {
       #
       if {![info exists ::no(prologue.eagle)]} then {
         #
+        # NOTE: Save the environment variables that we intend to change for
+        #       the test suite.
+        #
+        saveEnvironmentVariables \
+            [list Initialize_SQLiteLog] ::testSuiteSavedEnv
+
+        #
+        # NOTE: Force the managed logging subsystem to attempt to initialize
+        #       itself more than once.
+        #
+        set ::env(Initialize_SQLiteLog) 1
+
+        #
         # NOTE: Load the "before-constraints" custom per-user and/or per-host
         #       test settings now.
         #
         uplevel 1 [list loadSQLiteTestSettings $::test_channel .before]
+
+        #
+        # NOTE: Show (and log) the global parameters that control where the
+        #       build directory should be.
+        #
+        showSQLiteBuildParameters $::test_channel
 
         #
         # NOTE: Check if the [object] command is available; if not, add some
@@ -3517,18 +4938,6 @@ namespace eval ::Eagle {
         #
         set platform [getBuildPlatform true]
         set architecture [architectureForPlatform $platform]
-
-        #
-        # NOTE: Show the platform and architecture used to help locate the
-        #       native build files.
-        #
-        tputs $::test_channel [appendArgs \
-            "---- platform for locating native build files is \"" \
-            $platform \"\n]
-
-        tputs $::test_channel [appendArgs \
-            "---- architecture for locating native build files is \"" \
-            $architecture \"\n]
 
         #
         # NOTE: Build a list of configuration files that we handle.
@@ -3547,32 +4956,83 @@ namespace eval ::Eagle {
 
         #
         # NOTE: Build the list of external files that we handle.  Some of
-        #       these files may be native and/or managed assemblies that are
-        #       required to perform various tests.
+        #       these files may be native and/or managed assemblies that
+        #       are required to perform various tests.
         #
-        set externalFileNames [list \
-            [file join EntityFramework lib [string map [list Fx ""] [string \
-            map [list netFx451 netFx45 netFx452 netFx45 netFx46 netFx45 \
-            netFx461 netFx45] [getBuildNetFx]]] EntityFramework.dll]]
+        if {[isDotNetCore]} then {
+          set externalFileNames [list \
+              [file join EntityFramework v6.3 lib [string map [list \
+              netStandard21 netstandard2.1] [getBuildNetFx]] \
+              EntityFramework.dll]]
+        } else {
+          set externalFileNames [list \
+              [file join EntityFramework v6.2 lib [string map [list \
+              Fx ""] [string map [list netFx451 netFx45 netFx452 \
+              netFx45 netFx46 netFx45 netFx461 netFx45 netFx462 \
+              netFx45 netFx47 netFx45 netFx471 netFx45 netFx472 \
+              netFx45] [getBuildNetFx]]] EntityFramework.dll]]
+        }
 
         #
-        # NOTE: Build the list of native assembly files that we handle.  The
-        #       reason the "System.Data.SQLite.dll" file is included here is
-        #       because it could be the mixed-mode assembly.
+        # NOTE: Build the list of native assembly files that we handle.
         #
         set nativeFileNames [list]
 
         eval lappend nativeFileNames [getNativeLibraryFileNamesOnly]
         eval lappend nativeFileNames [getInteropAssemblyFileNamesOnly]
 
-        lappend nativeFileNames System.Data.SQLite.dll
+        #
+        # NOTE: Build the list of mixed-mode assembly files that we handle.
+        #
+        set mixedFileNames [list]
+
+        if {[hasRuntimeOption native]} then {
+          lappend mixedFileNames System.Data.SQLite.dll
+        }
 
         #
         # NOTE: Build the list of managed assembly files that we handle.
         #
         set managedFileNames [list \
-            System.Data.SQLite.dll System.Data.SQLite.Linq.dll \
-            System.Data.SQLite.EF6.dll]
+            System.Data.SQLite.Linq.dll System.Data.SQLite.EF6.dll]
+
+        if {![hasRuntimeOption native]} then {
+          lappend managedFileNames System.Data.SQLite.dll
+        }
+
+        #
+        # NOTE: Show the various lists of file names that are handled by this
+        #       procedure.
+        #
+        tputs $::test_channel [appendArgs \
+            "---- list of \"configuration\" file names is: " \
+            [expr {[llength $configFileNames] > 0 ? $configFileNames : \
+            "<none>"}] \n]
+
+        tputs $::test_channel [appendArgs \
+            "---- list of \"MDA configuration\" file names is: " \
+            [expr {[llength $mdaConfigFileNames] > 0 ? $mdaConfigFileNames : \
+            "<none>"}] \n]
+
+        tputs $::test_channel [appendArgs \
+            "---- list of \"external\" file names is: " \
+            [expr {[llength $externalFileNames] > 0 ? $externalFileNames : \
+            "<none>"}] \n]
+
+        tputs $::test_channel [appendArgs \
+            "---- list of \"native\" file names is: " \
+            [expr {[llength $nativeFileNames] > 0 ? $nativeFileNames : \
+            "<none>"}] \n]
+
+        tputs $::test_channel [appendArgs \
+            "---- list of \"mixed\" file names is: " \
+            [expr {[llength $mixedFileNames] > 0 ? $mixedFileNames : \
+            "<none>"}] \n]
+
+        tputs $::test_channel [appendArgs \
+            "---- list of \"managed\" file names is: " \
+            [expr {[llength $managedFileNames] > 0 ? $managedFileNames : \
+            "<none>"}] \n]
 
         #
         # NOTE: Remove any test constraints that refer to the native and/or
@@ -3596,9 +5056,32 @@ namespace eval ::Eagle {
             removeConstraint [appendArgs file_ $fileName]
           }
 
+          foreach fileName $mixedFileNames {
+            removeConstraint [appendArgs file_ $fileName]
+          }
+
           foreach fileName $managedFileNames {
             removeConstraint [appendArgs file_ $fileName]
           }
+        }
+
+        #
+        # NOTE: Check for the "autoSelect" runtime option.  If present,
+        #       attempt to automatically select the first available
+        #       build (or "release") of SQLite and System.Data.SQLite
+        #       for use with the test suite.
+        #
+        if {[hasRuntimeOption autoSelect]} then {
+          if {![checkForSQLiteBuilds $::test_channel true]} then {
+            checkForSQLiteReleases $::test_channel true
+          }
+
+          #
+          # NOTE: Show (and log) the global parameters that control where
+          #       the build directory should be.  The auto-selection may
+          #       have modified some of these parameters.
+          #
+          showSQLiteBuildParameters $::test_channel
         }
 
         #
@@ -3618,7 +5101,7 @@ namespace eval ::Eagle {
 
             if {![info exists ::no(deleteSqliteExternalFiles)]} then {
               foreach fileName $mdaConfigFileNames {
-                tryDeleteBuildFile $fileName
+                tryDeleteBuildFile $fileName true
               }
 
               foreach fileName $externalFileNames {
@@ -3627,7 +5110,7 @@ namespace eval ::Eagle {
             }
 
             if {![info exists ::no(deleteSqliteNativeFiles)]} then {
-              if {![info exists ::no(deleteSqliteImplicitFiles)]} then {
+              if {![info exists ::no(deleteSqliteImplicitNativeFiles)]} then {
                 foreach fileName $nativeFileNames {
                   tryDeleteAssembly $fileName
                 }
@@ -3650,6 +5133,36 @@ namespace eval ::Eagle {
               }
             }
 
+            if {![info exists ::no(deleteSqliteMixedFiles)]} then {
+              #
+              # NOTE: If the "native" runtime option is set, delete implicit
+              #       mixed-mode assembly files as well.  This runtime option
+              #       check is handled when building the list of mixed-mode
+              #       assembly file names.
+              #
+              if {![info exists ::no(deleteSqliteImplicitMixedFiles)]} then {
+                foreach fileName $mixedFileNames {
+                  tryDeleteAssembly $fileName
+                }
+              }
+
+              if {![info exists ::no(deleteSqliteNonImplicitFiles)]} then {
+                if {![info exists ::no(deleteSqlitePlatformFiles)] && \
+                    [string length $platform] > 0} then {
+                  foreach fileName $mixedFileNames {
+                    tryDeleteAssembly $fileName $platform
+                  }
+                }
+
+                if {![info exists ::no(deleteSqliteArchitectureFiles)] && \
+                    [string length $architecture] > 0} then {
+                  foreach fileName $mixedFileNames {
+                    tryDeleteAssembly $fileName $architecture
+                  }
+                }
+              }
+            }
+
             if {![info exists ::no(deleteSqliteManagedFiles)]} then {
               foreach fileName $managedFileNames {
                 tryDeleteAssembly $fileName
@@ -3658,16 +5171,10 @@ namespace eval ::Eagle {
           }
 
           #
-          # NOTE: Check for the "autoSelect" runtime option.  If present,
-          #       attempt to automatically select the first available
-          #       build (or "release") of SQLite and System.Data.SQLite
-          #       for use with the test suite.
+          # NOTE: Show (and log) the global parameters that control where
+          #       the build directory should be.
           #
-          if {[hasRuntimeOption autoSelect]} then {
-            if {![checkForSQLiteBuilds $::test_channel true]} then {
-              checkForSQLiteReleases $::test_channel true
-            }
-          }
+          showSQLiteBuildParameters $::test_channel
 
           #
           # NOTE: Skip trying to verify the build directory if instructed;
@@ -3676,10 +5183,10 @@ namespace eval ::Eagle {
           #
           if {![info exists ::no(verifyBuildDirectory)]} then {
             #
-            # NOTE: At this point, the build directory MUST exist as a
-            #       valid directory for the testing process to continue.
+            # NOTE: At this point, the build directories MUST exist for
+            #       the testing process to continue.
             #
-            set directory [getBuildDirectory]
+            set directory [getBuildDirectory false]
 
             if {![file exists $directory] || \
                 ![file isdirectory $directory]} then {
@@ -3688,26 +5195,60 @@ namespace eval ::Eagle {
               #       add an error to the test log file.
               #
               tputs $::test_channel [appendArgs \
-                  "---- could not verify build directory \"" $directory \
-                  "\", all testing halted\n"]
+                  "---- could not verify native build directory \"" \
+                  $directory "\", all testing halted\n"]
 
               #
               # NOTE: Raising a script error from this point should halt
               #       the testing process.
               #
               error [appendArgs \
-                  "could not verify build directory \"" $directory \
-                  "\", all testing halted"]
+                  "could not verify native build directory \"" \
+                  $directory "\", all testing halted"]
             }
+
+            set directory [getBuildDirectory true]
+
+            if {![file exists $directory] || \
+                ![file isdirectory $directory]} then {
+              #
+              # NOTE: Just prior to actually halting the testing process,
+              #       add an error to the test log file.
+              #
+              tputs $::test_channel [appendArgs \
+                  "---- could not verify managed build directory \"" \
+                  $directory "\", all testing halted\n"]
+
+              #
+              # NOTE: Raising a script error from this point should halt
+              #       the testing process.
+              #
+              error [appendArgs \
+                  "could not verify managed build directory \"" \
+                  $directory "\", all testing halted"]
+            }
+
+            set logDirectory $directory
+          } else {
+            set logDirectory [getBuildDirectory true]
           }
+
+          #
+          # NOTE: We're going to move the test log file to the directory
+          #       containing the managed assemblies being tested.
+          #
+          moveTestLogFile $logDirectory
 
           #
           # NOTE: Skip trying to copy any files if instructed.
           #
           if {![info exists ::no(copySqliteFiles)]} then {
             if {![info exists ::no(copySqliteConfigFiles)]} then {
+              tputs $::test_channel \
+                  "---- copying \"configuration\" files...\n"
+
               foreach fileName $configFileNames {
-                tryCopyBuildFile $fileName
+                tryCopyBuildFile $fileName true
               }
             }
 
@@ -3720,8 +5261,11 @@ namespace eval ::Eagle {
               #       legacy tests run with exactly the same set of Managed
               #       Debugging Assistants configured.
               #
+              tputs $::test_channel \
+                  "---- copying \"MDA configuration\" files...\n"
+
               foreach fileName $mdaConfigFileNames {
-                tryCopyBinaryFile EagleShell.exe.mda.config "" $fileName
+                tryCopyBinaryFile EagleShell.exe.mda.config true "" $fileName
               }
 
               #
@@ -3730,6 +5274,8 @@ namespace eval ::Eagle {
               #       sure assemblies referenced by the ones being tested are
               #       available during the testing process.
               #
+              tputs $::test_channel "---- copying \"external\" files...\n"
+
               foreach fileName $externalFileNames {
                 tryCopyExternalFile $fileName
               }
@@ -3741,33 +5287,124 @@ namespace eval ::Eagle {
               #       machine, also try to copy the native files to the
               #       binary location.
               #
-              if {![info exists ::no(copySqliteImplicitFiles)] && \
-                  [isDefaultBuildPlatform true]} then {
+              if {![info exists ::no(copySqliteImplicitNativeFiles)] && \
+                  [isDefaultBuildPlatform]} then {
+                tputs $::test_channel \
+                    "---- copying implicit \"native\" files...\n"
+
                 foreach fileName $nativeFileNames {
-                  tryCopyAssembly $fileName
+                  tryCopyAssembly $fileName false
+
+                  if {[isDotNetCore] && ![file exists \
+                      [getBuildFileName $fileName true]]} then {
+                    tryCopyBinaryFile $fileName true
+                  }
                 }
               }
 
               if {![info exists ::no(copySqliteNonImplicitFiles)]} then {
                 if {![info exists ::no(copySqlitePlatformFiles)] && \
                     [string length $platform] > 0} then {
+                  tputs $::test_channel [appendArgs \
+                      "---- copying \"native\" files for platform \"" \
+                      $platform \"...\n]
+
                   foreach fileName $nativeFileNames {
-                    tryCopyAssembly $fileName $platform
+                    tryCopyAssembly $fileName false $platform
+
+                    if {[isDotNetCore] && ![file exists \
+                        [getBuildFileName $fileName true \
+                        $platform]]} then {
+                      tryCopyBinaryFile $fileName true $platform
+                    }
                   }
                 }
 
                 if {![info exists ::no(copySqliteArchitectureFiles)] && \
                     [string length $architecture] > 0} then {
+                  tputs $::test_channel [appendArgs \
+                      "---- copying \"native\" files for architecture \"" \
+                      $architecture \"...\n]
+
                   foreach fileName $nativeFileNames {
-                    tryCopyAssembly $fileName $architecture
+                    tryCopyAssembly $fileName false $architecture
+
+                    if {[isDotNetCore] && ![file exists \
+                        [getBuildFileName $fileName true \
+                        $architecture]]} then {
+                      tryCopyBinaryFile $fileName true $architecture
+                    }
+                  }
+                }
+
+                if {![info exists ::no(copySqliteForcedNativeFiles)] && \
+                    [getBuildNative]} then {
+                  tputs $::test_channel \
+                      "---- copying forced \"native\" files...\n"
+
+                  foreach fileName $nativeFileNames {
+                    tryCopyAssembly $fileName false
+                  }
+                }
+              }
+            }
+
+            if {![info exists ::no(copySqliteMixedFiles)]} then {
+              #
+              # NOTE: If the "native" runtime option is set, copy implicit
+              #       mixed-mode assembly files as well.  The runtime option
+              #       check is handled when building the list of mixed-mode
+              #       assembly file names.
+              #
+              if {![info exists ::no(copySqliteImplicitMixedFiles)]} then {
+                tputs $::test_channel \
+                    "---- copying implicit \"mixed\" files...\n"
+
+                foreach fileName $mixedFileNames {
+                  tryCopyAssembly $fileName false
+                }
+              }
+
+              if {![info exists ::no(copySqliteNonImplicitFiles)]} then {
+                if {![info exists ::no(copySqlitePlatformFiles)] && \
+                    [string length $platform] > 0} then {
+                  tputs $::test_channel [appendArgs \
+                      "---- copying \"mixed\" files for platform \"" \
+                      $platform \"...\n]
+
+                  foreach fileName $mixedFileNames {
+                    tryCopyAssembly $fileName false $platform
+                  }
+                }
+
+                if {![info exists ::no(copySqliteArchitectureFiles)] && \
+                    [string length $architecture] > 0} then {
+                  tputs $::test_channel [appendArgs \
+                      "---- copying \"mixed\" files for architecture \"" \
+                      $architecture \"...\n]
+
+                  foreach fileName $mixedFileNames {
+                    tryCopyAssembly $fileName false $architecture
+                  }
+                }
+
+                if {![info exists ::no(copySqliteForcedMixedFiles)] && \
+                    [getBuildNative]} then {
+                  tputs $::test_channel \
+                      "---- copying forced \"mixed\" files...\n"
+
+                  foreach fileName $mixedFileNames {
+                    tryCopyAssembly $fileName false
                   }
                 }
               }
             }
 
             if {![info exists ::no(copySqliteManagedFiles)]} then {
+              tputs $::test_channel "---- copying \"managed\" files...\n"
+
               foreach fileName $managedFileNames {
-                tryCopyAssembly $fileName
+                tryCopyAssembly $fileName true
               }
             }
           }
@@ -3802,92 +5439,74 @@ namespace eval ::Eagle {
           }
         }
 
-        foreach fileNameOnly [getNativeLibraryFileNamesOnly] {
+        foreach fileNameOnly $nativeFileNames {
           catch {
             tputs $::test_channel [appendArgs \
-                "---- file version of \"" $fileNameOnly "\"... \"" \
-                [file version [getBinaryFileName $fileNameOnly]] \"\n]
+                "---- file version of \"" native/ $fileNameOnly \
+                "\"... \"" [file version [getBinaryFileName \
+                $fileNameOnly]] \"\n]
           }
         }
 
-        foreach fileNameOnly [getInteropAssemblyFileNamesOnly] {
+        foreach fileNameOnly $mixedFileNames {
           catch {
             tputs $::test_channel [appendArgs \
-                "---- file version of \"" $fileNameOnly "\"... \"" \
-                [file version [getBinaryFileName $fileNameOnly]] \"\n]
+                "---- file version of \"" mixed/ $fileNameOnly \
+                "\"... \"" [file version [getBinaryFileName \
+                $fileNameOnly]] \"\n]
           }
         }
 
-        catch {
-          tputs $::test_channel [appendArgs \
-              "---- file version of \"System.Data.SQLite.dll\"... \"" \
-              [file version [getBinaryFileName System.Data.SQLite.dll]] \"\n]
-        }
-
-        catch {
-          tputs $::test_channel [appendArgs \
-              "---- file version of \"System.Data.SQLite.Linq.dll\"... \"" \
-              [file version [getBinaryFileName System.Data.SQLite.Linq.dll]] \
-              \"\n]
-        }
-
-        catch {
-          tputs $::test_channel [appendArgs \
-              "---- file version of \"System.Data.SQLite.EF6.dll\"... \"" \
-              [file version [getBinaryFileName System.Data.SQLite.EF6.dll]] \
-              \"\n]
+        foreach fileNameOnly $managedFileNames {
+          catch {
+            tputs $::test_channel [appendArgs \
+                "---- file version of \"" managed/ $fileNameOnly \
+                "\"... \"" [file version [getBinaryFileName \
+                $fileNameOnly]] \"\n]
+          }
         }
 
         if {[string length $platform] > 0} then {
-          foreach fileNameOnly [getNativeLibraryFileNamesOnly] {
+          foreach fileNameOnly $nativeFileNames {
             catch {
               tputs $::test_channel [appendArgs \
-                  "---- file version of \"" $platform \
-                  / $fileNameOnly "\"... \"" [file version \
-                  [getBinaryFileName $fileNameOnly $platform]] \"\n]
+                  "---- file version of \"" native/platform/ \
+                  $platform / $fileNameOnly "\"... \"" [file \
+                  version [getBinaryFileName $fileNameOnly \
+                  $platform]] \"\n]
             }
           }
 
-          foreach fileNameOnly [getInteropAssemblyFileNamesOnly] {
+          foreach fileNameOnly $mixedFileNames {
             catch {
               tputs $::test_channel [appendArgs \
-                  "---- file version of \"" $platform \
-                  / $fileNameOnly "\"... \"" [file version \
-                  [getBinaryFileName $fileNameOnly $platform]] \"\n]
+                  "---- file version of \"" mixed/platform/ \
+                  $platform / $fileNameOnly "\"... \"" [file \
+                  version [getBinaryFileName $fileNameOnly \
+                  $platform]] \"\n]
             }
-          }
-
-          catch {
-            tputs $::test_channel [appendArgs \
-                "---- file version of \"" $platform \
-                "/System.Data.SQLite.dll\"... \"" [file version \
-                [getBinaryFileName System.Data.SQLite.dll $platform]] \"\n]
           }
         }
 
         if {[string length $architecture] > 0} then {
-          foreach fileNameOnly [getNativeLibraryFileNamesOnly] {
+          foreach fileNameOnly $nativeFileNames {
             catch {
               tputs $::test_channel [appendArgs \
-                  "---- file version of \"" $architecture \
-                  / $fileNameOnly "\"... \"" [file version \
-                  [getBinaryFileName $fileNameOnly $architecture]] \"\n]
+                  "---- file version of \"" native/architecture/ \
+                  $architecture / $fileNameOnly "\"... \"" [file \
+                  version [getBinaryFileName $fileNameOnly \
+                  $architecture]] \"\n]
             }
           }
 
-          catch {
-            tputs $::test_channel [appendArgs \
-                "---- file version of \"" $architecture \
-                / $fileNameOnly "\"... \"" [file version \
-                [getBinaryFileName $fileNameOnly $architecture]] \"\n]
-          }
-
-          catch {
-            tputs $::test_channel [appendArgs \
-                "---- file version of \"" $architecture \
-                "/System.Data.SQLite.dll\"... \"" [file version \
-                [getBinaryFileName System.Data.SQLite.dll $architecture]] \
-                \"\n]
+          foreach fileNameOnly $mixedFileNames {
+            catch {
+              tputs $::test_channel [appendArgs \
+                  "---- file version of \"" mixed/architecture/ \
+                  $architecture / $fileNameOnly "\"... \"" [file \
+                  version [getBinaryFileName $fileNameOnly \
+                  $architecture]] \"\n]
+            }
           }
         }
 
@@ -3896,12 +5515,16 @@ namespace eval ::Eagle {
         #       and report on the System.Data.SQLite related ones.
         #
         if {[haveSQLiteObjectCommand]} then {
-          set assemblies [object invoke AppDomain.CurrentDomain GetAssemblies]
-
-          object foreach assembly $assemblies {
-            if {[string match \{System.Data.SQLite* $assembly]} then {
-              tputs $::test_channel [appendArgs \
-                  "---- found loaded assembly: " $assembly \n]
+          if {[catch {
+            object invoke Utility GetAssemblies
+          } assemblies] == 0 || [catch {
+            object invoke AppDomain.CurrentDomain GetAssemblies
+          } assemblies] == 0} then {
+            object foreach assembly $assemblies {
+              if {[string match \{System.Data.SQLite* $assembly]} then {
+                tputs $::test_channel [appendArgs \
+                    "---- found loaded assembly: " $assembly \n]
+              }
             }
           }
         }
@@ -3956,6 +5579,25 @@ namespace eval ::Eagle {
         }
 
         #
+        # NOTE: Reset cached "break into debugger" setting so that it can be
+        #       used during the test file, if needed.
+        #
+        if {![info exists ::no(resetBreakIntoDebugger)] && \
+            [haveSQLiteObjectCommand]} then {
+          if {[catch {
+            object invoke -flags +NonPublic \
+                System.Data.SQLite.HelperMethods ResetBreakIntoDebugger
+          } result] == 0} then {
+            tputs $::test_channel [appendArgs \
+                "---- call ResetBreakIntoDebugger()... ok\n"]
+          } else {
+            tputs $::test_channel [appendArgs \
+                "---- call ResetBreakIntoDebugger()... error: " \
+                \n\t $result \n]
+          }
+        }
+
+        #
         # NOTE: Check the available builds (and "releases") of SQLite and
         #       System.Data.SQLite.
         #
@@ -3995,13 +5637,15 @@ namespace eval ::Eagle {
             INTEROP_INCLUDE_CEROD INTEROP_INCLUDE_EXTRA INTEROP_INCLUDE_SEE \
             INTEROP_INCLUDE_ZIPVFS INTEROP_JSON1_EXTENSION \
             INTEROP_LEGACY_CLOSE INTEROP_LOG INTEROP_PERCENTILE_EXTENSION \
-            INTEROP_REGEXP_EXTENSION INTEROP_TEST_EXTENSION \
-            INTEROP_TOTYPE_EXTENSION INTEROP_VIRTUAL_TABLE NET_20 NET_35 \
-            NET_40 NET_45 NET_451 NET_452 NET_46 NET_461 NET_COMPACT_20 \
-            PLATFORM_COMPACTFRAMEWORK PRELOAD_NATIVE_LIBRARY RETARGETABLE \
-            SQLITE_STANDARD THROW_ON_DISPOSED TRACE TRACE_CONNECTION \
-            TRACE_DETECTION TRACE_HANDLE TRACE_PRELOAD TRACE_SHARED \
-            TRACE_STATEMENT TRACE_WARNING TRACK_MEMORY_BYTES \
+            INTEROP_REGEXP_EXTENSION INTEROP_SESSION_EXTENSION \
+            INTEROP_SHA1_EXTENSION INTEROP_TEST_EXTENSION \
+            INTEROP_TOTYPE_EXTENSION INTEROP_VIRTUAL_TABLE \
+            NET_20 NET_35 NET_40 NET_45 NET_451 NET_452 NET_46 NET_461 \
+            NET_462 NET_47 NET_471 NET_472 NET_COMPACT_20 NET_STANDARD_20 \
+            NET_STANDARD_21 PLATFORM_COMPACTFRAMEWORK PRELOAD_NATIVE_LIBRARY \
+            RETARGETABLE SQLITE_STANDARD THROW_ON_DISPOSED \
+            TRACE TRACE_CONNECTION TRACE_DETECTION TRACE_HANDLE TRACE_PRELOAD \
+            TRACE_SHARED TRACE_STATEMENT TRACE_WARNING TRACK_MEMORY_BYTES \
             USE_ENTITY_FRAMEWORK_6 USE_INTEROP_DLL USE_PREPARE_V2 WINDOWS] {
           #
           # NOTE: Check if the compile-time option is listed in the list of
@@ -4011,51 +5655,60 @@ namespace eval ::Eagle {
         }
 
         #
+        # NOTE: Attempt to determine if various compile-time options needed for
+        #       test constraints were enabled for the interop assembly and/or
+        #       for the SQLite core library.
+        #
+        foreach compileOption [list \
+            CODEC EXTENSION_FUNCTIONS HAS_CODEC INCLUDE_CEROD INCLUDE_EXTRA \
+            INCLUDE_SEE INCLUDE_ZIPVFS JSON1_EXTENSION LEGACY_CLOSE LOG \
+            PERCENTILE_EXTENSION REGEXP_EXTENSION SESSION_EXTENSION \
+            SHA1_EXTENSION TEST_EXTENSION TOTYPE_EXTENSION VIRTUAL_TABLE] {
+          #
+          # NOTE: Check if the compile-time option is listed in the list
+          #       kept track of by the interop assembly and/or the SQLite
+          #       core library.
+          #
+          checkForSQLiteCompileOption $::test_channel $compileOption
+        }
+
+        #
         # NOTE: Check if the System.Data.SQLite provider was compiled with
         #       support for any encrypted databases.
         #
         if {[haveSQLiteDefineConstant INTEROP_CODEC] || \
             [haveSQLiteDefineConstant INTEROP_INCLUDE_SEE]} then {
           #
-          # NOTE: Yes, add generic constraint for use by the test suite.
+          # NOTE: Now check if the interop assembly was also compiled with
+          #       support for encrypted databases.
           #
-          addConstraint System.Data.SQLite.Encryption
+          if {[haveSQLiteCompileOption CODEC] || \
+              [haveSQLiteCompileOption INCLUDE_SEE]} then {
+            #
+            # NOTE: Next, check if the SQLite core library was compiled
+            #       with support for encrypted databases.
+            #
+            if {[haveSQLiteCompileOption HAS_CODEC]} then {
+              #
+              # NOTE: Yes, add constraint for use by the test suite.
+              #
+              addConstraint System.Data.SQLite.Encryption
+
+              #
+              # NOTE: Next, chck if the SQLite core library was compiled
+              #       with SEE.
+              #
+              if {[haveSQLiteDefineConstant INTEROP_INCLUDE_SEE] && \
+                  [haveSQLiteCompileOption INCLUDE_SEE]} then {
+                #
+                # NOTE: Finally, when compiled with SEE, add the
+                #       appropriate constraint.
+                #
+                addConstraint System.Data.SQLite.SEE
+              }
+            }
+          }
         }
-
-        #
-        # NOTE: Check the current build year.  Basically, this indicates
-        #       which version of MSBuild and/or Visual Studio was used to
-        #       compile the assembly binaries under test.
-        #
-        tputs $::test_channel \
-            "---- checking for System.Data.SQLite build year... "
-
-        set year [getBuildYear]
-        addConstraint [appendArgs buildYear. $year]
-        tputs $::test_channel [appendArgs \" $year \"\n]
-
-        #
-        # NOTE: Check the current build .NET Framework.  Basically, this
-        #       indicates which version of the .NET Framework is being
-        #       used by the assembly binaries under test.
-        #
-        tputs $::test_channel \
-            "---- checking for System.Data.SQLite build .NET Framework... "
-
-        set netFx [getBuildNetFx]
-        addConstraint [appendArgs buildFramework. $netFx]
-        tputs $::test_channel [appendArgs \" $netFx \"\n]
-
-        #
-        # NOTE: Check the current build configuration.  This should normally
-        #       be either "Debug" or "Release".
-        #
-        tputs $::test_channel \
-            "---- checking for System.Data.SQLite build configuration... "
-
-        set configuration [getBuildConfiguration]
-        addConstraint [appendArgs buildConfiguration. $configuration]
-        tputs $::test_channel [appendArgs \" $configuration \"\n]
 
         #
         # NOTE: Try to setup an interrupt callback using the script debugger
@@ -4165,7 +5818,7 @@ namespace eval ::Eagle {
         #       "test context" information is per-thread.
         #
         if {![info exists ::test_constraints]} then {
-          set ::test_constraints $::eagle_tests(constraints)
+          set ::test_constraints $::eagle_tests(Constraints)
         }
 
         #
@@ -4191,236 +5844,362 @@ namespace eval ::Eagle {
     }
 
     proc runSQLiteTestFilesPrologue {} {
-      uplevel 1 {
-        #
-        # NOTE: Setup the variables that refer to the various non-data files
-        #       required by the tests in this file.
-        #
-        set entityFrameworkDllFile \
-            [getBuildFileName EntityFramework.dll]
+      #
+      # NOTE: Skip running our custom files prologue if the main one has been
+      #       skipped.
+      #
+      if {![info exists ::no(prologue.eagle)]} then {
+        uplevel 1 {
+          #
+          # NOTE: Setup the variables that refer to the various non-data files
+          #       required by the tests in this file.
+          #
+          set entityFrameworkDllFile \
+              [getBuildFileName EntityFramework.dll true]
 
-        set installerExeFile [getBuildFileName Installer.exe]
-        set sqliteDesignerDllFile [getBuildFileName SQLite.Designer.dll]
+          set installerExeFile \
+              [getBuildFileName Installer.exe true]
 
-        set systemDataSQLiteDllFile \
-            [getBuildFileName System.Data.SQLite.dll]
+          set sqliteDesignerDllFile \
+              [getBuildFileName SQLite.Designer.dll true]
 
-        set systemDataSQLiteLinqDllFile \
-            [getBuildFileName System.Data.SQLite.Linq.dll]
+          set systemDataSQLiteDllFile \
+              [getBuildFileName System.Data.SQLite.dll true]
 
-        set systemDataSQLiteEf6DllFile \
-            [getBuildFileName System.Data.SQLite.EF6.dll]
+          set systemDataSQLiteLinqDllFile \
+              [getBuildFileName System.Data.SQLite.Linq.dll true]
 
-        set testExeFile [getBuildFileName test.exe]
-        set testLinqExeFile [getBuildFileName testlinq.exe]
-        set testEf6ExeFile [getBuildFileName testef6.exe]
+          set systemDataSQLiteEf6DllFile \
+              [getBuildFileName System.Data.SQLite.EF6.dll true]
 
-        #
-        # NOTE: Setup the variables that refer to the various data files
-        #       required by the tests in this file.
-        #
-        set testLinqOutFile [file nativename [file join \
-            [getSQLiteTestDataPath] testlinq.out]]
+          set testExeFile [getBuildFileName test.exe true]
+          set testLinqExeFile [getBuildFileName testlinq.exe true]
 
-        set northwindEfDbFile [file nativename [file join \
-            [file dirname [file dirname [getSQLiteTestDataPath]]] \
-            testlinq northwindEF.db]]
+          if {[isDotNetCore]} then {
+            set testEf6ExeFile [getBuildFileName testef6.dll true]
+          } else {
+            set testEf6ExeFile [getBuildFileName testef6.exe true]
+          }
 
-        set nonWalDbFile [file nativename [file join \
-            [getSQLiteTestDataPath] nonWal.db]]
+          set testEf6DepsJsonFile \
+              [getBuildFileName testef6.deps.json true]
 
-        set walDbFile [file nativename [file join \
-            [getSQLiteTestDataPath] wal.db]]
+          set testEf6DepsJsonBackupFile \
+              [getBuildFileName [appendArgs testef6.deps.json . \
+              [generateUniqueId "" 4]] true]
 
-        #
-        # NOTE: The various install/uninstall log files used to test the
-        #       design-time component installer.
-        #
-        set testInstallVs2005LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Installer_Test_Vs2005.log]]
+          #
+          # NOTE: Setup the variables that refer to the various data files
+          #       required by the tests in this file.
+          #
+          set testLinqOutFile [file nativename [file join \
+              [getSQLiteTestDataPath] testlinq.out]]
 
-        set testInstallVs2008LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Installer_Test_Vs2008.log]]
+          set northwindEfDbFile [file nativename [file join \
+              [file dirname [file dirname [getSQLiteTestDataPath]]] \
+              testlinq northwindEF.db]]
 
-        set testInstallVs2010LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Installer_Test_Vs2010.log]]
+          set nonWalDbFile [file nativename [file join \
+              [getSQLiteTestDataPath] nonWal.db]]
 
-        set testInstallVs2012LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Installer_Test_Vs2012.log]]
+          set walDbFile [file nativename [file join \
+              [getSQLiteTestDataPath] wal.db]]
 
-        set testInstallVs2013LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Installer_Test_Vs2013.log]]
+          #
+          # NOTE: The various install/uninstall log files used to test the
+          #       design-time component installer.
+          #
+          set testInstallVs2005LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2005.log]]
 
-        set testInstallVs2015LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Installer_Test_Vs2015.log]]
+          set testInstallVs2008LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2008.log]]
 
-        set testUninstallVs2005LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Uninstaller_Test_Vs2005.log]]
+          set testInstallVs2010LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2010.log]]
 
-        set testUninstallVs2008LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Uninstaller_Test_Vs2008.log]]
+          set testInstallVs2012LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2012.log]]
 
-        set testUninstallVs2010LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Uninstaller_Test_Vs2010.log]]
+          set testInstallVs2013LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2013.log]]
 
-        set testUninstallVs2012LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Uninstaller_Test_Vs2012.log]]
+          set testInstallVs2015LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2015.log]]
 
-        set testUninstallVs2013LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Uninstaller_Test_Vs2013.log]]
+          set testInstallVs2017LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Installer_Test_Vs2017.log]]
 
-        set testUninstallVs2015LogFile [file nativename [file join \
-            [getSQLiteTestDataPath] Uninstaller_Test_Vs2015.log]]
+          set testUninstallVs2005LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2005.log]]
 
-        #######################################################################
+          set testUninstallVs2008LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2008.log]]
 
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $entityFrameworkDllFile]]]} then {
-          checkForFile $test_channel $entityFrameworkDllFile
+          set testUninstallVs2010LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2010.log]]
+
+          set testUninstallVs2012LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2012.log]]
+
+          set testUninstallVs2013LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2013.log]]
+
+          set testUninstallVs2015LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2015.log]]
+
+          set testUninstallVs2017LogFile [file nativename [file join \
+              [getSQLiteTestDataPath] Uninstaller_Test_Vs2017.log]]
+
+          #####################################################################
+
+          if {![info exists ::no(checkForSqliteFiles)]} then {
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $entityFrameworkDllFile]]]} then {
+              checkForFile $test_channel $entityFrameworkDllFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $installerExeFile]]]} then {
+              checkForFile $test_channel $installerExeFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $sqliteDesignerDllFile]]]} then {
+              checkForFile $test_channel $sqliteDesignerDllFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $systemDataSQLiteDllFile]]]} then {
+              checkForFile $test_channel $systemDataSQLiteDllFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $systemDataSQLiteLinqDllFile]]]} then {
+              checkForFile $test_channel $systemDataSQLiteLinqDllFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $systemDataSQLiteEf6DllFile]]]} then {
+              checkForFile $test_channel $systemDataSQLiteEf6DllFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testExeFile]]]} then {
+              checkForFile $test_channel $testExeFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testLinqExeFile]]]} then {
+              checkForFile $test_channel $testLinqExeFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testEf6ExeFile]]]} then {
+              #
+              # HACK: Hard-code the constraint name here to that of .NET
+              #       Framework executable.  When compiled for .NET Core
+              #       this will be a DLL; however, the tests use the EXE
+              #       file name as the constraint name.
+              #
+              checkForFile $test_channel $testEf6ExeFile testef6.exe
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testEf6DepsJsonFile]]]} then {
+              checkForFile $test_channel $testEf6DepsJsonFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testEf6DepsJsonBackupFile]]]} then {
+              checkForFile $test_channel $testEf6DepsJsonBackupFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testLinqOutFile]]]} then {
+              checkForFile $test_channel $testLinqOutFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $northwindEfDbFile]]]} then {
+              checkForFile $test_channel $northwindEfDbFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $nonWalDbFile]]]} then {
+              checkForFile $test_channel $nonWalDbFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $walDbFile]]]} then {
+              checkForFile $test_channel $walDbFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2005LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2005LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2008LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2008LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2010LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2010LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2012LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2012LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2013LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2013LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2015LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2015LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testInstallVs2017LogFile]]]} then {
+              checkForFile $test_channel $testInstallVs2017LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2005LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2005LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2008LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2008LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2010LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2010LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2012LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2012LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2013LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2013LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2015LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2015LogFile
+            }
+
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testUninstallVs2017LogFile]]]} then {
+              checkForFile $test_channel $testUninstallVs2017LogFile
+            }
+          }
         }
+      }
+    }
+
+    proc runSQLiteTestExtraPrologue {} {
+      #
+      # NOTE: Skip running our custom files prologue if the main one has been
+      #       skipped.
+      #
+      if {![info exists ::no(prologue.eagle)]} then {
+        uplevel 1 {
+          if {![info exists ::no(saveTestEf6Files)]} then {
+            if {[haveConstraint [appendArgs file_ \
+                [file tail $testEf6DepsJsonFile]]] && \
+                ![haveConstraint [appendArgs file_ \
+                [file tail $testEf6DepsJsonBackupFile]]]} then {
+              file rename $testEf6DepsJsonFile $testEf6DepsJsonBackupFile
 
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $installerExeFile]]]} then {
-          checkForFile $test_channel $installerExeFile Installer.exe
+              tputs $test_channel [appendArgs \
+                  "---- moved \"" $testEf6DepsJsonFile "\" to \"" \
+                  $testEf6DepsJsonBackupFile \"\n]
+
+              removeConstraint [appendArgs \
+                  file_ [file tail $testEf6DepsJsonFile]]
+
+              removeConstraint [appendArgs \
+                  file_ [file tail $testEf6DepsJsonBackupFile]]
+
+              checkForFile $test_channel $testEf6DepsJsonFile
+              checkForFile $test_channel $testEf6DepsJsonBackupFile
+            }
+          }
         }
+      }
+    }
+
+    proc runSQLiteTestExtraEpilogue {} {
+      #
+      # NOTE: Skip running our custom files epilogue if the main one has been
+      #       skipped.
+      #
+      if {![info exists ::no(epilogue.eagle)]} then {
+        uplevel 1 {
+          if {![info exists ::no(restoreTestEf6Files)]} then {
+            if {![haveConstraint [appendArgs file_ \
+                [file tail $testEf6DepsJsonFile]]] && \
+                [haveConstraint [appendArgs file_ \
+                [file tail $testEf6DepsJsonBackupFile]]]} then {
+              file rename $testEf6DepsJsonBackupFile $testEf6DepsJsonFile
 
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $sqliteDesignerDllFile]]]} then {
-          checkForFile $test_channel $sqliteDesignerDllFile
-        }
+              tputs $test_channel [appendArgs \
+                  "---- moved \"" $testEf6DepsJsonBackupFile "\" to \"" \
+                  $testEf6DepsJsonFile \"\n]
 
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $systemDataSQLiteDllFile]]]} then {
-          checkForFile $test_channel $systemDataSQLiteDllFile
-        }
+              removeConstraint [appendArgs \
+                  file_ [file tail $testEf6DepsJsonFile]]
 
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $systemDataSQLiteLinqDllFile]]]} then {
-          checkForFile $test_channel $systemDataSQLiteLinqDllFile
-        }
+              removeConstraint [appendArgs \
+                  file_ [file tail $testEf6DepsJsonBackupFile]]
 
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $systemDataSQLiteEf6DllFile]]]} then {
-          checkForFile $test_channel $systemDataSQLiteEf6DllFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testExeFile]]]} then {
-          checkForFile $test_channel $testExeFile test.exe
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testLinqExeFile]]]} then {
-          checkForFile $test_channel $testLinqExeFile testlinq.exe
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testEf6ExeFile]]]} then {
-          checkForFile $test_channel $testEf6ExeFile testef6.exe
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testLinqOutFile]]]} then {
-          checkForFile $test_channel $testLinqOutFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $northwindEfDbFile]]]} then {
-          checkForFile $test_channel $northwindEfDbFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $nonWalDbFile]]]} then {
-          checkForFile $test_channel $nonWalDbFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $walDbFile]]]} then {
-          checkForFile $test_channel $walDbFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testInstallVs2005LogFile]]]} then {
-          checkForFile $test_channel $testInstallVs2005LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testInstallVs2008LogFile]]]} then {
-          checkForFile $test_channel $testInstallVs2008LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testInstallVs2010LogFile]]]} then {
-          checkForFile $test_channel $testInstallVs2010LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testInstallVs2012LogFile]]]} then {
-          checkForFile $test_channel $testInstallVs2012LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testInstallVs2013LogFile]]]} then {
-          checkForFile $test_channel $testInstallVs2013LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testInstallVs2015LogFile]]]} then {
-          checkForFile $test_channel $testInstallVs2015LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testUninstallVs2005LogFile]]]} then {
-          checkForFile $test_channel $testUninstallVs2005LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testUninstallVs2008LogFile]]]} then {
-          checkForFile $test_channel $testUninstallVs2008LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testUninstallVs2010LogFile]]]} then {
-          checkForFile $test_channel $testUninstallVs2010LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testUninstallVs2012LogFile]]]} then {
-          checkForFile $test_channel $testUninstallVs2012LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testUninstallVs2013LogFile]]]} then {
-          checkForFile $test_channel $testUninstallVs2013LogFile
-        }
-
-        if {![haveConstraint [appendArgs file_ \
-            [file tail $testUninstallVs2015LogFile]]]} then {
-          checkForFile $test_channel $testUninstallVs2015LogFile
+              checkForFile $test_channel $testEf6DepsJsonFile
+              checkForFile $test_channel $testEf6DepsJsonBackupFile
+            }
+          }
         }
       }
     }
 
     proc runSQLiteTestFilesEpilogue {} {
-      uplevel 1 {
-        unset -nocomplain \
-            testUninstallVs2015LogFile testUninstallVs2013LogFile \
-            testUninstallVs2012LogFile testUninstallVs2010LogFile \
-            testUninstallVs2008LogFile testUninstallVs2005LogFile \
-            testInstallVs2015LogFile testInstallVs2013LogFile \
-            testInstallVs2012LogFile testInstallVs2010LogFile \
-            testInstallVs2008LogFile testInstallVs2005LogFile
+      #
+      # NOTE: Skip running our custom files epilogue if the main one has been
+      #       skipped.
+      #
+      if {![info exists ::no(epilogue.eagle)]} then {
+        uplevel 1 {
+          unset -nocomplain \
+              testUninstallVs2017LogFile testUninstallVs2015LogFile \
+              testUninstallVs2013LogFile testUninstallVs2012LogFile \
+              testUninstallVs2010LogFile testUninstallVs2008LogFile \
+              testUninstallVs2005LogFile testInstallVs2017LogFile \
+              testInstallVs2015LogFile testInstallVs2013LogFile \
+              testInstallVs2012LogFile testInstallVs2010LogFile \
+              testInstallVs2008LogFile testInstallVs2005LogFile
 
-        unset -nocomplain \
-            northwindEfDbFile testLinqOutFile \
-            walDbFile nonWalDbFile
+          unset -nocomplain \
+              northwindEfDbFile testLinqOutFile walDbFile nonWalDbFile
 
-        unset -nocomplain \
-            testEf6ExeFile testLinqExeFile \
-            testExeFile systemDataSQLiteEf6DllFile \
-            systemDataSQLiteLinqDllFile systemDataSQLiteDllFile \
-            sqliteDesignerDllFile installerExeFile \
-            entityFrameworkDllFile
+          unset -nocomplain \
+              testEf6DepsJsonFile testEf6DepsJsonBackupFile \
+              testEf6ExeFile testLinqExeFile \
+              testExeFile systemDataSQLiteEf6DllFile \
+              systemDataSQLiteLinqDllFile systemDataSQLiteDllFile \
+              sqliteDesignerDllFile installerExeFile \
+              entityFrameworkDllFile
+        }
       }
     }
 
@@ -4465,6 +6244,13 @@ namespace eval ::Eagle {
         if {[hasRuntimeOption sharedCache]} then {
           enableSharedCache $::test_channel false
         }
+
+        #
+        # NOTE: Restore the previously saved environment variables that we
+        #       changed for the test suite.
+        #
+        restoreEnvironmentVariables \
+            [list Initialize_SQLiteLog] ::testSuiteSavedEnv
       }
     }
 

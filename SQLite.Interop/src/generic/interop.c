@@ -11,6 +11,23 @@
 #define WINAPI
 #endif
 
+#if /* SQLITE_VERSION_NUMBER >= 3013000 && */ defined(INTEROP_SESSION_EXTENSION)
+#ifndef SQLITE_ENABLE_SESSION
+#define SQLITE_ENABLE_SESSION (1)
+#endif
+#ifndef SQLITE_ENABLE_PREUPDATE_HOOK
+#define SQLITE_ENABLE_PREUPDATE_HOOK (1)
+#endif
+#endif
+
+#ifndef SQLITE_MAX_ATTACHED
+#define SQLITE_MAX_ATTACHED 30
+#endif
+
+#if defined(INTEROP_INCLUDE_SEE)
+#include "../ext/see-prefix.txt"
+#endif
+
 #include "../core/sqlite3.c"
 
 #if !SQLITE_OS_WIN
@@ -31,6 +48,9 @@
 
 #if defined(INTEROP_INCLUDE_ZIPVFS)
 #include "../ext/zipvfs.c"
+#if defined(SQLITE_ENABLE_ZIPVFS_VTAB)
+#include "../ext/zipvfs_vtab.c"
+#endif
 #include "../ext/algorithms.c"
 #endif
 
@@ -40,7 +60,7 @@
 extern int RegisterExtensionFunctions(sqlite3 *db);
 #endif
 
-#if defined(INTEROP_CODEC) && !defined(INTEROP_INCLUDE_SEE)
+#if SQLITE_OS_WIN && defined(INTEROP_CODEC) && !defined(INTEROP_INCLUDE_SEE)
 #ifdef SQLITE_ENABLE_ZIPVFS
 #define INTEROP_CODEC_GET_PAGER(a,b,c) sqlite3PagerGet(a,b,c,0)
 #elif SQLITE_VERSION_NUMBER >= 3010000
@@ -64,6 +84,7 @@ extern int RegisterExtensionFunctions(sqlite3 *db);
 #define INTEROP_DEBUG_RESET          (0x0080)
 #define INTEROP_DEBUG_CHANGES        (0x0100)
 #define INTEROP_DEBUG_BREAK          (0x0200)
+#define INTEROP_DEBUG_BLOB_CLOSE     (0x0400)
 
 #if defined(_MSC_VER) && defined(INTEROP_DEBUG) && \
     (INTEROP_DEBUG & INTEROP_DEBUG_BREAK)
@@ -131,6 +152,12 @@ static const char * const azInteropCompileOpt[] = {
 #ifdef INTEROP_REGEXP_EXTENSION
   "REGEXP_EXTENSION",
 #endif
+#ifdef INTEROP_SESSION_EXTENSION
+  "SESSION_EXTENSION",
+#endif
+#ifdef INTEROP_SHA1_EXTENSION
+  "SHA1_EXTENSION",
+#endif
 #ifdef INTEROP_TEST_EXTENSION
   "TEST_EXTENSION",
 #endif
@@ -184,7 +211,11 @@ SQLITE_API const char *WINAPI interop_compileoption_get(int N){
 #if defined(INTEROP_DEBUG) || defined(INTEROP_LOG)
 SQLITE_PRIVATE void sqlite3InteropDebug(const char *zFormat, ...){
   va_list ap;                         /* Vararg list */
-  StrAccum acc;                       /* String accumulator */
+#if SQLITE_VERSION_NUMBER >= 3024000
+  sqlite3_str acc;                    /* Post 3.24 String accumulator */
+#else
+  StrAccum acc;                       /* Pre 3.24 string accumulator */
+#endif
   char zMsg[SQLITE_PRINT_BUF_SIZE*3]; /* Complete log message */
   va_start(ap, zFormat);
 #if SQLITE_VERSION_NUMBER >= 3008010
@@ -193,7 +224,9 @@ SQLITE_PRIVATE void sqlite3InteropDebug(const char *zFormat, ...){
   sqlite3StrAccumInit(&acc, zMsg, sizeof(zMsg), 0);
   acc.useMalloc = 0;
 #endif
-#if SQLITE_VERSION_NUMBER >= 3011000
+#if SQLITE_VERSION_NUMBER >= 3024000
+  sqlite3_str_vappendf(&acc, zFormat, ap);
+#elif SQLITE_VERSION_NUMBER >= 3011000
   sqlite3VXPrintf(&acc, zFormat, ap);
 #else
   sqlite3VXPrintf(&acc, 0, zFormat, ap);
@@ -227,6 +260,12 @@ SQLITE_PRIVATE void sqlite3InteropLogCallback(void *pArg, int iCode, const char 
 
 SQLITE_API int WINAPI sqlite3_malloc_size_interop(void *p){
   return sqlite3MallocSize(p);
+}
+
+SQLITE_API void WINAPI sqlite3_msize_interop(void *p, sqlite_uint64 *pN)
+{
+  if (!pN) return;
+  *pN = sqlite3_msize(p);
 }
 
 #if defined(INTEROP_LEGACY_CLOSE) || SQLITE_VERSION_NUMBER < 3007014
@@ -355,7 +394,7 @@ SQLITE_API int WINAPI sqlite3_config_log_interop()
       sqlite3InteropDebug("sqlite3_config_log_interop(): sqlite3_config(SQLITE_CONFIG_LOG) returned %d.\n", ret);
     }
   }else{
-    ret = SQLITE_OK;
+    ret = SQLITE_DONE;
   }
   return ret;
 }
@@ -725,6 +764,23 @@ SQLITE_API int WINAPI sqlite3_backup_finish_interop(sqlite3_backup *p)
   return ret;
 }
 
+SQLITE_API int WINAPI sqlite3_blob_close_interop(sqlite3_blob *p)
+{
+  int ret;
+
+#if defined(INTEROP_DEBUG) && (INTEROP_DEBUG & INTEROP_DEBUG_BLOB_CLOSE)
+  sqlite3InteropDebug("sqlite3_blob_close_interop(): calling sqlite3_blob_close(%p)...\n", p);
+#endif
+
+  ret = sqlite3_blob_close(p);
+
+#if defined(INTEROP_DEBUG) && (INTEROP_DEBUG & INTEROP_DEBUG_BLOB_CLOSE)
+  sqlite3InteropDebug("sqlite3_blob_close_interop(): sqlite3_blob_close(%p) returned %d.\n", p, ret);
+#endif
+
+  return ret;
+}
+
 SQLITE_API int WINAPI sqlite3_reset_interop(sqlite3_stmt *stmt)
 {
   int ret;
@@ -1025,7 +1081,7 @@ SQLITE_API int WINAPI sqlite3_cursor_rowid_interop(sqlite3_stmt *pstmt, int curs
     else
 #endif
 #if SQLITE_VERSION_NUMBER >= 3010000
-    if(pC->uc.pseudoTableReg > 0)
+    if(pC->eCurType != CURTYPE_BTREE)
 #else
     if(pC->pseudoTableReg > 0)
 #endif
@@ -1053,7 +1109,11 @@ SQLITE_API int WINAPI sqlite3_cursor_rowid_interop(sqlite3_stmt *pstmt, int curs
         ret = SQLITE_ERROR;
         break;
       }
-#if SQLITE_VERSION_NUMBER >= 3010000
+#if SQLITE_VERSION_NUMBER >= 3014000
+      sqlite3BtreeEnterCursor(pC->uc.pCursor);
+      *prowid = sqlite3BtreeIntegerKey(pC->uc.pCursor);
+      sqlite3BtreeLeaveCursor(pC->uc.pCursor);
+#elif SQLITE_VERSION_NUMBER >= 3010000
       sqlite3BtreeKeySize(pC->uc.pCursor, prowid);
 #else
       sqlite3BtreeKeySize(pC->pCursor, prowid);
@@ -1093,6 +1153,10 @@ SQLITE_API int WINAPI sqlite3_cursor_rowid_interop(sqlite3_stmt *pstmt, int curs
 #include "../ext/regexp.c"
 #endif
 
+#if defined(INTEROP_SHA1_EXTENSION)
+#include "../ext/sha1.c"
+#endif
+
 #if defined(INTEROP_TOTYPE_EXTENSION)
 #include "../ext/totype.c"
 #endif
@@ -1112,6 +1176,24 @@ SQLITE_API int WINAPI sqlite3_cursor_rowid_interop(sqlite3_stmt *pstmt, int curs
 
 #include "../core/sqlite3ext.h"
 SQLITE_EXTENSION_INIT1
+
+/*
+** The interopError() SQL function treats its first argument as an integer
+** error code to return.
+*/
+SQLITE_PRIVATE void interopErrorFunc(
+  sqlite3_context *context,
+  int argc,
+  sqlite3_value **argv
+){
+  int rc;
+  if( argc!=1 ){
+    sqlite3_result_error(context, "need exactly one argument", -1);
+    return;
+  }
+  rc = sqlite3_value_int(argv[0]);
+  sqlite3_result_error_code(context, rc);
+}
 
 /*
 ** The interopTest() SQL function returns its first argument or raises an
@@ -1178,8 +1260,12 @@ SQLITE_API int interop_test_extension_init(
 ){
   int rc;
   SQLITE_EXTENSION_INIT2(pApi)
-  rc = sqlite3_create_function(db, "interopTest", -1, SQLITE_ANY, 0,
-      interopTestFunc, 0, 0);
+  rc = sqlite3_create_function(db, "interopError", -1, SQLITE_ANY, 0,
+      interopErrorFunc, 0, 0);
+  if( rc==SQLITE_OK ){
+    rc = sqlite3_create_function(db, "interopTest", -1, SQLITE_ANY, 0,
+        interopTestFunc, 0, 0);
+  }
   if( rc==SQLITE_OK ){
     rc = sqlite3_create_function(db, "interopSleep", 1, SQLITE_ANY, 0,
         interopSleepFunc, 0, 0);

@@ -391,6 +391,9 @@ namespace System.Data.SQLite
     /// <param name="typ">The type we want to get out of the column</param>
     private TypeAffinity VerifyType(int i, DbType typ)
     {
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.NoVerifyTypeAffinity))
+            return TypeAffinity.None;
+
         TypeAffinity affinity = GetSQLiteType(_flags, i).Affinity;
 
         switch (affinity)
@@ -430,6 +433,140 @@ namespace System.Data.SQLite
     }
 
     /// <summary>
+    /// Invokes the data reader value callback configured for the database
+    /// type name associated with the specified column.  If no data reader
+    /// value callback is available for the database type name, do nothing.
+    /// </summary>
+    /// <param name="index">
+    /// The index of the column being read.
+    /// </param>
+    /// <param name="eventArgs">
+    /// The extra event data to pass into the callback.
+    /// </param>
+    /// <param name="complete">
+    /// Non-zero if the default handling for the data reader call should be
+    /// skipped.  If this is set to non-zero and the necessary return value
+    /// is unavailable or unsuitable, an exception will be thrown.
+    /// </param>
+    private void InvokeReadValueCallback(
+        int index,
+        SQLiteReadEventArgs eventArgs,
+        out bool complete
+        )
+    {
+        complete = false;
+        SQLiteConnectionFlags oldFlags = _flags;
+        _flags &= ~SQLiteConnectionFlags.UseConnectionReadValueCallbacks;
+
+        try
+        {
+            string typeName = GetDataTypeName(index);
+
+            if (typeName == null)
+                return;
+
+            SQLiteConnection connection = GetConnection(this);
+
+            if (connection == null)
+                return;
+
+            SQLiteTypeCallbacks callbacks;
+
+            if (!connection.TryGetTypeCallbacks(typeName, out callbacks) ||
+                (callbacks == null))
+            {
+                return;
+            }
+
+            SQLiteReadValueCallback callback = callbacks.ReadValueCallback;
+
+            if (callback == null)
+                return;
+
+            object userData = callbacks.ReadValueUserData;
+
+            callback(
+                _activeStatement._sql, this, oldFlags, eventArgs, typeName,
+                index, userData, out complete); /* throw */
+        }
+        finally
+        {
+            _flags |= SQLiteConnectionFlags.UseConnectionReadValueCallbacks;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to query the integer identifier for the current row.  This
+    /// will not work for tables that were created WITHOUT ROWID -OR- if the
+    /// query does not include the "rowid" column or one of its aliases -OR-
+    /// if the <see cref="SQLiteDataReader" /> was not created with the
+    /// <see cref="CommandBehavior.KeyInfo"/> flag.
+    /// </summary>
+    /// <param name="i">
+    /// The index of the BLOB column.
+    /// </param>
+    /// <returns>
+    /// The integer identifier for the current row -OR- null if it could not
+    /// be determined.
+    /// </returns>
+    internal long? GetRowId(
+        int i
+        )
+    {
+        // CheckDisposed();
+        VerifyForGet();
+
+        if (_keyInfo == null)
+            return null;
+
+        string databaseName = GetDatabaseName(i);
+        string tableName = GetTableName(i);
+        int iRowId = _keyInfo.GetRowIdIndex(databaseName, tableName);
+
+        if (iRowId != -1)
+            return GetInt64(iRowId);
+
+        return _keyInfo.GetRowId(databaseName, tableName);
+    }
+
+    /// <summary>
+    /// Retrieves the column as a <see cref="SQLiteBlob" /> object.
+    /// This will not work for tables that were created WITHOUT ROWID
+    /// -OR- if the query does not include the "rowid" column or one
+    /// of its aliases -OR- if the <see cref="SQLiteDataReader" /> was
+    /// not created with the <see cref="CommandBehavior.KeyInfo" />
+    /// flag.
+    /// </summary>
+    /// <param name="i">The index of the column.</param>
+    /// <param name="readOnly">
+    /// Non-zero to open the blob object for read-only access.
+    /// </param>
+    /// <returns>A new <see cref="SQLiteBlob" /> object.</returns>
+    public SQLiteBlob GetBlob(int i, bool readOnly)
+    {
+        CheckDisposed();
+        VerifyForGet();
+
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetBlob", new SQLiteReadBlobEventArgs(readOnly), value),
+                out complete);
+
+            if (complete)
+                return (SQLiteBlob)value.BlobValue;
+        }
+
+        if (i >= PrivateVisibleFieldCount && _keyInfo != null)
+            return _keyInfo.GetBlob(i - PrivateVisibleFieldCount, readOnly);
+
+        return SQLiteBlob.Create(this, i, readOnly);
+    }
+
+    /// <summary>
     /// Retrieves the column as a boolean value
     /// </summary>
     /// <param name="i">The index of the column.</param>
@@ -438,6 +575,23 @@ namespace System.Data.SQLite
     {
         CheckDisposed();
         VerifyForGet();
+
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetBoolean", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.BooleanValue == null)
+                    throw new SQLiteException("missing boolean return value");
+
+                return (bool)value.BooleanValue;
+            }
+        }
 
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetBoolean(i - PrivateVisibleFieldCount);
@@ -456,11 +610,28 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetByte", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.ByteValue == null)
+                    throw new SQLiteException("missing byte return value");
+
+                return (byte)value.ByteValue;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetByte(i - PrivateVisibleFieldCount);
 
         VerifyType(i, DbType.Byte);
-        return Convert.ToByte(_activeStatement._sql.GetInt32(_activeStatement, i));
+        return _activeStatement._sql.GetByte(_activeStatement, i);
     }
 
     /// <summary>
@@ -480,6 +651,42 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteReadArrayEventArgs eventArgs = new SQLiteReadArrayEventArgs(
+                fieldOffset, buffer, bufferoffset, length);
+
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetBytes", eventArgs, value), out complete);
+
+            if (complete)
+            {
+                byte[] bytes = value.BytesValue;
+
+                if (bytes != null)
+                {
+#if !PLATFORM_COMPACTFRAMEWORK
+                    Array.Copy(bytes, /* throw */
+                        eventArgs.DataOffset, eventArgs.ByteBuffer,
+                        eventArgs.BufferOffset, eventArgs.Length);
+#else
+                    Array.Copy(bytes, /* throw */
+                        (int)eventArgs.DataOffset, eventArgs.ByteBuffer,
+                        eventArgs.BufferOffset, eventArgs.Length);
+#endif
+
+                    return eventArgs.Length;
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetBytes(i - PrivateVisibleFieldCount, fieldOffset, buffer, bufferoffset, length);
 
@@ -497,11 +704,28 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetChar", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.CharValue == null)
+                    throw new SQLiteException("missing character return value");
+
+                return (char)value.CharValue;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetChar(i - PrivateVisibleFieldCount);
 
         VerifyType(i, DbType.SByte);
-        return Convert.ToChar(_activeStatement._sql.GetInt32(_activeStatement, i));
+        return _activeStatement._sql.GetChar(_activeStatement, i);
     }
 
     /// <summary>
@@ -521,10 +745,46 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteReadArrayEventArgs eventArgs = new SQLiteReadArrayEventArgs(
+                fieldoffset, buffer, bufferoffset, length);
+
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetChars", eventArgs, value), out complete);
+
+            if (complete)
+            {
+                char[] chars = value.CharsValue;
+
+                if (chars != null)
+                {
+#if !PLATFORM_COMPACTFRAMEWORK
+                    Array.Copy(chars, /* throw */
+                        eventArgs.DataOffset, eventArgs.CharBuffer,
+                        eventArgs.BufferOffset, eventArgs.Length);
+#else
+                    Array.Copy(chars, /* throw */
+                        (int)eventArgs.DataOffset, eventArgs.CharBuffer,
+                        eventArgs.BufferOffset, eventArgs.Length);
+#endif
+
+                    return eventArgs.Length;
+                }
+                else
+                {
+                    return -1;
+                }
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetChars(i - PrivateVisibleFieldCount, fieldoffset, buffer, bufferoffset, length);
 
-        if ((_flags & SQLiteConnectionFlags.NoVerifyTextAffinity) != SQLiteConnectionFlags.NoVerifyTextAffinity)
+        if (!HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.NoVerifyTextAffinity))
             VerifyType(i, DbType.String);
 
         return _activeStatement._sql.GetChars(_activeStatement, i, (int)fieldoffset, buffer, bufferoffset, length);
@@ -556,6 +816,23 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetDateTime", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.DateTimeValue == null)
+                    throw new SQLiteException("missing date/time return value");
+
+                return (DateTime)value.DateTimeValue;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetDateTime(i - PrivateVisibleFieldCount);
 
@@ -573,11 +850,34 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetDecimal", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.DecimalValue == null)
+                    throw new SQLiteException("missing decimal return value");
+
+                return (decimal)value.DecimalValue;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetDecimal(i - PrivateVisibleFieldCount);
 
         VerifyType(i, DbType.Decimal);
-        return Decimal.Parse(_activeStatement._sql.GetText(_activeStatement, i), NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+
+        CultureInfo cultureInfo = CultureInfo.CurrentCulture;
+
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.GetInvariantDecimal))
+            cultureInfo = CultureInfo.InvariantCulture;
+
+        return Decimal.Parse(_activeStatement._sql.GetText(_activeStatement, i), NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent | NumberStyles.AllowLeadingSign, cultureInfo);
     }
 
     /// <summary>
@@ -590,11 +890,49 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetDouble", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.DoubleValue == null)
+                    throw new SQLiteException("missing double return value");
+
+                return (double)value.DoubleValue;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetDouble(i - PrivateVisibleFieldCount);
 
         VerifyType(i, DbType.Double);
         return _activeStatement._sql.GetDouble(_activeStatement, i);
+    }
+
+    /// <summary>
+    /// Determines and returns the <see cref="TypeAffinity" /> of the
+    /// specified column.
+    /// </summary>
+    /// <param name="i">
+    /// The index of the column.
+    /// </param>
+    /// <returns>
+    /// The <see cref="TypeAffinity" /> associated with the specified
+    /// column, if any.
+    /// </returns>
+    public TypeAffinity GetFieldAffinity(int i)
+    {
+        CheckDisposed();
+
+        if (i >= PrivateVisibleFieldCount && _keyInfo != null)
+            return _keyInfo.GetFieldAffinity(i - PrivateVisibleFieldCount);
+
+        return GetSQLiteType(_flags, i).Affinity;
     }
 
     /// <summary>
@@ -622,6 +960,23 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetFloat", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.FloatValue == null)
+                    throw new SQLiteException("missing float return value");
+
+                return (float)value.FloatValue;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetFloat(i - PrivateVisibleFieldCount);
 
@@ -638,6 +993,23 @@ namespace System.Data.SQLite
     {
         CheckDisposed();
         VerifyForGet();
+
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetGuid", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.GuidValue == null)
+                    throw new SQLiteException("missing guid return value");
+
+                return (Guid)value.GuidValue;
+            }
+        }
 
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetGuid(i - PrivateVisibleFieldCount);
@@ -663,11 +1035,28 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetInt16", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.Int16Value == null)
+                    throw new SQLiteException("missing int16 return value");
+
+                return (Int16)value.Int16Value;
+            }
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetInt16(i - PrivateVisibleFieldCount);
 
         VerifyType(i, DbType.Int16);
-        return Convert.ToInt16(_activeStatement._sql.GetInt32(_activeStatement, i));
+        return _activeStatement._sql.GetInt16(_activeStatement, i);
     }
 
     /// <summary>
@@ -679,6 +1068,23 @@ namespace System.Data.SQLite
     {
         CheckDisposed();
         VerifyForGet();
+
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetInt32", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.Int32Value == null)
+                    throw new SQLiteException("missing int32 return value");
+
+                return (Int32)value.Int32Value;
+            }
+        }
 
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetInt32(i - PrivateVisibleFieldCount);
@@ -696,6 +1102,23 @@ namespace System.Data.SQLite
     {
         CheckDisposed();
         VerifyForGet();
+
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetInt64", null, value), out complete);
+
+            if (complete)
+            {
+                if (value.Int64Value == null)
+                    throw new SQLiteException("missing int64 return value");
+
+                return (Int64)value.Int64Value;
+            }
+        }
 
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetInt64(i - PrivateVisibleFieldCount);
@@ -729,7 +1152,7 @@ namespace System.Data.SQLite
         CheckDisposed();
 
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
-            return _keyInfo.GetName(i - PrivateVisibleFieldCount);
+            return _keyInfo.GetDatabaseName(i - PrivateVisibleFieldCount);
 
         return _activeStatement._sql.ColumnDatabaseName(_activeStatement, i);
     }
@@ -744,7 +1167,7 @@ namespace System.Data.SQLite
         CheckDisposed();
 
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
-            return _keyInfo.GetName(i - PrivateVisibleFieldCount);
+            return _keyInfo.GetTableName(i - PrivateVisibleFieldCount);
 
         return _activeStatement._sql.ColumnTableName(_activeStatement, i);
     }
@@ -803,6 +1226,12 @@ namespace System.Data.SQLite
           }
 
           _fieldIndexes.Add(name, r);
+      }
+
+      if (r == -1 && HelperMethods.HasFlags(
+            _flags, SQLiteConnectionFlags.StrictConformance))
+      {
+          throw new IndexOutOfRangeException();
       }
 
       return r;
@@ -981,246 +1410,268 @@ namespace System.Data.SQLite
 
     internal DataTable GetSchemaTable(bool wantUniqueInfo, bool wantDefaultValue)
     {
-      CheckClosed();
-      if (_throwOnDisposed) SQLiteCommand.Check(_command);
+        CheckClosed();
+        if (_throwOnDisposed) SQLiteCommand.Check(_command);
 
-      //
-      // BUGFIX: We need to quickly scan all the fields in the current
-      //         "result set" to see how many distinct tables are actually
-      //         involved.  This information is necessary so that some
-      //         intelligent decisions can be made when constructing the
-      //         metadata below.  For example, we need to be very careful
-      //         about flagging a particular column as "unique" just
-      //         because it was in its original underlying database table
-      //         if there are now multiple tables involved in the
-      //         "result set".  See ticket [7e3fa93744] for more detailed
-      //         information.
-      //
-      Dictionary<ColumnParent, List<int>> parentToColumns = null;
-      Dictionary<int, ColumnParent> columnToParent = null;
+        //
+        // BUGFIX: We need to quickly scan all the fields in the current
+        //         "result set" to see how many distinct tables are actually
+        //         involved.  This information is necessary so that some
+        //         intelligent decisions can be made when constructing the
+        //         metadata below.  For example, we need to be very careful
+        //         about flagging a particular column as "unique" just
+        //         because it was in its original underlying database table
+        //         if there are now multiple tables involved in the
+        //         "result set".  See ticket [7e3fa93744] for more detailed
+        //         information.
+        //
+        Dictionary<ColumnParent, List<int>> parentToColumns = null;
+        Dictionary<int, ColumnParent> columnToParent = null;
+        SQLiteBase sql = _command.Connection._sql;
 
-      GetStatementColumnParents(
-          _command.Connection._sql, _activeStatement, _fieldCount,
-          ref parentToColumns, ref columnToParent);
+        GetStatementColumnParents(
+            sql, _activeStatement, _fieldCount,
+            ref parentToColumns, ref columnToParent);
 
-      DataTable tbl = new DataTable("SchemaTable");
-      DataTable tblIndexes = null;
-      DataTable tblIndexColumns;
-      DataRow row;
-      string temp;
-      string strCatalog = String.Empty;
-      string strTable = String.Empty;
-      string strColumn = String.Empty;
+        DataTable tbl = new DataTable("SchemaTable");
+        DataTable tblIndexes = null;
+        DataTable tblIndexColumns;
+        DataRow row;
+        string temp;
+        string strCatalog = String.Empty;
+        string strTable = String.Empty;
+        string strColumn = String.Empty;
 
-      tbl.Locale = CultureInfo.InvariantCulture;
-      tbl.Columns.Add(SchemaTableColumn.ColumnName, typeof(String));
-      tbl.Columns.Add(SchemaTableColumn.ColumnOrdinal, typeof(int));
-      tbl.Columns.Add(SchemaTableColumn.ColumnSize, typeof(int));
-      tbl.Columns.Add(SchemaTableColumn.NumericPrecision, typeof(int));
-      tbl.Columns.Add(SchemaTableColumn.NumericScale, typeof(int));
-      tbl.Columns.Add(SchemaTableColumn.IsUnique, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableColumn.IsKey, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableOptionalColumn.BaseServerName, typeof(string));
-      tbl.Columns.Add(SchemaTableOptionalColumn.BaseCatalogName, typeof(String));
-      tbl.Columns.Add(SchemaTableColumn.BaseColumnName, typeof(String));
-      tbl.Columns.Add(SchemaTableColumn.BaseSchemaName, typeof(String));
-      tbl.Columns.Add(SchemaTableColumn.BaseTableName, typeof(String));
-      tbl.Columns.Add(SchemaTableColumn.DataType, typeof(Type));
-      tbl.Columns.Add(SchemaTableColumn.AllowDBNull, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableColumn.ProviderType, typeof(int));
-      tbl.Columns.Add(SchemaTableColumn.IsAliased, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableColumn.IsExpression, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableOptionalColumn.IsAutoIncrement, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableOptionalColumn.IsRowVersion, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableOptionalColumn.IsHidden, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableColumn.IsLong, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableOptionalColumn.IsReadOnly, typeof(Boolean));
-      tbl.Columns.Add(SchemaTableOptionalColumn.ProviderSpecificDataType, typeof(Type));
-      tbl.Columns.Add(SchemaTableOptionalColumn.DefaultValue, typeof(object));
-      tbl.Columns.Add("DataTypeName", typeof(string));
-      tbl.Columns.Add("CollationType", typeof(string));
-      tbl.BeginLoadData();
+        tbl.Locale = CultureInfo.InvariantCulture;
+        tbl.Columns.Add(SchemaTableColumn.ColumnName, typeof(String));
+        tbl.Columns.Add(SchemaTableColumn.ColumnOrdinal, typeof(int));
+        tbl.Columns.Add(SchemaTableColumn.ColumnSize, typeof(int));
+        tbl.Columns.Add(SchemaTableColumn.NumericPrecision, typeof(int));
+        tbl.Columns.Add(SchemaTableColumn.NumericScale, typeof(int));
+        tbl.Columns.Add(SchemaTableColumn.IsUnique, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableColumn.IsKey, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableOptionalColumn.BaseServerName, typeof(string));
+        tbl.Columns.Add(SchemaTableOptionalColumn.BaseCatalogName, typeof(String));
+        tbl.Columns.Add(SchemaTableColumn.BaseColumnName, typeof(String));
+        tbl.Columns.Add(SchemaTableColumn.BaseSchemaName, typeof(String));
+        tbl.Columns.Add(SchemaTableColumn.BaseTableName, typeof(String));
+        tbl.Columns.Add(SchemaTableColumn.DataType, typeof(Type));
+        tbl.Columns.Add(SchemaTableColumn.AllowDBNull, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableColumn.ProviderType, typeof(int));
+        tbl.Columns.Add(SchemaTableColumn.IsAliased, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableColumn.IsExpression, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableOptionalColumn.IsAutoIncrement, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableOptionalColumn.IsRowVersion, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableOptionalColumn.IsHidden, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableColumn.IsLong, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableOptionalColumn.IsReadOnly, typeof(Boolean));
+        tbl.Columns.Add(SchemaTableOptionalColumn.ProviderSpecificDataType, typeof(Type));
+        tbl.Columns.Add(SchemaTableOptionalColumn.DefaultValue, typeof(object));
+        tbl.Columns.Add("DataTypeName", typeof(string));
+        tbl.Columns.Add("CollationType", typeof(string));
+        tbl.BeginLoadData();
 
-      for (int n = 0; n < _fieldCount; n++)
-      {
-        SQLiteType sqlType = GetSQLiteType(_flags, n);
-
-        row = tbl.NewRow();
-
-        DbType typ = sqlType.Type;
-
-        // Default settings for the column
-        row[SchemaTableColumn.ColumnName] = GetName(n);
-        row[SchemaTableColumn.ColumnOrdinal] = n;
-        row[SchemaTableColumn.ColumnSize] = SQLiteConvert.DbTypeToColumnSize(typ);
-        row[SchemaTableColumn.NumericPrecision] = SQLiteConvert.DbTypeToNumericPrecision(typ);
-        row[SchemaTableColumn.NumericScale] = SQLiteConvert.DbTypeToNumericScale(typ);
-        row[SchemaTableColumn.ProviderType] = sqlType.Type;
-        row[SchemaTableColumn.IsLong] = false;
-        row[SchemaTableColumn.AllowDBNull] = true;
-        row[SchemaTableOptionalColumn.IsReadOnly] = false;
-        row[SchemaTableOptionalColumn.IsRowVersion] = false;
-        row[SchemaTableColumn.IsUnique] = false;
-        row[SchemaTableColumn.IsKey] = false;
-        row[SchemaTableOptionalColumn.IsAutoIncrement] = false;
-        row[SchemaTableColumn.DataType] = GetFieldType(n);
-        row[SchemaTableOptionalColumn.IsHidden] = false;
-        row[SchemaTableColumn.BaseSchemaName] = _baseSchemaName;
-
-        strColumn = columnToParent[n].ColumnName;
-        if (String.IsNullOrEmpty(strColumn) == false) row[SchemaTableColumn.BaseColumnName] = strColumn;
-
-        row[SchemaTableColumn.IsExpression] = String.IsNullOrEmpty(strColumn);
-        row[SchemaTableColumn.IsAliased] = (String.Compare(GetName(n), strColumn, StringComparison.OrdinalIgnoreCase) != 0);
-
-        temp = columnToParent[n].TableName;
-        if (String.IsNullOrEmpty(temp) == false) row[SchemaTableColumn.BaseTableName] = temp;
-
-        temp = columnToParent[n].DatabaseName;
-        if (String.IsNullOrEmpty(temp) == false) row[SchemaTableOptionalColumn.BaseCatalogName] = temp;
-
-        string dataType = null;
-        // If we have a table-bound column, extract the extra information from it
-        if (String.IsNullOrEmpty(strColumn) == false)
+        for (int n = 0; n < _fieldCount; n++)
         {
-          string collSeq = null;
-          bool bNotNull = false;
-          bool bPrimaryKey = false;
-          bool bAutoIncrement = false;
-          string[] arSize;
+            SQLiteType sqlType = GetSQLiteType(_flags, n);
 
-          // Get the column meta data
-          _command.Connection._sql.ColumnMetaData(
-            (string)row[SchemaTableOptionalColumn.BaseCatalogName],
-            (string)row[SchemaTableColumn.BaseTableName],
-            strColumn,
-            ref dataType, ref collSeq, ref bNotNull, ref bPrimaryKey, ref bAutoIncrement);
+            row = tbl.NewRow();
 
-          if (bNotNull || bPrimaryKey) row[SchemaTableColumn.AllowDBNull] = false;
+            DbType typ = sqlType.Type;
 
-          row[SchemaTableColumn.IsKey] = bPrimaryKey && CountParents(parentToColumns) <= 1;
-          row[SchemaTableOptionalColumn.IsAutoIncrement] = bAutoIncrement;
-          row["CollationType"] = collSeq;
+            // Default settings for the column
+            row[SchemaTableColumn.ColumnName] = GetName(n);
+            row[SchemaTableColumn.ColumnOrdinal] = n;
+            row[SchemaTableColumn.ColumnSize] = SQLiteConvert.DbTypeToColumnSize(typ);
+            row[SchemaTableColumn.NumericPrecision] = SQLiteConvert.DbTypeToNumericPrecision(typ);
+            row[SchemaTableColumn.NumericScale] = SQLiteConvert.DbTypeToNumericScale(typ);
+            row[SchemaTableColumn.ProviderType] = sqlType.Type;
+            row[SchemaTableColumn.IsLong] = false;
+            row[SchemaTableColumn.AllowDBNull] = true;
+            row[SchemaTableOptionalColumn.IsReadOnly] = false;
+            row[SchemaTableOptionalColumn.IsRowVersion] = false;
+            row[SchemaTableColumn.IsUnique] = false;
+            row[SchemaTableColumn.IsKey] = false;
+            row[SchemaTableOptionalColumn.IsAutoIncrement] = false;
+            row[SchemaTableColumn.DataType] = GetFieldType(n);
+            row[SchemaTableOptionalColumn.IsHidden] = false;
+            row[SchemaTableColumn.BaseSchemaName] = _baseSchemaName;
 
-          // For types like varchar(50) and such, extract the size
-          arSize = dataType.Split('(');
-          if (arSize.Length > 1)
-          {
-            dataType = arSize[0];
-            arSize = arSize[1].Split(')');
-            if (arSize.Length > 1)
+            strColumn = columnToParent[n].ColumnName;
+            if (String.IsNullOrEmpty(strColumn) == false) row[SchemaTableColumn.BaseColumnName] = strColumn;
+
+            row[SchemaTableColumn.IsExpression] = String.IsNullOrEmpty(strColumn);
+            row[SchemaTableColumn.IsAliased] = (String.Compare(GetName(n), strColumn, StringComparison.OrdinalIgnoreCase) != 0);
+
+            temp = columnToParent[n].TableName;
+            if (String.IsNullOrEmpty(temp) == false) row[SchemaTableColumn.BaseTableName] = temp;
+
+            temp = columnToParent[n].DatabaseName;
+            if (String.IsNullOrEmpty(temp) == false) row[SchemaTableOptionalColumn.BaseCatalogName] = temp;
+
+            string dataType = null;
+            // If we have a table-bound column, extract the extra information from it
+            if (String.IsNullOrEmpty(strColumn) == false)
             {
-              arSize = arSize[0].Split(',', '.');
-              if (sqlType.Type == DbType.Binary || SQLiteConvert.IsStringDbType(sqlType.Type))
-              {
-                row[SchemaTableColumn.ColumnSize] = Convert.ToInt32(arSize[0], CultureInfo.InvariantCulture);
-              }
-              else
-              {
-                row[SchemaTableColumn.NumericPrecision] = Convert.ToInt32(arSize[0], CultureInfo.InvariantCulture);
-                if (arSize.Length > 1)
-                  row[SchemaTableColumn.NumericScale] = Convert.ToInt32(arSize[1], CultureInfo.InvariantCulture);
-              }
-            }
-          }
+                string baseCatalogName = String.Empty;
 
-          if (wantDefaultValue)
-          {
-            // Determine the default value for the column, which sucks because we have to query the schema for each column
-            using (SQLiteCommand cmdTable = new SQLiteCommand(HelperMethods.StringFormat(CultureInfo.InvariantCulture, "PRAGMA [{0}].TABLE_INFO([{1}])",
-              row[SchemaTableOptionalColumn.BaseCatalogName],
-              row[SchemaTableColumn.BaseTableName]
-              ), _command.Connection))
-            using (DbDataReader rdTable = cmdTable.ExecuteReader())
-            {
-              // Find the matching column
-              while (rdTable.Read())
-              {
-                if (String.Compare((string)row[SchemaTableColumn.BaseColumnName], rdTable.GetString(1), StringComparison.OrdinalIgnoreCase) == 0)
+                if (row[SchemaTableOptionalColumn.BaseCatalogName] != DBNull.Value)
+                    baseCatalogName = (string)row[SchemaTableOptionalColumn.BaseCatalogName];
+
+                string baseTableName = String.Empty;
+
+                if (row[SchemaTableColumn.BaseTableName] != DBNull.Value)
+                    baseTableName = (string)row[SchemaTableColumn.BaseTableName];
+
+                if (sql.DoesTableExist(baseCatalogName, baseTableName))
                 {
-                  if (rdTable.IsDBNull(4) == false)
-                    row[SchemaTableOptionalColumn.DefaultValue] = rdTable[4];
+                    string baseColumnName = String.Empty;
 
-                  break;
+                    if (row[SchemaTableColumn.BaseColumnName] != DBNull.Value)
+                        baseColumnName = (string)row[SchemaTableColumn.BaseColumnName];
+
+                    string collSeq = null;
+                    bool bNotNull = false;
+                    bool bPrimaryKey = false;
+                    bool bAutoIncrement = false;
+                    string[] arSize;
+
+                    // Get the column meta data
+                    _command.Connection._sql.ColumnMetaData(
+                        baseCatalogName,
+                        baseTableName,
+                        strColumn,
+                        true,
+                        ref dataType, ref collSeq, ref bNotNull, ref bPrimaryKey, ref bAutoIncrement);
+
+                    if (bNotNull || bPrimaryKey) row[SchemaTableColumn.AllowDBNull] = false;
+                    bool allowDbNull = (bool)row[SchemaTableColumn.AllowDBNull];
+
+                    row[SchemaTableColumn.IsKey] = bPrimaryKey && CountParents(parentToColumns) <= 1;
+                    row[SchemaTableOptionalColumn.IsAutoIncrement] = bAutoIncrement;
+                    row["CollationType"] = collSeq;
+
+                    // For types like varchar(50) and such, extract the size
+                    arSize = dataType.Split('(');
+                    if (arSize.Length > 1)
+                    {
+                        dataType = arSize[0];
+                        arSize = arSize[1].Split(')');
+                        if (arSize.Length > 1)
+                        {
+                            arSize = arSize[0].Split(',', '.');
+                            if (sqlType.Type == DbType.Binary || SQLiteConvert.IsStringDbType(sqlType.Type))
+                            {
+                                row[SchemaTableColumn.ColumnSize] = Convert.ToInt32(arSize[0], CultureInfo.InvariantCulture);
+                            }
+                            else
+                            {
+                                row[SchemaTableColumn.NumericPrecision] = Convert.ToInt32(arSize[0], CultureInfo.InvariantCulture);
+                                if (arSize.Length > 1)
+                                    row[SchemaTableColumn.NumericScale] = Convert.ToInt32(arSize[1], CultureInfo.InvariantCulture);
+                            }
+                        }
+                    }
+
+                    if (wantDefaultValue)
+                    {
+                        // Determine the default value for the column, which sucks because we have to query the schema for each column
+                        using (SQLiteCommand cmdTable = new SQLiteCommand(HelperMethods.StringFormat(CultureInfo.InvariantCulture, "PRAGMA [{0}].TABLE_INFO([{1}])",
+                            baseCatalogName,
+                            baseTableName
+                        ), _command.Connection))
+                        using (DbDataReader rdTable = cmdTable.ExecuteReader())
+                        {
+                            // Find the matching column
+                            while (rdTable.Read())
+                            {
+                                if (String.Compare(baseColumnName, rdTable.GetString(1), StringComparison.OrdinalIgnoreCase) == 0)
+                                {
+                                    if (rdTable.IsDBNull(4) == false)
+                                        row[SchemaTableOptionalColumn.DefaultValue] = rdTable[4];
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Determine IsUnique properly, which is a pain in the butt!
+                    if (wantUniqueInfo)
+                    {
+                        if (baseCatalogName != strCatalog || baseTableName != strTable)
+                        {
+                            strCatalog = baseCatalogName;
+                            strTable = baseTableName;
+
+                            tblIndexes = _command.Connection.GetSchema("Indexes", new string[] {
+                                baseCatalogName,
+                                null,
+                                baseTableName,
+                                null
+                            });
+                        }
+
+                        foreach (DataRow rowIndexes in tblIndexes.Rows)
+                        {
+                            tblIndexColumns = _command.Connection.GetSchema("IndexColumns", new string[] {
+                                baseCatalogName,
+                                null,
+                                baseTableName,
+                                (string)rowIndexes["INDEX_NAME"],
+                                null
+                            });
+                            foreach (DataRow rowColumnIndex in tblIndexColumns.Rows)
+                            {
+                                if (String.Compare(SQLiteConvert.GetStringOrNull(rowColumnIndex["COLUMN_NAME"]), strColumn, StringComparison.OrdinalIgnoreCase) == 0)
+                                {
+                                    //
+                                    // BUGFIX: Make sure that we only flag this column as "unique"
+                                    //         if we are not processing of some kind of multi-table
+                                    //         construct (i.e. a join) because in that case we must
+                                    //         allow duplicate values (refer to ticket [7e3fa93744]).
+                                    //
+                                    if (parentToColumns.Count == 1 && tblIndexColumns.Rows.Count == 1 && allowDbNull == false)
+                                        row[SchemaTableColumn.IsUnique] = rowIndexes["UNIQUE"];
+
+                                    // If its an integer primary key and the only primary key in the table, then its a rowid alias and is autoincrement
+                                    // NOTE:  Currently commented out because this is not always the desired behavior.  For example, a 1:1 relationship with
+                                    //        another table, where the other table is autoincrement, but this one is not, and uses the rowid from the other.
+                                    //        It is safer to only set Autoincrement on tables where we're SURE the user specified AUTOINCREMENT, even if its a rowid column.
+
+                                    //if (tblIndexColumns.Rows.Count == 1 && (bool)rowIndexes["PRIMARY_KEY"] == true && String.IsNullOrEmpty(dataType) == false &&
+                                    //  String.Compare(dataType, "integer", StringComparison.OrdinalIgnoreCase) == 0)
+                                    //{
+                                    //    //  row[SchemaTableOptionalColumn.IsAutoIncrement] = true;
+                                    //}
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
-              }
-            }
-          }
 
-          // Determine IsUnique properly, which is a pain in the butt!
-          if (wantUniqueInfo)
-          {
-            if ((string)row[SchemaTableOptionalColumn.BaseCatalogName] != strCatalog
-              || (string)row[SchemaTableColumn.BaseTableName] != strTable)
-            {
-              strCatalog = (string)row[SchemaTableOptionalColumn.BaseCatalogName];
-              strTable = (string)row[SchemaTableColumn.BaseTableName];
-
-              tblIndexes = _command.Connection.GetSchema("Indexes", new string[] {
-                (string)row[SchemaTableOptionalColumn.BaseCatalogName],
-                null,
-                (string)row[SchemaTableColumn.BaseTableName],
-                null });
-            }
-
-            foreach (DataRow rowIndexes in tblIndexes.Rows)
-            {
-              tblIndexColumns = _command.Connection.GetSchema("IndexColumns", new string[] {
-                (string)row[SchemaTableOptionalColumn.BaseCatalogName],
-                null,
-                (string)row[SchemaTableColumn.BaseTableName],
-                (string)rowIndexes["INDEX_NAME"],
-                null
-                });
-              foreach (DataRow rowColumnIndex in tblIndexColumns.Rows)
-              {
-                if (String.Compare(SQLiteConvert.GetStringOrNull(rowColumnIndex["COLUMN_NAME"]), strColumn, StringComparison.OrdinalIgnoreCase) == 0)
+                if (String.IsNullOrEmpty(dataType))
                 {
-                  //
-                  // BUGFIX: Make sure that we only flag this column as "unique"
-                  //         if we are not processing of some kind of multi-table
-                  //         construct (i.e. a join) because in that case we must
-                  //         allow duplicate values (refer to ticket [7e3fa93744]).
-                  //
-                  if (parentToColumns.Count == 1 && tblIndexColumns.Rows.Count == 1 && (bool)row[SchemaTableColumn.AllowDBNull] == false)
-                    row[SchemaTableColumn.IsUnique] = rowIndexes["UNIQUE"];
-
-                  // If its an integer primary key and the only primary key in the table, then its a rowid alias and is autoincrement
-                  // NOTE:  Currently commented out because this is not always the desired behavior.  For example, a 1:1 relationship with
-                  //        another table, where the other table is autoincrement, but this one is not, and uses the rowid from the other.
-                  //        It is safer to only set Autoincrement on tables where we're SURE the user specified AUTOINCREMENT, even if its a rowid column.
-
-                  if (tblIndexColumns.Rows.Count == 1 && (bool)rowIndexes["PRIMARY_KEY"] == true && String.IsNullOrEmpty(dataType) == false &&
-                    String.Compare(dataType, "integer", StringComparison.OrdinalIgnoreCase) == 0)
-                  {
-                    //  row[SchemaTableOptionalColumn.IsAutoIncrement] = true;
-                  }
-
-                  break;
+                    TypeAffinity affin = TypeAffinity.Uninitialized;
+                    dataType = _activeStatement._sql.ColumnType(_activeStatement, n, ref affin);
                 }
-              }
+
+                if (String.IsNullOrEmpty(dataType) == false)
+                    row["DataTypeName"] = dataType;
             }
-          }
 
-          if (String.IsNullOrEmpty(dataType))
-          {
-            TypeAffinity affin = TypeAffinity.Uninitialized;
-            dataType = _activeStatement._sql.ColumnType(_activeStatement, n, ref affin);
-          }
-
-          if (String.IsNullOrEmpty(dataType) == false)
-            row["DataTypeName"] = dataType;
+            tbl.Rows.Add(row);
         }
-        tbl.Rows.Add(row);
-      }
 
-      if (_keyInfo != null)
-        _keyInfo.AppendSchemaTable(tbl);
+        if (_keyInfo != null)
+            _keyInfo.AppendSchemaTable(tbl);
 
-      tbl.AcceptChanges();
-      tbl.EndLoadData();
+        tbl.AcceptChanges();
+        tbl.EndLoadData();
 
-      return tbl;
+        return tbl;
     }
 
     /// <summary>
@@ -1233,10 +1684,22 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetString", null, value), out complete);
+
+            if (complete)
+                return value.StringValue;
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetString(i - PrivateVisibleFieldCount);
 
-        if ((_flags & SQLiteConnectionFlags.NoVerifyTextAffinity) != SQLiteConnectionFlags.NoVerifyTextAffinity)
+        if (!HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.NoVerifyTextAffinity))
             VerifyType(i, DbType.String);
 
         return _activeStatement._sql.GetText(_activeStatement, i);
@@ -1252,18 +1715,32 @@ namespace System.Data.SQLite
         CheckDisposed();
         VerifyForGet();
 
+        if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.UseConnectionReadValueCallbacks))
+        {
+            SQLiteDataReaderValue value = new SQLiteDataReaderValue();
+            bool complete;
+
+            InvokeReadValueCallback(i, new SQLiteReadValueEventArgs(
+                "GetValue", null, value), out complete);
+
+            if (complete)
+                return value.Value;
+        }
+
         if (i >= PrivateVisibleFieldCount && _keyInfo != null)
             return _keyInfo.GetValue(i - PrivateVisibleFieldCount);
 
         SQLiteType typ = GetSQLiteType(_flags, i);
 
-        if (((_flags & SQLiteConnectionFlags.DetectTextAffinity) == SQLiteConnectionFlags.DetectTextAffinity) &&
+        if (HelperMethods.HasFlags(
+                _flags, SQLiteConnectionFlags.DetectTextAffinity) &&
             ((typ == null) || (typ.Affinity == TypeAffinity.Text)))
         {
             typ = GetSQLiteType(
                 typ, _activeStatement._sql.GetText(_activeStatement, i));
         }
-        else if (((_flags & SQLiteConnectionFlags.DetectStringType) == SQLiteConnectionFlags.DetectStringType) &&
+        else if (HelperMethods.HasFlags(
+                _flags, SQLiteConnectionFlags.DetectStringType) &&
             ((typ == null) || SQLiteConvert.IsStringDbType(typ.Type)))
         {
             typ = GetSQLiteType(
@@ -1342,8 +1819,11 @@ namespace System.Data.SQLite
         //       other ADO.NET providers that use these same semantics for
         //       the HasRows property.
         //
-        if ((_flags & SQLiteConnectionFlags.StickyHasRows) == SQLiteConnectionFlags.StickyHasRows)
+        if (HelperMethods.HasFlags(
+                _flags, SQLiteConnectionFlags.StickyHasRows))
+        {
           return ((_readingState != 1) || (_stepCount > 0));
+        }
 
         //
         // NOTE: This is the default behavior.  It returns non-zero only if
@@ -1503,7 +1983,7 @@ namespace System.Data.SQLite
     /// <returns>
     /// The connection object -OR- null if it is unavailable.
     /// </returns>
-    private static SQLiteConnection GetConnection(
+    internal static SQLiteConnection GetConnection(
         SQLiteDataReader dataReader
         )
     {

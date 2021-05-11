@@ -134,11 +134,42 @@ proc transformCoreDocumentationFile { fileName url } {
   set count 0
 
   #
+  # NOTE: Remove references to "!location.origin.match(/http/)" because the
+  #       "match" property does not work in the CHM viewer.  Use the literal
+  #       string syntax supported by the regular expression engine here.
+  #
+  set pattern(1) "***=!location.origin.match || !location.origin.match(/http/)"
+  set subSpec(1) 1
+
+  #
+  # NOTE: In Internet Explorer, you cannot set the innerHTML property for
+  #       some DOM elements, e.g. <tr>; therefore, remove those elements.
+  #
+  set pattern(2) "<table id='(.*?)' width='100%'></table>"
+  set subSpec(2) {<div id='\1'></div>}
+  set pattern(3) {***="<tr><td><ul class='multicol_list'>"}
+  set subSpec(3) {"<ul class='multicol_list'>"}
+  set pattern(4) {***="</ul></td>\n<td><ul class='multicol_list'>\n"}
+  set subSpec(4) {""}
+
+  #
+  # NOTE: Perform the replacements, if any, keeping track of how many were
+  #       done.
+  #
+  incr count [regsub -all -- $pattern(1) $data $subSpec(1) data]
+  incr count [regsub -all -- $pattern(2) $data $subSpec(2) data]
+  incr count [regsub -all -- $pattern(3) $data $subSpec(3) data]
+  incr count [regsub -all -- $pattern(4) $data $subSpec(4) data]
+
+  #
   # NOTE: Process all "href" attribute values from the data.  This pattern is
   #       not univeral; however, as of this writing (Feb 2014), the core docs
   #       are using it consistently.
   #
-  foreach {dummy href} [regexp -all -inline -nocase -- {href="(.*?)"} $data] {
+  set hrefCount 0
+  set pattern(5) {href=['"](.*?)['"]}
+
+  foreach {dummy href} [regexp -all -inline -nocase -- $pattern(5) $data] {
     #
     # NOTE: Skip all references to other items on this page.
     #
@@ -185,23 +216,55 @@ proc transformCoreDocumentationFile { fileName url } {
     #
     # NOTE: Replace the reference with an absolute reference using the base
     #       URL specified by the caller, escaping it as necessary for use
-    #       with [regsub].
+    #       with [regsub].  Use the literal string syntax supported by the
+    #       regular expression engine here.
     #
-    set pattern "***=$dummy"; # NOTE: Use literal string syntax.
-    set subSpec "href=\"[escapeSubSpec $url$href]\""
+    set pattern(6) "***=$dummy"
+    set subSpec(6) "href=\"[escapeSubSpec $url$href]\""
 
     #
     # NOTE: Perform the replacements, if any, keeping track of how many were
     #       done.
     #
-    incr count [regsub -all -- $pattern $data $subSpec data]
+    incr hrefCount [regsub -all -- $pattern(6) $data $subSpec(6) data]
   }
 
   #
   # NOTE: Issue a warning if the "href" pattern was not matched.
   #
-  if {$count == 0} then {
+  if {$hrefCount > 0} then {
+    incr count $hrefCount
+  } else {
     puts stdout "*WARNING* File \"$fileName\" does not match: href=\"(.*?)\""
+  }
+
+  #
+  # NOTE: Process all "src" attribute values from the data.  This pattern is
+  #       not univeral; however, as of this writing (Feb 2020), the core docs
+  #       are using it consistently.
+  #
+  set pattern(7) {src=['"](.*?)['"]}
+
+  foreach {dummy src} [regexp -all -inline -nocase -- $pattern(7) $data] {
+    #
+    # NOTE: Skip all absolute HTTP/HTTPS references.
+    #
+    if {[string range $src 0 6] eq "http://" || \
+        [string range $src 0 7] eq "https://"} then {
+      continue
+    }
+
+    #
+    # NOTE: If the referenced file name exists locally, skip it.
+    #
+    if {[file exists [file join $directory $src]]} then {
+      continue
+    }
+
+    #
+    # NOTE: Issue a warning if the "src" file was not found locally.
+    #
+    puts stdout "*WARNING* File \"$fileName\" has missing source: $src"
   }
 
   #
@@ -213,18 +276,7 @@ proc transformCoreDocumentationFile { fileName url } {
   }
 }
 
-#
-# HACK: Copy our local [fixed] copy of the MSDN documenter assembly into the
-#       installed location of NDoc3, if necessary.  Actually copying the file
-#       will require elevated administrator privileges; otherwise, it will
-#       fail.  Any errors encountered while copying the file are reported via
-#       the console; however, they will not halt further processing (i.e. the
-#       CHM file will probably still get built, but it may contain some links
-#       to built-in types that are blank).
-#
-proc copyMsdnDocumenter { sourceDirectory destinationDirectory } {
-  set fileNameOnly NDoc3.Documenter.Msdn.dll
-
+proc copyFile { sourceDirectory destinationDirectory fileNameOnly } {
   set sourceFileName [file join $sourceDirectory bin $fileNameOnly]
   set destinationFileName [file join $destinationDirectory bin $fileNameOnly]
 
@@ -256,16 +308,24 @@ proc copyMsdnDocumenter { sourceDirectory destinationDirectory } {
 # NOTE: This is the entry point for this script.
 #
 set path [file normalize [file dirname [info script]]]
-
 set nDocExtPath [file join [file dirname $path] Externals NDoc3]
-set nDocInstPath [file join $env(ProgramFiles) NDoc3]
+
+if {[info exists env(ProgramFiles\(x86\))]} then {
+  set programFiles $env(ProgramFiles\(x86\))
+  set needConsoleExe true
+} else {
+  set programFiles $env(ProgramFiles)
+  set needConsoleExe false
+}
+
+set nDocInstPath [file join $programFiles NDoc3]
 
 if {![file isdirectory $nDocInstPath]} then {
   puts stdout "NDoc3 must be installed to: $nDocInstPath"
   exit 1
 }
 
-set hhcPath [file join $env(ProgramFiles) "HTML Help Workshop"]
+set hhcPath [file join $programFiles "HTML Help Workshop"]
 
 if {![file isdirectory $hhcPath]} then {
   puts stdout "HTML Help Workshop must be installed to: $hhcPath"
@@ -326,8 +386,26 @@ set corePath [file join $temporaryPath Core]
 set coreSyntaxPath [file join $corePath syntax]
 set providerPath [file join $temporaryPath Provider]
 
+#
+# HACK: Copy our local [fixed] copy of the MSDN documenter assembly into the
+#       installed location of NDoc3, if necessary.  Actually copying the file
+#       will require elevated administrator privileges; otherwise, it will
+#       fail.  Any errors encountered while copying the file are reported via
+#       the console; however, they will not halt further processing (i.e. the
+#       CHM file will probably still get built, but it may contain some links
+#       to built-in types that are blank).
+#
 if {[file isdirectory $nDocExtPath]} then {
-  copyMsdnDocumenter $nDocExtPath $nDocInstPath
+  copyFile $nDocExtPath $nDocInstPath NDoc3.Documenter.Msdn.dll
+}
+
+#
+# HACK: If necessary, copy our 32-bit only version of the NDoc3 executable;
+#       without this, it will be unable to locate the "HTML Help Workshop"
+#       directory within the "Program Files (x86)" directory.
+#
+if {$needConsoleExe} then {
+  copyFile $nDocExtPath $nDocInstPath NDoc3Console.exe
 }
 
 set code [catch {exec [file join $nDocInstPath bin NDoc3Console.exe] \
@@ -406,6 +484,9 @@ set patterns(.html,7) \
 set patterns(.html,8) \
     {"(System\.Data\.SQLite~System\.Data\.SQLite\.SQLiteVirtualTableCursor\.Dispose)\.html"}
 
+set patterns(.html,9) \
+    {"(System\.Data\.SQLite~System\.Data\.SQLite\.ISQLiteManagedModule\.[^(]+)\((?:[^)]+)\)\.html"}
+
 set subSpecs(.hhc,1) [readFileAsSubSpec [file join $path SQLite.NET.hhc]]
 
 set subSpecs(.hhp,1) {Default topic=Provider\welcome.html}
@@ -419,6 +500,7 @@ set subSpecs(.html,5) {"\1~Overloads.html"}
 set subSpecs(.html,6) {"\1~Overloads.html"}
 set subSpecs(.html,7) {"\1~Overloads.html"}
 set subSpecs(.html,8) {"\1~Overloads.html"}
+set subSpecs(.html,9) {"\1.html"}
 
 ###############################################################################
 

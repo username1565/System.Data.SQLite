@@ -25,6 +25,7 @@
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Platform.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.targets" />
   <PropertyGroup Condition="'$(BinaryOutputPath)' != ''">
@@ -56,15 +57,19 @@
   <ItemGroup Condition="'$(UseEntityFramework6)' != 'false'">
     <Reference Include="EntityFramework"
                Condition="'$(NetFx40)' != 'false'">
-      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\lib\net40\EntityFramework.dll</HintPath>
+      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\v6.2\lib\net40\EntityFramework.dll</HintPath>
     </Reference>
     <Reference Include="EntityFramework"
                Condition="'$(NetFx45)' != 'false' Or
                           '$(NetFx451)' != 'false' Or
                           '$(NetFx452)' != 'false' Or
                           '$(NetFx46)' != 'false' Or
-                          '$(NetFx461)' != 'false'">
-      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\lib\net45\EntityFramework.dll</HintPath>
+                          '$(NetFx461)' != 'false' Or
+                          '$(NetFx462)' != 'false' Or
+                          '$(NetFx47)' != 'false' Or
+                          '$(NetFx471)' != 'false' Or
+                          '$(NetFx472)' != 'false'">
+      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\v6.2\lib\net45\EntityFramework.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -80,7 +85,8 @@
                          '$(TargetFrameworkVersion)' == 'v4.5.1' Or
                          '$(TargetFrameworkVersion)' == 'v4.5.2' Or
                          '$(TargetFrameworkVersion)' == 'v4.6' Or
-                         '$(TargetFrameworkVersion)' == 'v4.6.1')"
+                         '$(TargetFrameworkVersion)' == 'v4.6.1' Or
+                         '$(TargetFrameworkVersion)' == 'v4.6.2')"
              Include="NorthwindModel.Linq.2015.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -92,7 +98,8 @@
                          '$(TargetFrameworkVersion)' == 'v4.5.1' Or
                          '$(TargetFrameworkVersion)' == 'v4.5.2' Or
                          '$(TargetFrameworkVersion)' == 'v4.6' Or
-                         '$(TargetFrameworkVersion)' == 'v4.6.1')"
+                         '$(TargetFrameworkVersion)' == 'v4.6.1' Or
+                         '$(TargetFrameworkVersion)' == 'v4.6.2')"
              Include="NorthwindModel.EF6.2015.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -103,25 +110,27 @@
   </ItemGroup>
   <ItemGroup>
     <None Condition="'$(TargetFrameworkVersion)' == 'v3.5'"
-          Include="2008\LINQ\App.Config" />
+          Include="2008\LINQ\App.config" />
     <None Condition="'$(UseEntityFramework6)' == 'false' And
                      ('$(TargetFrameworkVersion)' == 'v4.0' Or
                       '$(TargetFrameworkVersion)' == 'v4.5' Or
                       '$(TargetFrameworkVersion)' == 'v4.5.1' Or
                       '$(TargetFrameworkVersion)' == 'v4.5.2' Or
                       '$(TargetFrameworkVersion)' == 'v4.6' Or
-                      '$(TargetFrameworkVersion)' == 'v4.6.1')"
-          Include="2015\LINQ\App.Config" />
+                      '$(TargetFrameworkVersion)' == 'v4.6.1' Or
+                      '$(TargetFrameworkVersion)' == 'v4.6.2')"
+          Include="2015\LINQ\App.config" />
     <None Condition="'$(UseEntityFramework6)' != 'false' And
                      ('$(TargetFrameworkVersion)' == 'v4.0' Or
                       '$(TargetFrameworkVersion)' == 'v4.5' Or
                       '$(TargetFrameworkVersion)' == 'v4.5.1' Or
                       '$(TargetFrameworkVersion)' == 'v4.5.2' Or
                       '$(TargetFrameworkVersion)' == 'v4.6' Or
-                      '$(TargetFrameworkVersion)' == 'v4.6.1')"
-          Include="2015\EF6\App.Config" />
+                      '$(TargetFrameworkVersion)' == 'v4.6.1' Or
+                      '$(TargetFrameworkVersion)' == 'v4.6.2')"
+          Include="2015\EF6\App.config" />
     <None Include="northwindEF.db">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EntityDeploy Condition="'$(TargetFrameworkVersion)' == 'v3.5'"
                   Include="NorthwindModel.Linq.2008.edmx">
@@ -134,7 +143,8 @@
                               '$(TargetFrameworkVersion)' == 'v4.5.1' Or
                               '$(TargetFrameworkVersion)' == 'v4.5.2' Or
                               '$(TargetFrameworkVersion)' == 'v4.6' Or
-                              '$(TargetFrameworkVersion)' == 'v4.6.1')"
+                              '$(TargetFrameworkVersion)' == 'v4.6.1' Or
+                              '$(TargetFrameworkVersion)' == 'v4.6.2')"
                   Include="NorthwindModel.Linq.2015.edmx">
       <Generator>EntityModelCodeGenerator</Generator>
       <LastGenOutput>NorthwindModel.Linq.2015.Designer.cs</LastGenOutput>
@@ -144,7 +154,9 @@
                               '$(TargetFrameworkVersion)' == 'v4.5' Or
                               '$(TargetFrameworkVersion)' == 'v4.5.1' Or
                               '$(TargetFrameworkVersion)' == 'v4.5.2' Or
-                              '$(TargetFrameworkVersion)' == 'v4.6')"
+                              '$(TargetFrameworkVersion)' == 'v4.6' Or
+                              '$(TargetFrameworkVersion)' == 'v4.6.1' Or
+                              '$(TargetFrameworkVersion)' == 'v4.6.2')"
                   Include="NorthwindModel.EF6.2015.edmx">
       <Generator>EntityModelCodeGenerator</Generator>
       <LastGenOutput>NorthwindModel.EF6.2015.Designer.cs</LastGenOutput>

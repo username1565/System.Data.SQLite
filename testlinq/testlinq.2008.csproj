@@ -24,6 +24,7 @@
     <NetFx35>true</NetFx35>
     <ConfigurationYear>2008</ConfigurationYear>
   </PropertyGroup>
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Platform.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.targets" />
   <PropertyGroup Condition="'$(BinaryOutputPath)' != ''">
@@ -61,9 +62,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="2008\LINQ\App.Config" />
+    <None Include="2008\LINQ\App.config" />
     <None Include="northwindEF.db">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EntityDeploy Include="NorthwindModel.Linq.2008.edmx">
       <Generator>EntityModelCodeGenerator</Generator>

@@ -11,6 +11,7 @@ namespace System.Data.SQLite
     using System.Data.Common;
     using System.Diagnostics;
     using System.Globalization;
+    using System.Threading;
 
     /// <summary>
     /// Event data for logging event handlers.
@@ -122,6 +123,24 @@ namespace System.Data.SQLite
         ///////////////////////////////////////////////////////////////////////
 
         /// <summary>
+        /// The number of times that the <see cref="Initialize(string)" />
+        /// has been called when the logging subystem was actually eligible
+        /// to be initialized (i.e. without the "No_SQLiteLog" environment
+        /// variable being set).
+        /// </summary>
+        private static int _initializeCallCount;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// This will be non-zero if an attempt was already made to initialize
+        /// the (managed) logging subsystem.
+        /// </summary>
+        private static int _attemptedInitialize;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
         /// This will be non-zero if logging is currently enabled.
         /// </summary>
         private static bool _enabled;
@@ -133,13 +152,71 @@ namespace System.Data.SQLite
         /// </summary>
         public static void Initialize()
         {
+            Initialize(null);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Initializes the SQLite logging facilities.
+        /// </summary>
+        /// <param name="className">
+        /// The name of the managed class that called this method.  This
+        /// parameter may be null.
+        /// </param>
+        internal static void Initialize(
+            string className
+            )
+        {
             //
-            // BUFXIX: We cannot initialize the logging interface if the SQLite
+            // NOTE: See if the logging subsystem has been totally disabled.
+            //       If so, do nothing.
+            //
+            if (UnsafeNativeMethods.GetSettingValue(
+                    "No_SQLiteLog", null) != null)
+            {
+                return;
+            }
+
+            ///////////////////////////////////////////////////////////////
+
+            //
+            // NOTE: Keep track of exactly how many times this method is
+            //       called (i.e. per-AppDomain, of course).
+            //
+            Interlocked.Increment(ref _initializeCallCount);
+
+            ///////////////////////////////////////////////////////////////
+
+            //
+            // NOTE: First, check if the managed logging subsystem is always
+            //       supposed to at least attempt to initialize itself.  In
+            //       order to do this, several fairly complex steps must be
+            //       taken, including calling a P/Invoke (interop) method;
+            //       therefore, by default, attempt to perform these steps
+            //       once.
+            //
+            if (UnsafeNativeMethods.GetSettingValue(
+                    "Initialize_SQLiteLog", null) == null)
+            {
+                if (Interlocked.Increment(ref _attemptedInitialize) > 1)
+                {
+                    Interlocked.Decrement(ref _attemptedInitialize);
+                    return;
+                }
+            }
+
+            ///////////////////////////////////////////////////////////////////
+
+            //
+            // BUFXIX: Cannot initialize the logging interface if the SQLite
             //         core library has already been initialized anywhere in
             //         the process (see ticket [2ce0870fad]).
             //
             if (SQLite3.StaticIsInitialized())
                 return;
+
+            ///////////////////////////////////////////////////////////////////
 
 #if !PLATFORM_COMPACTFRAMEWORK
             //
@@ -158,6 +235,8 @@ namespace System.Data.SQLite
                 return;
             }
 #endif
+
+            ///////////////////////////////////////////////////////////////////
 
             lock (syncRoot)
             {
@@ -178,7 +257,24 @@ namespace System.Data.SQLite
                 }
 #endif
 
-#if !USE_INTEROP_DLL || !INTEROP_LOG
+                ///////////////////////////////////////////////////////////////
+
+#if USE_INTEROP_DLL && INTEROP_LOG
+                //
+                // NOTE: Attempt to setup interop assembly log callback.
+                //       This may fail, e.g. if the SQLite core library
+                //       has somehow been initialized.  An exception will
+                //       be raised in that case.
+                //
+                SQLiteErrorCode rc = SQLite3.ConfigureLogForInterop(
+                    className);
+
+                if (rc != SQLiteErrorCode.Ok)
+                {
+                    throw new SQLiteException(rc,
+                        "Failed to configure interop assembly logging.");
+                }
+#else
                 //
                 // NOTE: Create an instance of the SQLite wrapper class.
                 //
@@ -202,15 +298,28 @@ namespace System.Data.SQLite
                     SQLiteErrorCode rc = _sql.SetLogCallback(_callback);
 
                     if (rc != SQLiteErrorCode.Ok)
+                    {
+                        _callback = null; /* UNDO */
+
                         throw new SQLiteException(rc,
-                            "Failed to initialize logging.");
+                            "Failed to configure managed assembly logging.");
+                    }
                 }
 #endif
 
+                ///////////////////////////////////////////////////////////////
+
                 //
-                // NOTE: Logging is enabled by default.
+                // NOTE: Logging is enabled by default unless the configuration
+                //       setting "Disable_SQLiteLog" is present.
                 //
-                _enabled = true;
+                if (UnsafeNativeMethods.GetSettingValue(
+                        "Disable_SQLiteLog", null) == null)
+                {
+                    _enabled = true;
+                }
+
+                ///////////////////////////////////////////////////////////////
 
                 //
                 // NOTE: For now, always setup the default log event handler.

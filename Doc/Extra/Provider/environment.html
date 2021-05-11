@@ -43,6 +43,47 @@
     <div id="mainSection">
     <div id="mainBody">
       <p>
+        The following <b>special replacement tokens</b> may be recognized and
+        replaced with their associated runtime value, depending on context,
+        when setting values are being read by the native library pre-loading
+        subsystem.  Unless otherwise stated explicitly, all of these tokens
+        are <b>case-sensitive</b> and the percent characters <b>must be
+        included</b> in order for them to be recognized.
+      </p>
+      <table width="80%" cellpadding="0" cellspacing="0">
+        <tr valign="top">
+          <th>Name</th>
+          <th>Description</th>
+        </tr>
+        <tr valign="top">
+          <td>%PreLoadSQLite_AssemblyDirectory%</td>
+          <td>If this token (which is <b>case-sensitive</b> and <b>must include
+          the percent characters</b>) is present within a setting value being
+          returned, it will be replaced with the qualified name of the
+          directory containing the System.Data.SQLite assembly.  If the name of
+          the directory is not available, the token will not be replaced.</td>
+        </tr>
+        <tr valign="top">
+          <td>%PreLoadSQLite_TargetFramework%</td>
+          <td>If this token (which is <b>case-sensitive</b> and <b>must include
+          the percent characters</b>) is present within a setting value being
+          returned, it will be replaced with an abbreviation of the target
+          framework attribute value for the System.Data.SQLite assembly.  If
+          the target framework attribute value is not available, the token will
+          not be replaced.</td>
+        </tr>
+        <tr valign="top">
+          <td>%PreLoadSQLite_XmlConfigDirectory%</td>
+          <td>If this token (which is <b>case-sensitive</b> and <b>must include
+          the percent characters</b>) is present within a setting value
+          being returned, it will be replaced with the qualified name of the
+          directory containing the XML configuration file.  If the name of the
+          directory is not available, the token will not be replaced.
+          Generally, this token may only be used within the XML configuration
+          file itself.</td>
+        </tr>
+      </table>
+      <p>
         These environment variables are used to control several features of
         the System.Data.SQLite library.  All of these environment variables
         are optional.  If a particular environment variable is not present,
@@ -99,11 +140,22 @@
           the connection string).</td>
         </tr>
         <tr valign="top">
+          <td>Disable_SQLiteLog</td>
+          <td>If this configuration variable is set [to anything], the SQLite
+          logging subsystem will be initially disabled when initialized.</td>
+        </tr>
+        <tr valign="top">
           <td>Force_SQLiteLog</td>
           <td>If this environment variable is set [to anything], the SQLite
           logging subsystem may be initialized in a non-default application
           domain.  By default, this is not allowed due to the potential for
           application domain unloading issues.</td>
+        </tr>
+        <tr valign="top">
+          <td>Initialize_SQLiteLog</td>
+          <td>If this environment variable is set [to anything], the SQLite
+          logging subsystem will attempt to perform initialization even when
+          an attempt was previously made.</td>
         </tr>
         <tr valign="top">
           <td>No_PreLoadSQLite</td>
@@ -131,6 +183,35 @@
           are subject to change.</td>
         </tr>
         <tr valign="top">
+          <td>No_SQLiteGetSettingValue</td>
+          <td>If this environment variable is set [to anything], all calls to
+          the GetSettingValue method will return the default value.  This will
+          effectively prevent all other setting values from having any effect,
+          including those specified via other supported environment variables
+          or in the associated XML configuration file.</td>
+        </tr>
+        <tr valign="top">
+          <td>No_SQLiteLog</td>
+          <td>If this environment variable is set [to anything], the SQLite
+          logging subsystem will not be initialized by the SQLiteLog class;
+          however, it may still be initialized by external components (i.e.
+          something other than System.Data.SQLite).</td>
+        </tr>
+        <tr valign="top">
+          <td>No_SQLiteXmlConfigFile</td>
+          <td>If this environment variable is set [to anything], calls to the
+          GetSettingValue method will never result in the XML configuration
+          file being read; instead, the default value will be returned.  This
+          will effectively prevent any setting values specified via the XML
+          configuration file from having any effect.</td>
+        </tr>
+        <tr valign="top">
+          <td>PreLoadSQLite_AllowBaseDirectoryOnly</td>
+          <td>If this environment variable is set [to anything], the base
+          directory itself is considered valid for pre-loading the native
+          SQLite library.</td>
+        </tr>
+        <tr valign="top">
           <td>PreLoadSQLite_BaseDirectory</td>
           <td>If this environment variable is set [to anything], it will be
           used instead of the application base directory by the native
@@ -140,8 +221,14 @@
           of the application.</td>
         </tr>
         <tr valign="top">
+          <td>PreLoadSQLite_BreakIntoDebugger</td>
+          <td>If this environment variable is set [to anything], the native
+          library pre-loader subsystem will attempt to give the interactive
+          user an opportunity to attach a debugger to the current process.</td>
+        </tr>
+        <tr valign="top">
           <td>PreLoadSQLite_LibraryFileNameOnly</td>
-          <td>If this configuration variable is set [to anything], it will be
+          <td>If this environment variable is set [to anything], it will be
           used as the base file name (without directory information) for the
           native SQLite library to be pre-loaded (e.g. "sqlite3.dll" or
           "libsqlite3.so.0").</td>
@@ -179,10 +266,26 @@
           </td>
         </tr>
         <tr valign="top">
+          <td>SQLite_LegacyEncryptPage1</td>
+          <td>If this environment variable is set [to anything], page #1 of
+          database files encrypted using the (unsupported) legacy CryptoAPI
+          codec will be encrypted.  This was the default behavior prior to
+          release 1.0.112.3; however, it is now disabled (by default) as it
+          can cause corruption and/or other malfunctions in some circumstances.
+          Please do not use this environment variable unless it is absolutely
+          necessary for your specific use case.</td>
+        </tr>
+        <tr valign="top">
           <td>SQLite_ForceLogPrepare</td>
           <td>If this environment variable is set [to anything], all calls to
           prepare a SQL query will be logged, regardless of the flags for the
           associated connection.</td>
+        </tr>
+        <tr valign="top">
+          <td>SQLite_ForceLogLifecycle</td>
+          <td>If this environment variable is set [to anything], calls into
+          key members pertaining to the lifecycle of connections and their
+          associated classes (e.g. LINQ, EF6, etc) will be logged.</td>
         </tr>
         <tr valign="top">
           <td>TypeName_SQLiteProviderServices</td>

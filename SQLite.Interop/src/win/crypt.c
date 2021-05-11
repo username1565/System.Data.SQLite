@@ -24,6 +24,12 @@ typedef struct _CRYPTBLOCK
   DWORD     dwCryptSize;  /* Equal to or greater than dwPageSize.  If larger, pvCrypt is valid and this is its size */
 } CRYPTBLOCK, *LPCRYPTBLOCK;
 
+#define CRYPT_PAGE1_UNKNOWN  (0)
+#define CRYPT_PAGE1_ENABLED  (1)
+#define CRYPT_PAGE1_DISABLED (2)
+
+BOOL g_bEncryptPage1 = CRYPT_PAGE1_UNKNOWN;
+
 HCRYPTPROV g_hProvider = 0; /* Global instance of the cryptographic provider */
 
 #define SQLITECRYPTERROR_PROVIDER "Cryptographic provider not available"
@@ -32,10 +38,6 @@ HCRYPTPROV g_hProvider = 0; /* Global instance of the cryptographic provider */
 static void * sqlite3pager_get_codecarg(Pager *pPager)
 {
   return (pPager->xCodec) ? pPager->pCodec: NULL;
-}
-
-void sqlite3_activate_see(const char *info)
-{
 }
 
 /* Create a cryptographic context.  Use the enhanced provider because it is available on
@@ -152,13 +154,44 @@ void sqlite3CodecSizeChange(void *pArg, int pageSize, int reservedSize)
 }
 
 /* Encrypt/Decrypt functionality, called by pager.c */
-void * sqlite3Codec(void *pArg, void *data, Pgno nPageNum, int nMode)
+static void *sqlite3Codec(void *pArg, void *data, Pgno nPageNum, int nMode)
 {
   LPCRYPTBLOCK pBlock = (LPCRYPTBLOCK)pArg;
   DWORD dwPageSize;
   LPVOID pvTemp = NULL;
 
+  if (g_bEncryptPage1 == CRYPT_PAGE1_UNKNOWN)
+  {
+    WCHAR aBuf[2];
+    memset(aBuf, 0, sizeof(aBuf));
+    if ((GetEnvironmentVariableW(L"SQLite_LegacyEncryptPage1", aBuf, sizeof(aBuf)) != 0)
+     || (GetLastError() != ERROR_ENVVAR_NOT_FOUND))
+    {
+      g_bEncryptPage1 = CRYPT_PAGE1_ENABLED;
+    } else {
+      g_bEncryptPage1 = CRYPT_PAGE1_DISABLED;
+    }
+  }
+
   if (!pBlock) return data;
+  if (g_bEncryptPage1 == CRYPT_PAGE1_DISABLED)
+  {
+    if (nPageNum == 1) // BUGFIX: Skip first page as it contains metadata
+                       //         necessary to initialize the pager.  For
+                       //         backward compatibility, decrypt page #1
+                       //         for any existing databases.
+    {
+      //
+      // NOTE: If this is page #1 and it starts with the file header, it
+      //       should not be encrypted; so, do nothing to it; otherwise,
+      //       it is encrypted and must be decrypted.
+      //
+      if (memcmp(data, zMagicHeader, sizeof(zMagicHeader)) == 0)
+      {
+        return data;
+      }
+    }
+  }
   if (pBlock->pvCrypt == NULL) return NULL; /* This only happens if CreateCryptBlock() failed to make scratch space */
 
   switch(nMode)
@@ -326,6 +359,10 @@ void sqlite3CodecGetKey(sqlite3 *db, int nDb, void **ppKey, int *pnKeyLen)
   if (pnKeyLen) *pnKeyLen = pBlock ? 1: 0;
 }
 
+SQLITE_API void sqlite3_activate_see(const char *info)
+{
+}
+
 /* We do not attach this key to the temp store, only the main database. */
 SQLITE_API int sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *pKey, int nKey)
 {
@@ -335,6 +372,11 @@ SQLITE_API int sqlite3_key_v2(sqlite3 *db, const char *zDbName, const void *pKey
 SQLITE_API int sqlite3_key(sqlite3 *db, const void *pKey, int nKey)
 {
   return sqlite3_key_v2(db, 0, pKey, nKey);
+}
+
+SQLITE_API int sqlite3_rekey(sqlite3 *db, const void *pKey, int nKey)
+{
+  return sqlite3_rekey_v2(db, 0, pKey, nKey);
 }
 
 /* Changes the encryption key for an existing database. */
@@ -378,7 +420,11 @@ SQLITE_API int sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *pK
   sqlite3_mutex_enter(db->mutex);
 
   /* Start a transaction */
+#if SQLITE_VERSION_NUMBER >= 3025000
+  rc = sqlite3BtreeBeginTrans(pbt, 1, 0);
+#else
   rc = sqlite3BtreeBeginTrans(pbt, 1);
+#endif
 
   if (!rc)
   {
@@ -454,11 +500,6 @@ SQLITE_API int sqlite3_rekey_v2(sqlite3 *db, const char *zDbName, const void *pK
   sqlite3_mutex_leave(db->mutex);
 
   return rc;
-}
-
-SQLITE_API int sqlite3_rekey(sqlite3 *db, const void *pKey, int nKey)
-{
-  return sqlite3_rekey_v2(db, 0, pKey, nKey);
 }
 
 #endif /* SQLITE_HAS_CODEC */

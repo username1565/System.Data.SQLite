@@ -42,9 +42,11 @@ Core\lang_savepoint.html
 Core\lang_select.html
 Core\lang_transaction.html
 Core\lang_update.html
+Core\lang_UPSERT.html
 Core\lang_vacuum.html
 Core\lang_with.html
 Core\pragma.html
+Core\sqlite.css
 Core\syntax.html
 Core\syntaxdiagrams.html
 Core\syntax\alter-table-stmt.html
@@ -53,6 +55,7 @@ Core\syntax\attach-stmt.html
 Core\syntax\begin-stmt.html
 Core\syntax\column-constraint.html
 Core\syntax\column-def.html
+Core\syntax\column-name-list.html
 Core\syntax\comment-syntax.html
 Core\syntax\commit-stmt.html
 Core\syntax\common-table-expression.html

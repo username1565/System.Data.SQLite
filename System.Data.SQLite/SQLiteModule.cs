@@ -338,6 +338,27 @@ namespace System.Data.SQLite
 
         #region Internal Marshal Helper Methods
         /// <summary>
+        /// Converts a native pointer to a native sqlite3_value structure into
+        /// a managed <see cref="SQLiteValue" /> object instance.
+        /// </summary>
+        /// <param name="pValue">
+        /// The native pointer to a native sqlite3_value structure to convert.
+        /// </param>
+        /// <returns>
+        /// The managed <see cref="SQLiteValue" /> object instance or null upon
+        /// failure.
+        /// </returns>
+        internal static SQLiteValue FromIntPtr(
+            IntPtr pValue
+            )
+        {
+            if (pValue == IntPtr.Zero) return null;
+            return new SQLiteValue(pValue);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
         /// Converts a logical array of native pointers to native sqlite3_value
         /// structures into a managed array of <see cref="SQLiteValue" />
         /// object instances.
@@ -576,6 +597,52 @@ namespace System.Data.SQLite
         ///////////////////////////////////////////////////////////////////////
 
         /// <summary>
+        /// Gets and returns an <see cref="Object" /> instance associated with
+        /// this value.
+        /// </summary>
+        /// <returns>
+        /// The <see cref="Object" /> associated with this value.  If the type
+        /// affinity of the object is unknown or cannot be determined, a null
+        /// value will be returned.
+        /// </returns>
+        public object GetObject()
+        {
+            switch (GetTypeAffinity())
+            {
+                case TypeAffinity.Uninitialized:
+                    {
+                        return null;
+                    }
+                case TypeAffinity.Int64:
+                    {
+                        return GetInt64();
+                    }
+                case TypeAffinity.Double:
+                    {
+                        return GetDouble();
+                    }
+                case TypeAffinity.Text:
+                    {
+                        return GetString();
+                    }
+                case TypeAffinity.Blob:
+                    {
+                        return GetBytes();
+                    }
+                case TypeAffinity.Null:
+                    {
+                        return DBNull.Value;
+                    }
+                default:
+                    {
+                        return null;
+                    }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
         /// Uses the native value handle to obtain and store the managed value
         /// for this object instance, thus saving it for later use.  The type
         /// of the managed value is determined by the type affinity of the
@@ -673,7 +740,47 @@ namespace System.Data.SQLite
         /// <summary>
         /// This value represents the MATCH operator.
         /// </summary>
-        Match = 64
+        Match = 64,
+
+        /// <summary>
+        /// This value represents the LIKE operator.
+        /// </summary>
+        Like = 65,
+
+        /// <summary>
+        /// This value represents the GLOB operator.
+        /// </summary>
+        Glob = 66,
+
+        /// <summary>
+        /// This value represents the REGEXP operator.
+        /// </summary>
+        Regexp = 67,
+
+        /// <summary>
+        /// This value represents the inequality operator.
+        /// </summary>
+        NotEqualTo = 68,
+
+        /// <summary>
+        /// This value represents the IS NOT operator.
+        /// </summary>
+        IsNot = 69,
+
+        /// <summary>
+        /// This value represents the IS NOT NULL operator.
+        /// </summary>
+        IsNotNull = 70,
+
+        /// <summary>
+        /// This value represents the IS NULL operator.
+        /// </summary>
+        IsNull = 71,
+
+        /// <summary>
+        /// This value represents the IS operator.
+        /// </summary>
+        Is = 72
     }
     #endregion
 
@@ -1456,6 +1563,8 @@ namespace System.Data.SQLite
             IntPtr pConstraint = SQLiteMarshal.ReadIntPtr(
                 pIndex, offset);
 
+            int constraintOffset = offset;
+
             offset = SQLiteMarshal.NextOffsetOf(
                 offset, IntPtr.Size, sizeof(int));
 
@@ -1465,28 +1574,41 @@ namespace System.Data.SQLite
             IntPtr pOrderBy = SQLiteMarshal.ReadIntPtr(
                 pIndex, offset);
 
+            int orderByOffset = offset;
+
             offset = SQLiteMarshal.NextOffsetOf(
                 offset, IntPtr.Size, IntPtr.Size);
 
             IntPtr pConstraintUsage = SQLiteMarshal.ReadIntPtr(
                 pIndex, offset);
 
+            int constraintUsageOffset = offset;
+
             if (pConstraintUsage != IntPtr.Zero)
             {
                 SQLiteMemory.Free(pConstraintUsage);
                 pConstraintUsage = IntPtr.Zero;
+
+                SQLiteMarshal.WriteIntPtr(
+                    pIndex, constraintUsageOffset, pConstraintUsage);
             }
 
             if (pOrderBy != IntPtr.Zero)
             {
                 SQLiteMemory.Free(pOrderBy);
                 pOrderBy = IntPtr.Zero;
+
+                SQLiteMarshal.WriteIntPtr(
+                    pIndex, orderByOffset, pOrderBy);
             }
 
             if (pConstraint != IntPtr.Zero)
             {
                 SQLiteMemory.Free(pConstraint);
                 pConstraint = IntPtr.Zero;
+
+                SQLiteMarshal.WriteIntPtr(
+                    pIndex, constraintOffset, pConstraint);
             }
 
             if (pIndex != IntPtr.Zero)
@@ -1863,7 +1985,8 @@ namespace System.Data.SQLite
                 offset, sizeof(int), IntPtr.Size);
 
             SQLiteMarshal.WriteIntPtr(pIndex, offset,
-                SQLiteString.Utf8IntPtrFromString(outputs.IndexString));
+                SQLiteString.Utf8IntPtrFromString(
+                    outputs.IndexString, false)); /* OK: FREED BY CORE*/
 
             offset = SQLiteMarshal.NextOffsetOf(
                 offset, IntPtr.Size, sizeof(int));
@@ -3148,7 +3271,7 @@ namespace System.Data.SQLite
         /// The total number of outstanding memory bytes allocated by this
         /// class using the SQLite core library.
         /// </summary>
-        private static int bytesAllocated;
+        private static ulong bytesAllocated;
 
         ///////////////////////////////////////////////////////////////////////
 
@@ -3156,8 +3279,153 @@ namespace System.Data.SQLite
         /// The maximum number of outstanding memory bytes ever allocated by
         /// this class using the SQLite core library.
         /// </summary>
-        private static int maximumBytesAllocated;
+        private static ulong maximumBytesAllocated;
 #endif
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Memory Tracking Helper Methods
+#if TRACK_MEMORY_BYTES
+        /// <summary>
+        /// Attempts to determine the size of the specified memory block.  If
+        /// the <see cref="Size64" /> method can be used, the returned value
+        /// may be larger than <see cref="Int32.MaxValue" />.  A message may
+        /// be sent to the logging subsystem if an error is encountered.
+        /// </summary>
+        /// <param name="pMemory">
+        /// The native pointer to the memory block previously obtained from
+        /// the <see cref="Allocate" />, <see cref="Allocate64" />,
+        /// <see cref="AllocateUntracked" />, or
+        /// <see cref="Allocate64Untracked" /> methods or directly from the
+        /// SQLite core library.
+        /// </param>
+        /// <returns>
+        /// The size of the specified memory block -OR- zero if the 32-bit
+        /// signed value reported from the native API was less than zero.
+        /// </returns>
+        private static ulong GetBlockSize(
+            IntPtr pMemory
+            )
+        {
+            ulong ulongSize = 0;
+
+            if (CanUseSize64())
+            {
+                ulongSize = Size64(pMemory);
+            }
+            else
+            {
+                int intSize = Size(pMemory);
+
+                if (intSize > 0)
+                {
+                    ulongSize = (ulong)intSize;
+                }
+#if DEBUG
+                else if (intSize < 0)
+                {
+                    SQLiteLog.LogMessage(SQLiteErrorCode.Warning,
+                        HelperMethods.StringFormat(CultureInfo.CurrentCulture,
+                        "pointer {0} size {1} appears to be negative: {2}",
+                        pMemory, intSize,
+#if !PLATFORM_COMPACTFRAMEWORK
+                        Environment.StackTrace
+#else
+                        null
+#endif
+                    ));
+                }
+#endif
+            }
+
+            return ulongSize;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Adjusts the total number of (tracked) bytes that are currently
+        /// considered to be allocated by this class.  The total number is
+        /// increased by the total size of the memory block pointed to by
+        /// <paramref name="pMemory" />.  If the new total number exceeds
+        /// the previously seen maximum, the maximum will be reset.
+        /// </summary>
+        /// <param name="pMemory">
+        /// A native pointer to newly allocated memory.
+        /// </param>
+        private static void MemoryWasAllocated(
+            IntPtr pMemory
+            )
+        {
+            if (pMemory != IntPtr.Zero)
+            {
+                ulong blockSize = GetBlockSize(pMemory);
+
+                if (blockSize > 0)
+                {
+                    lock (syncRoot)
+                    {
+                        bytesAllocated += blockSize;
+
+                        if (bytesAllocated > maximumBytesAllocated)
+                            maximumBytesAllocated = bytesAllocated;
+                    }
+                }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Adjusts the total number of (tracked) bytes that are currently
+        /// considered to be allocated by this class.  The total number is
+        /// decreased by the total size of the memory block pointed to by
+        /// <paramref name="pMemory" />.
+        /// </summary>
+        /// <param name="pMemory">
+        /// A native pointer to allocated memory that is going to be freed.
+        /// </param>
+        private static void MemoryIsBeingFreed(
+            IntPtr pMemory
+            )
+        {
+            if (pMemory != IntPtr.Zero)
+            {
+                ulong blockSize = GetBlockSize(pMemory);
+
+                if (blockSize > 0)
+                {
+                    lock (syncRoot)
+                    {
+                        bytesAllocated -= blockSize;
+                    }
+                }
+            }
+        }
+#endif
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Memory Version Helper Methods
+        /// <summary>
+        /// Determines if the native sqlite3_msize() API can be used, based on
+        /// the available version of the SQLite core library.
+        /// </summary>
+        /// <returns>
+        /// Non-zero if the native sqlite3_msize() API is supported by the
+        /// SQLite core library.
+        /// </returns>
+        private static bool CanUseSize64()
+        {
+#if !PLATFORM_COMPACTFRAMEWORK || !SQLITE_STANDARD
+            if (UnsafeNativeMethods.sqlite3_libversion_number() >= 3008007)
+                return true;
+#endif
+
+            return false;
+        }
         #endregion
 
         ///////////////////////////////////////////////////////////////////////
@@ -3166,7 +3434,9 @@ namespace System.Data.SQLite
         /// <summary>
         /// Allocates at least the specified number of bytes of native memory
         /// via the SQLite core library sqlite3_malloc() function and returns
-        /// the resulting native pointer.
+        /// the resulting native pointer.  If the TRACK_MEMORY_BYTES option
+        /// was enabled at compile-time, adjusts the number of bytes currently
+        /// allocated by this class.
         /// </summary>
         /// <param name="size">
         /// The number of bytes to allocate.
@@ -3181,21 +3451,7 @@ namespace System.Data.SQLite
             IntPtr pMemory = UnsafeNativeMethods.sqlite3_malloc(size);
 
 #if TRACK_MEMORY_BYTES
-            if (pMemory != IntPtr.Zero)
-            {
-                int blockSize = Size(pMemory);
-
-                if (blockSize > 0)
-                {
-                    lock (syncRoot)
-                    {
-                        bytesAllocated += blockSize;
-
-                        if (bytesAllocated > maximumBytesAllocated)
-                            maximumBytesAllocated = bytesAllocated;
-                    }
-                }
-            }
+            MemoryWasAllocated(pMemory);
 #endif
 
             return pMemory;
@@ -3204,12 +3460,92 @@ namespace System.Data.SQLite
         ///////////////////////////////////////////////////////////////////////
 
         /// <summary>
-        /// Gets and returns the actual size of the specified memory block that
-        /// was previously obtained from the <see cref="Allocate" /> method.
+        /// Allocates at least the specified number of bytes of native memory
+        /// via the SQLite core library sqlite3_malloc64() function and returns
+        /// the resulting native pointer.  If the TRACK_MEMORY_BYTES option
+        /// was enabled at compile-time, adjusts the number of bytes currently
+        /// allocated by this class.
+        /// </summary>
+        /// <param name="size">
+        /// The number of bytes to allocate.
+        /// </param>
+        /// <returns>
+        /// The native pointer that points to a block of memory of at least the
+        /// specified size -OR- <see cref="IntPtr.Zero" /> if the memory could
+        /// not be allocated.
+        /// </returns>
+        public static IntPtr Allocate64(ulong size)
+        {
+            IntPtr pMemory = UnsafeNativeMethods.sqlite3_malloc64(size);
+
+#if TRACK_MEMORY_BYTES
+            MemoryWasAllocated(pMemory);
+#endif
+
+            return pMemory;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Allocates at least the specified number of bytes of native memory
+        /// via the SQLite core library sqlite3_malloc() function and returns
+        /// the resulting native pointer without adjusting the number of
+        /// allocated bytes currently tracked by this class.  This is useful
+        /// when dealing with blocks of memory that will be freed directly by
+        /// the SQLite core library.
+        /// </summary>
+        /// <param name="size">
+        /// The number of bytes to allocate.
+        /// </param>
+        /// <returns>
+        /// The native pointer that points to a block of memory of at least the
+        /// specified size -OR- <see cref="IntPtr.Zero" /> if the memory could
+        /// not be allocated.
+        /// </returns>
+        public static IntPtr AllocateUntracked(int size)
+        {
+            return UnsafeNativeMethods.sqlite3_malloc(size);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Allocates at least the specified number of bytes of native memory
+        /// via the SQLite core library sqlite3_malloc64() function and returns
+        /// the resulting native pointer without adjusting the number of
+        /// allocated bytes currently tracked by this class.  This is useful
+        /// when dealing with blocks of memory that will be freed directly by
+        /// the SQLite core library.
+        /// </summary>
+        /// <param name="size">
+        /// The number of bytes to allocate.
+        /// </param>
+        /// <returns>
+        /// The native pointer that points to a block of memory of at least the
+        /// specified size -OR- <see cref="IntPtr.Zero" /> if the memory could
+        /// not be allocated.
+        /// </returns>
+        public static IntPtr Allocate64Untracked(ulong size)
+        {
+            return UnsafeNativeMethods.sqlite3_malloc64(size);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Gets and returns the actual size of the specified memory block
+        /// that was previously obtained from the <see cref="Allocate" />,
+        /// <see cref="Allocate64" />, <see cref="AllocateUntracked" />, or
+        /// <see cref="Allocate64Untracked" /> methods or directly from the
+        /// SQLite core library.
         /// </summary>
         /// <param name="pMemory">
-        /// The native pointer to the memory block previously obtained from the
-        /// <see cref="Allocate" /> method.
+        /// The native pointer to the memory block previously obtained from
+        /// the <see cref="Allocate" />, <see cref="Allocate64" />,
+        /// <see cref="AllocateUntracked" />, or
+        /// <see cref="Allocate64Untracked" /> methods or directly from the
+        /// SQLite core library.
         /// </param>
         /// <returns>
         /// The actual size, in bytes, of the memory block specified via the
@@ -3217,6 +3553,10 @@ namespace System.Data.SQLite
         /// </returns>
         public static int Size(IntPtr pMemory)
         {
+#if DEBUG
+            SQLiteMarshal.CheckAlignment("Size", pMemory, 0, IntPtr.Size);
+#endif
+
 #if !SQLITE_STANDARD
             return UnsafeNativeMethods.sqlite3_malloc_size_interop(pMemory);
 #elif TRACK_MEMORY_BYTES
@@ -3233,28 +3573,82 @@ namespace System.Data.SQLite
         ///////////////////////////////////////////////////////////////////////
 
         /// <summary>
+        /// Gets and returns the actual size of the specified memory block
+        /// that was previously obtained from the <see cref="Allocate" />,
+        /// <see cref="Allocate64" />, <see cref="AllocateUntracked" />, or
+        /// <see cref="Allocate64Untracked" /> methods or directly from the
+        /// SQLite core library.
+        /// </summary>
+        /// <param name="pMemory">
+        /// The native pointer to the memory block previously obtained from
+        /// the <see cref="Allocate" />, <see cref="Allocate64" />,
+        /// <see cref="AllocateUntracked" />, or
+        /// <see cref="Allocate64Untracked" /> methods or directly from the
+        /// SQLite core library.
+        /// </param>
+        /// <returns>
+        /// The actual size, in bytes, of the memory block specified via the
+        /// native pointer.
+        /// </returns>
+        public static ulong Size64(IntPtr pMemory)
+        {
+#if DEBUG
+            SQLiteMarshal.CheckAlignment("Size64", pMemory, 0, IntPtr.Size);
+#endif
+
+#if !PLATFORM_COMPACTFRAMEWORK
+            return UnsafeNativeMethods.sqlite3_msize(pMemory);
+#elif !SQLITE_STANDARD
+            ulong size = 0;
+            UnsafeNativeMethods.sqlite3_msize_interop(pMemory, ref size);
+            return size;
+#else
+            throw new NotImplementedException();
+#endif
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
         /// Frees a memory block previously obtained from the
-        /// <see cref="Allocate" /> method.
+        /// <see cref="Allocate" /> or <see cref="Allocate64" /> methods.  If
+        /// the TRACK_MEMORY_BYTES option was enabled at compile-time, adjusts
+        /// the number of bytes currently allocated by this class.
         /// </summary>
         /// <param name="pMemory">
         /// The native pointer to the memory block previously obtained from the
-        /// <see cref="Allocate" /> method.
+        /// <see cref="Allocate" /> or <see cref="Allocate64" /> methods.
         /// </param>
         public static void Free(IntPtr pMemory)
         {
-#if TRACK_MEMORY_BYTES
-            if (pMemory != IntPtr.Zero)
-            {
-                int blockSize = Size(pMemory);
+#if DEBUG
+            SQLiteMarshal.CheckAlignment("Free", pMemory, 0, IntPtr.Size);
+#endif
 
-                if (blockSize > 0)
-                {
-                    lock (syncRoot)
-                    {
-                        bytesAllocated -= blockSize;
-                    }
-                }
-            }
+#if TRACK_MEMORY_BYTES
+            MemoryIsBeingFreed(pMemory);
+#endif
+
+            UnsafeNativeMethods.sqlite3_free(pMemory);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Frees a memory block previously obtained from the SQLite core
+        /// library without adjusting the number of allocated bytes currently
+        /// tracked by this class.  This is useful when dealing with blocks of
+        /// memory that were not allocated using this class.
+        /// </summary>
+        /// <param name="pMemory">
+        /// The native pointer to the memory block previously obtained from the
+        /// SQLite core library.
+        /// </param>
+        public static void FreeUntracked(IntPtr pMemory)
+        {
+#if DEBUG
+            SQLiteMarshal.CheckAlignment(
+                "FreeUntracked", pMemory, 0, IntPtr.Size);
 #endif
 
             UnsafeNativeMethods.sqlite3_free(pMemory);
@@ -3454,6 +3848,91 @@ namespace System.Data.SQLite
             string value
             )
         {
+            return Utf8IntPtrFromString(value, true);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Converts the specified managed string into a native NUL-terminated
+        /// UTF-8 string pointer using memory obtained from the SQLite core
+        /// library.
+        /// </summary>
+        /// <param name="value">
+        /// The managed string to convert.
+        /// </param>
+        /// <param name="tracked">
+        /// Non-zero to obtain memory from the SQLite core library without
+        /// adjusting the number of allocated bytes currently being tracked
+        /// by the <see cref="SQLiteMemory" /> class.
+        /// </param>
+        /// <returns>
+        /// The native NUL-terminated UTF-8 string pointer or
+        /// <see cref="IntPtr.Zero" /> upon failure.
+        /// </returns>
+        public static IntPtr Utf8IntPtrFromString(
+            string value,
+            bool tracked
+            )
+        {
+            int length = 0;
+
+            return Utf8IntPtrFromString(value, tracked, ref length);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Converts the specified managed string into a native NUL-terminated
+        /// UTF-8 string pointer using memory obtained from the SQLite core
+        /// library.
+        /// </summary>
+        /// <param name="value">
+        /// The managed string to convert.
+        /// </param>
+        /// <param name="length">
+        /// The length of the native string, in bytes.
+        /// </param>
+        /// <returns>
+        /// The native NUL-terminated UTF-8 string pointer or
+        /// <see cref="IntPtr.Zero" /> upon failure.
+        /// </returns>
+        public static IntPtr Utf8IntPtrFromString(
+            string value,
+            ref int length
+            )
+        {
+            return Utf8IntPtrFromString(value, true, ref length);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Converts the specified managed string into a native NUL-terminated
+        /// UTF-8 string pointer using memory obtained from the SQLite core
+        /// library.
+        /// </summary>
+        /// <param name="value">
+        /// The managed string to convert.
+        /// </param>
+        /// <param name="tracked">
+        /// Non-zero to obtain memory from the SQLite core library without
+        /// adjusting the number of allocated bytes currently being tracked
+        /// by the <see cref="SQLiteMemory" /> class.
+        /// </param>
+        /// <param name="length">
+        /// The length of the native string, in bytes.
+        /// </param>
+        /// <returns>
+        /// The native NUL-terminated UTF-8 string pointer or
+        /// <see cref="IntPtr.Zero" /> upon failure.
+        /// </returns>
+        public static IntPtr Utf8IntPtrFromString(
+            string value,
+            bool tracked,
+            ref int length
+            )
+        {
             if (value == null)
                 return IntPtr.Zero;
 
@@ -3463,9 +3942,12 @@ namespace System.Data.SQLite
             if (bytes == null)
                 return IntPtr.Zero;
 
-            int length = bytes.Length;
+            length = bytes.Length;
 
-            result = SQLiteMemory.Allocate(length + 1);
+            if (tracked)
+                result = SQLiteMemory.Allocate(length + 1);
+            else
+                result = SQLiteMemory.AllocateUntracked(length + 1);
 
             if (result == IntPtr.Zero)
                 return IntPtr.Zero;
@@ -3530,12 +4012,18 @@ namespace System.Data.SQLite
         /// <param name="values">
         /// The array of managed strings to convert.
         /// </param>
+        /// <param name="tracked">
+        /// Non-zero to obtain memory from the SQLite core library without
+        /// adjusting the number of allocated bytes currently being tracked
+        /// by the <see cref="SQLiteMemory" /> class.
+        /// </param>
         /// <returns>
         /// The array of native NUL-terminated UTF-8 string pointers or null
         /// upon failure.
         /// </returns>
         public static IntPtr[] Utf8IntPtrArrayFromStringArray(
-            string[] values
+            string[] values,
+            bool tracked
             )
         {
             if (values == null)
@@ -3544,7 +4032,7 @@ namespace System.Data.SQLite
             IntPtr[] result = new IntPtr[values.Length];
 
             for (int index = 0; index < result.Length; index++)
-                result[index] = Utf8IntPtrFromString(values[index]);
+                result[index] = Utf8IntPtrFromString(values[index], tracked);
 
             return result;
         }
@@ -3610,10 +4098,35 @@ namespace System.Data.SQLite
             byte[] value
             )
         {
+            int length = 0;
+
+            return ToIntPtr(value, ref length);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Converts a managed byte array into a native pointer to a logical
+        /// array of bytes.
+        /// </summary>
+        /// <param name="value">
+        /// The managed byte array to convert.
+        /// </param>
+        /// <param name="length">
+        /// The length, in bytes, of the converted logical array of bytes.
+        /// </param>
+        /// <returns>
+        /// The native pointer to a logical byte array or null upon failure.
+        /// </returns>
+        public static IntPtr ToIntPtr(
+            byte[] value,
+            ref int length
+            )
+        {
             if (value == null)
                 return IntPtr.Zero;
 
-            int length = value.Length;
+            length = value.Length;
 
             if (length == 0)
                 return IntPtr.Zero;
@@ -3740,6 +4253,10 @@ namespace System.Data.SQLite
             int offset
             )
         {
+#if DEBUG
+            CheckAlignment("ReadInt32", pointer, offset, sizeof(int));
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             return Marshal.ReadInt32(pointer, offset);
 #else
@@ -3769,6 +4286,10 @@ namespace System.Data.SQLite
             int offset
             )
         {
+#if DEBUG
+            CheckAlignment("ReadInt64", pointer, offset, sizeof(long));
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             return Marshal.ReadInt64(pointer, offset);
 #else
@@ -3798,6 +4319,10 @@ namespace System.Data.SQLite
             int offset
             )
         {
+#if DEBUG
+            CheckAlignment("ReadDouble", pointer, offset, sizeof(double));
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             return BitConverter.Int64BitsToDouble(Marshal.ReadInt64(
                 pointer, offset));
@@ -3829,6 +4354,10 @@ namespace System.Data.SQLite
             int offset
             )
         {
+#if DEBUG
+            CheckAlignment("ReadIntPtr", pointer, offset, IntPtr.Size);
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             return Marshal.ReadIntPtr(pointer, offset);
 #else
@@ -3861,6 +4390,10 @@ namespace System.Data.SQLite
             int value
             )
         {
+#if DEBUG
+            CheckAlignment("WriteInt32", pointer, offset, sizeof(int));
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             Marshal.WriteInt32(pointer, offset, value);
 #else
@@ -3891,6 +4424,10 @@ namespace System.Data.SQLite
             long value
             )
         {
+#if DEBUG
+            CheckAlignment("WriteInt64", pointer, offset, sizeof(long));
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             Marshal.WriteInt64(pointer, offset, value);
 #else
@@ -3921,6 +4458,10 @@ namespace System.Data.SQLite
             double value
             )
         {
+#if DEBUG
+            CheckAlignment("WriteDouble", pointer, offset, sizeof(double));
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             Marshal.WriteInt64(pointer, offset,
                 BitConverter.DoubleToInt64Bits(value));
@@ -3953,6 +4494,13 @@ namespace System.Data.SQLite
             IntPtr value
             )
         {
+#if DEBUG
+            CheckAlignment(
+                "WriteIntPtr(pointer)", pointer, offset, IntPtr.Size);
+
+            CheckAlignment("WriteIntPtr(value)", value, 0, IntPtr.Size);
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
             Marshal.WriteIntPtr(pointer, offset, value);
 #else
@@ -3991,6 +4539,59 @@ namespace System.Data.SQLite
             if (value == null) return 0;
             return value.GetHashCode();
         }
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Private Methods
+#if DEBUG
+        /// <summary>
+        /// Attempts to verify that the specified native pointer is properly
+        /// aligned for the size of the data value.  If that is not the case,
+        /// a message will be sent to the logging subsystem.
+        /// </summary>
+        /// <param name="type">
+        /// The type of operation being performed by the caller.  This value
+        /// may be used within diagnostic messages.
+        /// </param>
+        /// <param name="pointer">
+        /// The <see cref="IntPtr" /> object instance representing the base
+        /// memory location.
+        /// </param>
+        /// <param name="offset">
+        /// The integer offset from the base memory location where the data
+        /// value to be read or written.
+        /// </param>
+        /// <param name="size">
+        /// The size, in bytes, of the data value.
+        /// </param>
+        internal static void CheckAlignment(
+            string type,
+            IntPtr pointer,
+            int offset,
+            int size
+            )
+        {
+            IntPtr savedPointer = pointer;
+
+            if (offset != 0)
+                pointer = new IntPtr(pointer.ToInt64() + offset);
+
+            if ((pointer.ToInt64() % size) != 0)
+            {
+                SQLiteLog.LogMessage(SQLiteErrorCode.Warning,
+                    HelperMethods.StringFormat(CultureInfo.CurrentCulture,
+                    "{0}: pointer {1} and offset {2} not aligned to {3}: {4}",
+                    type, savedPointer, offset, size,
+#if !PLATFORM_COMPACTFRAMEWORK
+                    Environment.StackTrace
+#else
+                    null
+#endif
+                    ));
+            }
+        }
+#endif
         #endregion
     }
     #endregion
@@ -5559,7 +6160,7 @@ namespace System.Data.SQLite
                         SQLiteLog.LogMessage(SQLiteBase.COR_E_EXCEPTION,
                             HelperMethods.StringFormat(
                             CultureInfo.CurrentCulture,
-                            "Caught exception in \"{0}\" method: {1}",
+                            UnsafeNativeMethods.ExceptionMessageFormat,
                             destroy ? "xDestroy" : "xDisconnect", e));
                     }
                 }
@@ -5614,7 +6215,7 @@ namespace System.Data.SQLite
         {
             try
             {
-                if (logErrors)
+                if (logErrors && (error != null))
                 {
                     SQLiteLog.LogMessage(SQLiteErrorCode.Error,
                         HelperMethods.StringFormat(
@@ -5667,8 +6268,8 @@ namespace System.Data.SQLite
                         SQLiteLog.LogMessage(SQLiteBase.COR_E_EXCEPTION,
                             HelperMethods.StringFormat(
                             CultureInfo.CurrentCulture,
-                            "Caught exception in \"SetTableError\" method: {0}",
-                            e)); /* throw */
+                            UnsafeNativeMethods.ExceptionMessageFormat,
+                            "SetTableError", e)); /* throw */
                     }
                 }
                 catch
@@ -8123,8 +8724,8 @@ namespace System.Data.SQLite
                             SQLiteLog.LogMessage(SQLiteBase.COR_E_EXCEPTION,
                                 HelperMethods.StringFormat(
                                 CultureInfo.CurrentCulture,
-                                "Caught exception in \"Dispose\" method: {0}",
-                                e)); /* throw */
+                                UnsafeNativeMethods.ExceptionMessageFormat,
+                                "Dispose", e)); /* throw */
                         }
                     }
                     catch

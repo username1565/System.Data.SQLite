@@ -30,31 +30,47 @@ namespace System.Data.SQLite
       "Version={0}, Culture=neutral, PublicKeyToken=db937bc2d44ff139";
 
     private static readonly BindingFlags DefaultBindingFlags =
-        BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
+        BindingFlags.NonPublic | BindingFlags.Static;
 
     ///////////////////////////////////////////////////////////////////////////
 
     private static Type _dbProviderServicesType;
     private static object _sqliteServices;
 
+    ///////////////////////////////////////////////////////////////////////////
+
     static SQLiteFactory()
+    {
+      InitializeDbProviderServices();
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// This method is called to perform preliminary static initialization
+    /// necessary for this class.
+    /// </summary>
+    internal static void PreInitialize()
     {
 #if (SQLITE_STANDARD || USE_INTEROP_DLL || PLATFORM_COMPACTFRAMEWORK) && PRELOAD_NATIVE_LIBRARY
         UnsafeNativeMethods.Initialize();
 #endif
 
-#if USE_INTEROP_DLL && INTEROP_LOG
-        if (UnsafeNativeMethods.sqlite3_config_log_interop() == SQLiteErrorCode.Ok)
-        {
-            UnsafeNativeMethods.sqlite3_log(
-                SQLiteErrorCode.Ok, SQLiteConvert.ToUTF8("logging initialized."));
-        }
-#endif
+        SQLiteLog.Initialize(typeof(SQLiteFactory).Name);
+    }
 
-        SQLiteLog.Initialize();
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// This method is called to perform some of the static initialization
+    /// necessary for this class.
+    /// </summary>
+    private static void InitializeDbProviderServices()
+    {
+        PreInitialize();
 
         string version =
-#if NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461
+#if NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_STANDARD_20 || NET_STANDARD_21
             "4.0.0.0";
 #else
             "3.5.0.0";
@@ -62,6 +78,8 @@ namespace System.Data.SQLite
 
         _dbProviderServicesType = Type.GetType(HelperMethods.StringFormat(CultureInfo.InvariantCulture, "System.Data.Common.DbProviderServices, System.Data.Entity, Version={0}, Culture=neutral, PublicKeyToken=b77a5c561934e089", version), false);
     }
+
+    ///////////////////////////////////////////////////////////////////////////
 
     /// <summary>
     /// Will provide a <see cref="IServiceProvider" /> object in .NET 3.5.
@@ -73,12 +91,36 @@ namespace System.Data.SQLite
       if (serviceType == typeof(ISQLiteSchemaExtensions) ||
         (_dbProviderServicesType != null && serviceType == _dbProviderServicesType))
       {
-        return GetSQLiteProviderServicesInstance();
+        object result = GetSQLiteProviderServicesInstance();
+
+        if (SQLite3.ForceLogLifecycle())
+        {
+          SQLiteLog.LogMessage(HelperMethods.StringFormat(
+            CultureInfo.CurrentCulture,
+            "Success of \"{0}\" from SQLiteFactory.GetService(\"{1}\")...",
+            (result != null) ? result.ToString() : "<null>",
+            (serviceType != null) ? serviceType.ToString() : "<null>"));
+        }
+
+        return result;
       }
+
+      if (SQLite3.ForceLogLifecycle())
+      {
+        SQLiteLog.LogMessage(HelperMethods.StringFormat(
+          CultureInfo.CurrentCulture,
+          "Failure of SQLiteFactory.GetService(\"{0}\")...",
+          (serviceType != null) ? serviceType.ToString() : "<null>"));
+      }
+
       return null;
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+
+#if !NET_STANDARD_20 && !NET_STANDARD_21
     [ReflectionPermission(SecurityAction.Assert, MemberAccess = true)]
+#endif
     private object GetSQLiteProviderServicesInstance()
     {
         if (_sqliteServices == null)
@@ -110,6 +152,7 @@ namespace System.Data.SQLite
                     _sqliteServices = field.GetValue(null);
             }
         }
+
         return _sqliteServices;
     }
   }

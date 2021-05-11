@@ -22,12 +22,7 @@ runSQLiteTestFilesPrologue
 ###############################################################################
 
 runTest {test tkt-8d928c3e88-1.1 {LINQ w/BinaryGUID=false} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -35,7 +30,7 @@ runTest {test tkt-8d928c3e88-1.1 {LINQ w/BinaryGUID=false} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -binaryguid false
+        -success Success] -binaryguid false
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -52,6 +47,8 @@ runTest {test tkt-8d928c3e88-1.1 {LINQ w/BinaryGUID=false} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -60,12 +57,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test tkt-8d928c3e88-1.2 {LINQ w/BinaryGUID=true} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -73,7 +65,7 @@ runTest {test tkt-8d928c3e88-1.2 {LINQ w/BinaryGUID=true} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -binaryguid true
+        -success Success] -binaryguid true
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -90,6 +82,8 @@ runTest {test tkt-8d928c3e88-1.2 {LINQ w/BinaryGUID=true} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -98,12 +92,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test tkt-8d928c3e88-2.1 {LINQ w/DateTimeFormat=Ticks} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -111,7 +100,7 @@ runTest {test tkt-8d928c3e88-2.1 {LINQ w/DateTimeFormat=Ticks} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -datetime2 Ticks
+        -success Success] -datetime2 Ticks
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -128,6 +117,8 @@ runTest {test tkt-8d928c3e88-2.1 {LINQ w/DateTimeFormat=Ticks} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -137,12 +128,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test tkt-8d928c3e88-2.2 {LINQ w/DateTimeFormat=JulianDay} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -150,7 +136,7 @@ runTest {test tkt-8d928c3e88-2.2 {LINQ w/DateTimeFormat=JulianDay} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -datetime2 JulianDay
+        -success Success] -datetime2 JulianDay
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -167,6 +153,8 @@ runTest {test tkt-8d928c3e88-2.2 {LINQ w/DateTimeFormat=JulianDay} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -175,12 +163,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test tkt-8d928c3e88-2.3 {LINQ w/DateTimeFormat=UnixEpoch} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -188,7 +171,7 @@ runTest {test tkt-8d928c3e88-2.3 {LINQ w/DateTimeFormat=UnixEpoch} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -datetime2 UnixEpoch
+        -success Success] -datetime2 UnixEpoch
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -205,6 +188,8 @@ runTest {test tkt-8d928c3e88-2.3 {LINQ w/DateTimeFormat=UnixEpoch} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -213,12 +198,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test tkt-8d928c3e88-2.4 {LINQ w/DateTimeFormat=ISO8601} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -226,7 +206,7 @@ runTest {test tkt-8d928c3e88-2.4 {LINQ w/DateTimeFormat=ISO8601} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -datetime2 ISO8601
+        -success Success] -datetime2 ISO8601
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -243,6 +223,8 @@ runTest {test tkt-8d928c3e88-2.4 {LINQ w/DateTimeFormat=ISO8601} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \

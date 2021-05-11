@@ -24,6 +24,52 @@ namespace System.Data.SQLite
   public abstract class SQLiteConvert
   {
     /// <summary>
+    /// This character is used to escape other characters, including itself, in
+    /// connection string property names and values.
+    /// </summary>
+    internal const char EscapeChar = '\\';
+
+    /// <summary>
+    /// This character can be used to wrap connection string property names and
+    /// values.  Normally, it is optional; however, when used, it must be the
+    /// first -AND- last character of that connection string property name -OR-
+    /// value.
+    /// </summary>
+    internal const char QuoteChar = '"';
+
+    /// <summary>
+    /// This character can be used to wrap connection string property names and
+    /// values.  Normally, it is optional; however, when used, it must be the
+    /// first -AND- last character of that connection string property name -OR-
+    /// value.
+    /// </summary>
+    internal const char AltQuoteChar = '\'';
+
+    /// <summary>
+    /// The character is used to separate the name and value for a connection
+    /// string property.  This character cannot be present in any connection
+    /// string property name.  This character can be present in a connection
+    /// string property value; however, this should be avoided unless deemed
+    /// absolutely necessary.
+    /// </summary>
+    internal const char ValueChar = '=';
+
+    /// <summary>
+    /// This character is used to separate connection string properties.  When
+    /// the "No_SQLiteConnectionNewParser" setting is enabled, this character
+    /// may not appear in connection string property names -OR- values.
+    /// </summary>
+    internal const char PairChar = ';';
+
+    /// <summary>
+    /// These are the characters that are special to the connection string
+    /// parser.
+    /// </summary>
+    internal static readonly char[] SpecialChars = {
+        QuoteChar, AltQuoteChar, PairChar, ValueChar, EscapeChar
+    };
+
+    /// <summary>
     /// The fallback default database type when one cannot be obtained from an
     /// existing connection instance.
     /// </summary>
@@ -257,7 +303,7 @@ namespace System.Data.SQLite
         double julianDay
         )
     {
-        return (long)(julianDay * 86400000.0);
+        return (long)Math.Round(julianDay * 86400000.0);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -869,8 +915,8 @@ namespace System.Data.SQLite
     /// <returns>A string array of the split up elements</returns>
     public static string[] Split(string source, char separator)
     {
-      char[] toks = new char[2] { '\"', separator };
-      char[] quot = new char[1] { '\"' };
+      char[] toks = new char[2] { QuoteChar, separator };
+      char[] quot = new char[1] { QuoteChar };
       int n = 0;
       List<string> ls = new List<string>();
       string s;
@@ -951,9 +997,6 @@ namespace System.Data.SQLite
         ref string error
         )
     {
-        const char EscapeChar = '\\';
-        const char QuoteChar = '\"';
-
         //
         // NOTE: It is illegal for the separator character to be either a
         //       backslash or a double-quote because both of those characters
@@ -1172,6 +1215,26 @@ namespace System.Data.SQLite
           source, CultureInfo.InvariantCulture));
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// Converts an integer to a string that can be round-tripped using the
+    /// invariant culture.
+    /// </summary>
+    /// <param name="value">
+    /// The integer value to return the string representation for.
+    /// </param>
+    /// <returns>
+    /// The string representation of the specified integer value, using the
+    /// invariant culture.
+    /// </returns>
+    internal static string ToString(int value)
+    {
+        return value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+
     /// <summary>
     /// Attempts to convert a <see cref="String" /> into a <see cref="Boolean" />.
     /// </summary>
@@ -1231,6 +1294,10 @@ namespace System.Data.SQLite
       typeof(string),   // Text (3)
       typeof(byte[]),   // Blob (4)
       typeof(object),   // Null (5)
+      null,             // Undefined (6)
+      null,             // Undefined (7)
+      null,             // Undefined (8)
+      null,             // Undefined (9)
       typeof(DateTime), // DateTime (10)
       typeof(object)    // None (11)
     };
@@ -1310,7 +1377,9 @@ namespace System.Data.SQLite
       int.MaxValue, // AnsiStringFixedLength (22)
       int.MaxValue, // StringFixedLength (23)
       int.MaxValue, // ?? (24)
-      int.MaxValue  // Xml (25)
+      int.MaxValue, // Xml (25)
+      8,            // DateTime2 (26)
+      10            // DateTimeOffset (27)
     };
 
     internal static object DbTypeToNumericPrecision(DbType typ)
@@ -1344,7 +1413,9 @@ namespace System.Data.SQLite
       DBNull.Value, // AnsiStringFixedLength (22)
       DBNull.Value, // StringFixedLength (23)
       DBNull.Value, // ?? (24)
-      DBNull.Value  // Xml (25)
+      DBNull.Value, // Xml (25)
+      DBNull.Value, // DateTime2 (26)
+      DBNull.Value  // DateTimeOffset (27)
     };
 
     internal static object DbTypeToNumericScale(DbType typ)
@@ -1378,7 +1449,9 @@ namespace System.Data.SQLite
       DBNull.Value, // AnsiStringFixedLength (22)
       DBNull.Value, // StringFixedLength (23)
       DBNull.Value, // ?? (24)
-      DBNull.Value  // Xml (25)
+      DBNull.Value, // Xml (25)
+      DBNull.Value, // DateTime2 (26)
+      DBNull.Value  // DateTimeOffset (27)
     };
 
     /// <summary>
@@ -1398,8 +1471,8 @@ namespace System.Data.SQLite
         SQLiteConnectionFlags flags = (connection != null) ?
             connection.Flags : SQLiteConnectionFlags.None;
 
-        if ((flags & SQLiteConnectionFlags.NoConvertSettings)
-                == SQLiteConnectionFlags.NoConvertSettings)
+        if (HelperMethods.HasFlags(
+                flags, SQLiteConnectionFlags.NoConvertSettings))
         {
             return FallbackDefaultTypeName;
         }
@@ -1448,7 +1521,7 @@ namespace System.Data.SQLite
         string typeName
         )
     {
-        if ((flags & SQLiteConnectionFlags.TraceWarning) == SQLiteConnectionFlags.TraceWarning)
+        if (HelperMethods.HasFlags(flags, SQLiteConnectionFlags.TraceWarning))
         {
             Trace.WriteLine(HelperMethods.StringFormat(
                 CultureInfo.CurrentCulture,
@@ -1477,7 +1550,7 @@ namespace System.Data.SQLite
         )
     {
         if (!String.IsNullOrEmpty(typeName) &&
-            ((flags & SQLiteConnectionFlags.TraceWarning) == SQLiteConnectionFlags.TraceWarning))
+            HelperMethods.HasFlags(flags, SQLiteConnectionFlags.TraceWarning))
         {
             Trace.WriteLine(HelperMethods.StringFormat(
                 CultureInfo.CurrentCulture,
@@ -1506,7 +1579,7 @@ namespace System.Data.SQLite
         {
             flags |= connection.Flags;
 
-            if ((flags & SQLiteConnectionFlags.UseConnectionTypes) == SQLiteConnectionFlags.UseConnectionTypes)
+            if (HelperMethods.HasFlags(flags, SQLiteConnectionFlags.UseConnectionTypes))
             {
                 SQLiteDbTypeMap connectionTypeNames = connection._typeNames;
 
@@ -1525,7 +1598,7 @@ namespace System.Data.SQLite
             defaultTypeName = connection.DefaultTypeName;
         }
 
-        if ((flags & SQLiteConnectionFlags.NoGlobalTypes) == SQLiteConnectionFlags.NoGlobalTypes)
+        if (HelperMethods.HasFlags(flags, SQLiteConnectionFlags.NoGlobalTypes))
         {
             if (defaultTypeName != null)
                 return defaultTypeName;
@@ -1539,15 +1612,14 @@ namespace System.Data.SQLite
             return defaultTypeName;
         }
 
-        lock (_syncRoot)
         {
-            if (_typeNames == null)
-                _typeNames = GetSQLiteDbTypeMap();
-
             SQLiteDbTypeMapping value;
 
-            if (_typeNames.TryGetValue(dbType, out value))
+            if ((_typeNames != null) &&
+                _typeNames.TryGetValue(dbType, out value))
+            {
                 return value.typeName;
+            }
         }
 
         if (defaultTypeName != null)
@@ -1573,40 +1645,54 @@ namespace System.Data.SQLite
     }
 
     private static Type[] _dbtypeToType = {
-      typeof(string),   // AnsiString (0)
-      typeof(byte[]),   // Binary (1)
-      typeof(byte),     // Byte (2)
-      typeof(bool),     // Boolean (3)
-      typeof(decimal),  // Currency (4)
-      typeof(DateTime), // Date (5)
-      typeof(DateTime), // DateTime (6)
-      typeof(decimal),  // Decimal (7)
-      typeof(double),   // Double (8)
-      typeof(Guid),     // Guid (9)
-      typeof(Int16),    // Int16 (10)
-      typeof(Int32),    // Int32 (11)
-      typeof(Int64),    // Int64 (12)
-      typeof(object),   // Object (13)
-      typeof(sbyte),    // SByte (14)
-      typeof(float),    // Single (15)
-      typeof(string),   // String (16)
-      typeof(DateTime), // Time (17)
-      typeof(UInt16),   // UInt16 (18)
-      typeof(UInt32),   // UInt32 (19)
-      typeof(UInt64),   // UInt64 (20)
-      typeof(double),   // VarNumeric (21)
-      typeof(string),   // AnsiStringFixedLength (22)
-      typeof(string),   // StringFixedLength (23)
-      typeof(string),   // ?? (24)
-      typeof(string),   // Xml (25)
+      typeof(string),        // AnsiString (0)
+      typeof(byte[]),        // Binary (1)
+      typeof(byte),          // Byte (2)
+      typeof(bool),          // Boolean (3)
+      typeof(decimal),       // Currency (4)
+      typeof(DateTime),      // Date (5)
+      typeof(DateTime),      // DateTime (6)
+      typeof(decimal),       // Decimal (7)
+      typeof(double),        // Double (8)
+      typeof(Guid),          // Guid (9)
+      typeof(Int16),         // Int16 (10)
+      typeof(Int32),         // Int32 (11)
+      typeof(Int64),         // Int64 (12)
+      typeof(object),        // Object (13)
+      typeof(sbyte),         // SByte (14)
+      typeof(float),         // Single (15)
+      typeof(string),        // String (16)
+      typeof(DateTime),      // Time (17)
+      typeof(UInt16),        // UInt16 (18)
+      typeof(UInt32),        // UInt32 (19)
+      typeof(UInt64),        // UInt64 (20)
+      typeof(double),        // VarNumeric (21)
+      typeof(string),        // AnsiStringFixedLength (22)
+      typeof(string),        // StringFixedLength (23)
+      typeof(string),        // ?? (24)
+      typeof(string),        // Xml (25)
+      typeof(DateTime),      // DateTime2 (26)
+#if !PLATFORM_COMPACTFRAMEWORK && (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_STANDARD_20 || NET_STANDARD_21)
+      //
+      // NOTE: This type is only available on the
+      //       .NET Framework 2.0 SP1 and later.
+      //
+      typeof(DateTimeOffset) // DateTimeOffset (27)
+#else
+      typeof(DateTime)       // DateTimeOffset (27)
+#endif
     };
 
     /// <summary>
     /// For a given type, return the closest-match SQLite TypeAffinity, which only understands a very limited subset of types.
     /// </summary>
     /// <param name="typ">The type to evaluate</param>
+    /// <param name="flags">The flags associated with the connection.</param>
     /// <returns>The SQLite type affinity for that type.</returns>
-    internal static TypeAffinity TypeToAffinity(Type typ)
+    internal static TypeAffinity TypeToAffinity(
+        Type typ,
+        SQLiteConnectionFlags flags
+        )
     {
       TypeCode tc = Type.GetTypeCode(typ);
       if (tc == TypeCode.Object)
@@ -1614,6 +1700,11 @@ namespace System.Data.SQLite
         if (typ == typeof(byte[]) || typ == typeof(Guid))
           return TypeAffinity.Blob;
         else
+          return TypeAffinity.Text;
+      }
+      if ((tc == TypeCode.Decimal) &&
+          HelperMethods.HasFlags(flags, SQLiteConnectionFlags.GetDecimalAsText))
+      {
           return TypeAffinity.Text;
       }
       return _typecodeAffinities[(int)tc];
@@ -1666,6 +1757,7 @@ namespace System.Data.SQLite
             new SQLiteDbTypeMapping("DATE", DbType.DateTime, false),
             new SQLiteDbTypeMapping("DATETIME", DbType.DateTime, true),
             new SQLiteDbTypeMapping("DECIMAL", DbType.Decimal, true),
+            new SQLiteDbTypeMapping("DECIMALTEXT", DbType.Decimal, false),
             new SQLiteDbTypeMapping("DOUBLE", DbType.Double, false),
             new SQLiteDbTypeMapping("FLOAT", DbType.Double, false),
             new SQLiteDbTypeMapping("GENERAL", DbType.Binary, false),
@@ -1687,6 +1779,8 @@ namespace System.Data.SQLite
             new SQLiteDbTypeMapping("LONGCHAR", DbType.String, false),
             new SQLiteDbTypeMapping("LONGTEXT", DbType.String, false),
             new SQLiteDbTypeMapping("LONGVARCHAR", DbType.String, false),
+            new SQLiteDbTypeMapping("MEDIUMINT", DbType.Int32, false),
+            new SQLiteDbTypeMapping("MEDIUMUINT", DbType.UInt32, false),
             new SQLiteDbTypeMapping("MEMO", DbType.String, false),
             new SQLiteDbTypeMapping("MONEY", DbType.Decimal, false),
             new SQLiteDbTypeMapping("NCHAR", DbType.StringFixedLength, true),
@@ -1694,6 +1788,7 @@ namespace System.Data.SQLite
             new SQLiteDbTypeMapping("NTEXT", DbType.String, false),
             new SQLiteDbTypeMapping("NUMBER", DbType.Decimal, false),
             new SQLiteDbTypeMapping("NUMERIC", DbType.Decimal, false),
+            new SQLiteDbTypeMapping("NUMERICTEXT", DbType.Decimal, false),
             new SQLiteDbTypeMapping("NVARCHAR", DbType.String, true),
             new SQLiteDbTypeMapping("OLEOBJECT", DbType.Binary, false),
             new SQLiteDbTypeMapping("RAW", DbType.Binary, false),
@@ -1794,8 +1889,8 @@ namespace System.Data.SQLite
         SQLiteConnectionFlags flags = (connection != null) ?
             connection.Flags : SQLiteConnectionFlags.None;
 
-        if ((flags & SQLiteConnectionFlags.NoConvertSettings)
-                == SQLiteConnectionFlags.NoConvertSettings)
+        if (HelperMethods.HasFlags(
+                flags, SQLiteConnectionFlags.NoConvertSettings))
         {
             return FallbackDefaultDbType;
         }
@@ -2030,7 +2125,7 @@ namespace System.Data.SQLite
         {
             flags |= connection.Flags;
 
-            if ((flags & SQLiteConnectionFlags.UseConnectionTypes) == SQLiteConnectionFlags.UseConnectionTypes)
+            if (HelperMethods.HasFlags(flags, SQLiteConnectionFlags.UseConnectionTypes))
             {
                 SQLiteDbTypeMap connectionTypeNames = connection._typeNames;
 
@@ -2064,7 +2159,7 @@ namespace System.Data.SQLite
             defaultDbType = connection.DefaultDbType;
         }
 
-        if ((flags & SQLiteConnectionFlags.NoGlobalTypes) == SQLiteConnectionFlags.NoGlobalTypes)
+        if (HelperMethods.HasFlags(flags, SQLiteConnectionFlags.NoGlobalTypes))
         {
             if (defaultDbType != null)
                 return (DbType)defaultDbType;
@@ -2078,12 +2173,8 @@ namespace System.Data.SQLite
             return (DbType)defaultDbType;
         }
 
-        lock (_syncRoot)
         {
-            if (_typeNames == null)
-                _typeNames = GetSQLiteDbTypeMap();
-
-            if (typeName != null)
+            if ((_typeNames != null) && (typeName != null))
             {
                 SQLiteDbTypeMapping value;
 
@@ -2117,8 +2208,7 @@ namespace System.Data.SQLite
     }
     #endregion
 
-    private static object _syncRoot = new object();
-    private static SQLiteDbTypeMap _typeNames = null;
+    private static readonly SQLiteDbTypeMap _typeNames = GetSQLiteDbTypeMap();
   }
 
   /// <summary>
@@ -2910,11 +3000,7 @@ namespace System.Data.SQLite
       //       the two strings must hash to the same value.
       //
       if (value != null)
-#if !PLATFORM_COMPACTFRAMEWORK
-        return value.ToLowerInvariant().GetHashCode();
-#else
-        return value.ToLower().GetHashCode();
-#endif
+        return StringComparer.OrdinalIgnoreCase.GetHashCode(value);
       else
         throw new ArgumentNullException("value");
     }

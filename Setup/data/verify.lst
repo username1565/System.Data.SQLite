@@ -33,6 +33,7 @@ set sds_manifests(source) {
   Doc/Extra/Core/images/syntax/begin-stmt.gif
   Doc/Extra/Core/images/syntax/column-constraint.gif
   Doc/Extra/Core/images/syntax/column-def.gif
+  Doc/Extra/Core/images/syntax/column-name-list.gif
   Doc/Extra/Core/images/syntax/comment-syntax.gif
   Doc/Extra/Core/images/syntax/commit-stmt.gif
   Doc/Extra/Core/images/syntax/common-table-expression.gif
@@ -84,6 +85,7 @@ set sds_manifests(source) {
   Doc/Extra/Core/images/syntax/type-name.gif
   Doc/Extra/Core/images/syntax/update-stmt-limited.gif
   Doc/Extra/Core/images/syntax/update-stmt.gif
+  Doc/Extra/Core/images/syntax/upsert-clause.gif
   Doc/Extra/Core/images/syntax/vacuum-stmt.gif
   Doc/Extra/Core/images/syntax/with-clause.gif
   Doc/Extra/Core/lang.html
@@ -118,9 +120,11 @@ set sds_manifests(source) {
   Doc/Extra/Core/lang_select.html
   Doc/Extra/Core/lang_transaction.html
   Doc/Extra/Core/lang_update.html
+  Doc/Extra/Core/lang_UPSERT.html
   Doc/Extra/Core/lang_vacuum.html
   Doc/Extra/Core/lang_with.html
   Doc/Extra/Core/pragma.html
+  Doc/Extra/Core/sqlite.css
   Doc/Extra/Core/syntax.html
   Doc/Extra/Core/syntax/
   Doc/Extra/Core/syntax/alter-table-stmt.html
@@ -129,6 +133,7 @@ set sds_manifests(source) {
   Doc/Extra/Core/syntax/begin-stmt.html
   Doc/Extra/Core/syntax/column-constraint.html
   Doc/Extra/Core/syntax/column-def.html
+  Doc/Extra/Core/syntax/column-name-list.html
   Doc/Extra/Core/syntax/comment-syntax.html
   Doc/Extra/Core/syntax/commit-stmt.html
   Doc/Extra/Core/syntax/common-table-expression.html
@@ -202,16 +207,17 @@ set sds_manifests(source) {
   Doc/SQLite.NET.hhc
   Doc/SQLite.NET.hhp
   Doc/SQLite.NET.ndoc
+  Doc/sync.eagle
   Doc/vtab.tcl
   Externals/
   Externals/Eagle/
   Externals/Eagle/bin/
-  Externals/Eagle/bin/EagleShell.exe.config
-  Externals/Eagle/bin/EagleShell.exe.mda.config
+  Externals/Eagle/bin/netFramework40/
+  Externals/Eagle/bin/netFramework40/EagleShell.exe.config
+  Externals/Eagle/bin/netFramework40/EagleShell.exe.mda.config
   Externals/Eagle/lib/
   Externals/Eagle/lib/Eagle1.0/
   Externals/Eagle/lib/Eagle1.0/vendor.eagle
-  Externals/Eagle/lib/Test1.0/
   Keys/
   Keys/System.Data.SQLite.CF.snk
   Keys/System.Data.SQLite.snk
@@ -233,6 +239,8 @@ set sds_manifests(source) {
   NuGet/shared/Core/content/
   NuGet/shared/Core/content/config.install.xdt
   NuGet/shared/Core/content/config.transform
+  NuGet/shared/Core/lib/
+  NuGet/shared/Core/lib/System.Data.SQLite.dll.config
   NuGet/SQLite.Beta.nuspec
   NuGet/SQLite.Core.Beta.nuspec
   NuGet/SQLite.Core.MSIL.Beta.nuspec
@@ -258,11 +266,19 @@ set sds_manifests(source) {
   Setup/archive.bat
   Setup/bake.bat
   Setup/bake_all.bat
+  Setup/build-mono-debug.sh
+  Setup/build-mono-release.sh
+  Setup/build-netstandard20-debug.sh
+  Setup/build-netstandard20-release.sh
+  Setup/build-netstandard21-debug.sh
+  Setup/build-netstandard21-release.sh
   Setup/build.bat
   Setup/build_all.bat
   Setup/build_ce_200x.bat
   Setup/build_ce_2013.bat
   Setup/build_mono.bat
+  Setup/build_net_standard_20.bat
+  Setup/build_net_standard_21.bat
   Setup/build_nuget.bat
   Setup/clean.bat
   Setup/compile-interop-assembly-debug.sh
@@ -278,15 +294,15 @@ set sds_manifests(source) {
   Setup/release_ce_200x.bat
   Setup/release_ce_2013.bat
   Setup/release_mono.bat
+  Setup/release_net_standard_20.bat
+  Setup/release_net_standard_21.bat
   Setup/release_static.bat
   Setup/run-mono-tests-debug.sh
   Setup/run-mono-tests-release.sh
-  Setup/set_2005.bat
-  Setup/set_2008.bat
-  Setup/set_2010.bat
-  Setup/set_2012.bat
-  Setup/set_2013.bat
-  Setup/set_2015.bat
+  Setup/run-netstandard20-tests-debug.sh
+  Setup/run-netstandard20-tests-release.sh
+  Setup/run-netstandard21-tests-debug.sh
+  Setup/run-netstandard21-tests-release.sh
   Setup/set_common.bat
   Setup/set_Debug.bat
   Setup/set_Debug_ARMV7.bat
@@ -300,12 +316,16 @@ set sds_manifests(source) {
   Setup/set_Debug_x64_2012.bat
   Setup/set_Debug_x64_2013.bat
   Setup/set_Debug_x64_2015.bat
+  Setup/set_Debug_x64_2017.bat
   Setup/set_Debug_x86_2005.bat
   Setup/set_Debug_x86_2008.bat
   Setup/set_Debug_x86_2010.bat
   Setup/set_Debug_x86_2012.bat
   Setup/set_Debug_x86_2013.bat
   Setup/set_Debug_x86_2015.bat
+  Setup/set_Debug_x86_2017.bat
+  Setup/set_Debug_x86_NetStandard20.bat
+  Setup/set_Debug_x86_NetStandard21.bat
   Setup/set_DebugNativeOnly.bat
   Setup/set_DebugNativeOnly_ARMV7.bat
   "Setup/set_DebugNativeOnly_CEPC DevPlatform.bat"
@@ -318,12 +338,16 @@ set sds_manifests(source) {
   Setup/set_DebugNativeOnly_x64_2012.bat
   Setup/set_DebugNativeOnly_x64_2013.bat
   Setup/set_DebugNativeOnly_x64_2015.bat
+  Setup/set_DebugNativeOnly_x64_2017.bat
   Setup/set_DebugNativeOnly_x86_2005.bat
   Setup/set_DebugNativeOnly_x86_2008.bat
   Setup/set_DebugNativeOnly_x86_2010.bat
   Setup/set_DebugNativeOnly_x86_2012.bat
   Setup/set_DebugNativeOnly_x86_2013.bat
   Setup/set_DebugNativeOnly_x86_2015.bat
+  Setup/set_DebugNativeOnly_x86_2017.bat
+  Setup/set_DebugNativeOnly_x86_NetStandard20.bat
+  Setup/set_DebugNativeOnly_x86_NetStandard21.bat
   Setup/set_netFx20.bat
   Setup/set_netFx35.bat
   Setup/set_netFx40.bat
@@ -332,6 +356,12 @@ set sds_manifests(source) {
   Setup/set_netFx452.bat
   Setup/set_netFx46.bat
   Setup/set_netFx461.bat
+  Setup/set_netFx462.bat
+  Setup/set_netFx47.bat
+  Setup/set_netFx471.bat
+  Setup/set_netFx472.bat
+  Setup/set_netStandard20.bat
+  Setup/set_netStandard21.bat
   Setup/set_Release.bat
   Setup/set_Release_ARMV7.bat
   "Setup/set_Release_CEPC DevPlatform.bat"
@@ -344,12 +374,16 @@ set sds_manifests(source) {
   Setup/set_Release_x64_2012.bat
   Setup/set_Release_x64_2013.bat
   Setup/set_Release_x64_2015.bat
+  Setup/set_Release_x64_2017.bat
   Setup/set_Release_x86_2005.bat
   Setup/set_Release_x86_2008.bat
   Setup/set_Release_x86_2010.bat
   Setup/set_Release_x86_2012.bat
   Setup/set_Release_x86_2013.bat
   Setup/set_Release_x86_2015.bat
+  Setup/set_Release_x86_2017.bat
+  Setup/set_Release_x86_NetStandard20.bat
+  Setup/set_Release_x86_NetStandard21.bat
   Setup/set_ReleaseNativeOnly.bat
   Setup/set_ReleaseNativeOnly_ARMV7.bat
   "Setup/set_ReleaseNativeOnly_CEPC DevPlatform.bat"
@@ -362,28 +396,47 @@ set sds_manifests(source) {
   Setup/set_ReleaseNativeOnly_x64_2012.bat
   Setup/set_ReleaseNativeOnly_x64_2013.bat
   Setup/set_ReleaseNativeOnly_x64_2015.bat
+  Setup/set_ReleaseNativeOnly_x64_2017.bat
   Setup/set_ReleaseNativeOnly_x86_2005.bat
   Setup/set_ReleaseNativeOnly_x86_2008.bat
   Setup/set_ReleaseNativeOnly_x86_2010.bat
   Setup/set_ReleaseNativeOnly_x86_2012.bat
   Setup/set_ReleaseNativeOnly_x86_2013.bat
   Setup/set_ReleaseNativeOnly_x86_2015.bat
+  Setup/set_ReleaseNativeOnly_x86_2017.bat
+  Setup/set_ReleaseNativeOnly_x86_NetStandard20.bat
+  Setup/set_ReleaseNativeOnly_x86_NetStandard21.bat
   Setup/set_x64_2005.bat
   Setup/set_x64_2008.bat
   Setup/set_x64_2010.bat
   Setup/set_x64_2012.bat
   Setup/set_x64_2013.bat
   Setup/set_x64_2015.bat
+  Setup/set_x64_2017.bat
   Setup/set_x86_2005.bat
   Setup/set_x86_2008.bat
   Setup/set_x86_2010.bat
   Setup/set_x86_2012.bat
   Setup/set_x86_2013.bat
   Setup/set_x86_2015.bat
+  Setup/set_x86_2017.bat
+  Setup/set_x86_NetStandard20.bat
+  Setup/set_x86_NetStandard21.bat
+  Setup/set_year_2005.bat
+  Setup/set_year_2008.bat
+  Setup/set_year_2010.bat
+  Setup/set_year_2012.bat
+  Setup/set_year_2013.bat
+  Setup/set_year_2015.bat
+  Setup/set_year_2017.bat
+  Setup/set_year_NetStandard20.bat
+  Setup/set_year_NetStandard21.bat
   Setup/sourceTag.eagle
   Setup/test.bat
   Setup/test_all.bat
   Setup/test_ce_200x.bat
+  Setup/test_net_standard_20.bat
+  Setup/test_net_standard_21.bat
   Setup/updateFileInfo.tcl
   Setup/verify.eagle
   Setup/vsSp.bat
@@ -431,6 +484,7 @@ set sds_manifests(source) {
   SQLite.Designer/SQLite.Designer.2012.csproj
   SQLite.Designer/SQLite.Designer.2013.csproj
   SQLite.Designer/SQLite.Designer.2015.csproj
+  SQLite.Designer/SQLite.Designer.2017.csproj
   SQLite.Designer/SQLiteAdapterDesigner.cs
   SQLite.Designer/SQLiteCommandDesigner.cs
   SQLite.Designer/SQLiteCommandHandler.cs
@@ -449,6 +503,7 @@ set sds_manifests(source) {
   SQLite.Designer/SQLiteDataObjectSupport2012.xml
   SQLite.Designer/SQLiteDataObjectSupport2013.xml
   SQLite.Designer/SQLiteDataObjectSupport2015.xml
+  SQLite.Designer/SQLiteDataObjectSupport2017.xml
   SQLite.Designer/SQLiteDataSourceInformation.cs
   SQLite.Designer/SQLiteDataViewSupport.cs
   SQLite.Designer/SQLiteDataViewSupport2005.xml
@@ -457,6 +512,7 @@ set sds_manifests(source) {
   SQLite.Designer/SQLiteDataViewSupport2012.xml
   SQLite.Designer/SQLiteDataViewSupport2013.xml
   SQLite.Designer/SQLiteDataViewSupport2015.xml
+  SQLite.Designer/SQLiteDataViewSupport2017.xml
   SQLite.Designer/SQLiteOptions.cs
   SQLite.Designer/SQLitePackage.cs
   SQLite.Designer/SQLiteProviderObjectFactory.cs
@@ -475,6 +531,7 @@ set sds_manifests(source) {
   SQLite.Interop/props/SQLite.Interop.2012.props
   SQLite.Interop/props/SQLite.Interop.2013.props
   SQLite.Interop/props/SQLite.Interop.2015.props
+  SQLite.Interop/props/SQLite.Interop.2017.props
   SQLite.Interop/props/sqlite3.props
   SQLite.Interop/props/sqlite3.vsprops
   SQLite.Interop/SQLite.Interop.2005.vcproj
@@ -487,6 +544,8 @@ set sds_manifests(source) {
   SQLite.Interop/SQLite.Interop.2013.vcxproj.filters
   SQLite.Interop/SQLite.Interop.2015.vcxproj
   SQLite.Interop/SQLite.Interop.2015.vcxproj.filters
+  SQLite.Interop/SQLite.Interop.2017.vcxproj
+  SQLite.Interop/SQLite.Interop.2017.vcxproj.filters
   SQLite.Interop/SQLite.Interop.CE.2005.vcproj
   SQLite.Interop/SQLite.Interop.CE.2008.vcproj
   SQLite.Interop/SQLite.Interop.CE.2012.vcxproj
@@ -501,6 +560,8 @@ set sds_manifests(source) {
   SQLite.Interop/SQLite.Interop.Static.2013.vcxproj.filters
   SQLite.Interop/SQLite.Interop.Static.2015.vcxproj
   SQLite.Interop/SQLite.Interop.Static.2015.vcxproj.filters
+  SQLite.Interop/SQLite.Interop.Static.2017.vcxproj
+  SQLite.Interop/SQLite.Interop.Static.2017.vcxproj.filters
   SQLite.Interop/src/
   SQLite.Interop/src/contrib/
   SQLite.Interop/src/contrib/extension-functions.c
@@ -513,6 +574,7 @@ set sds_manifests(source) {
   SQLite.Interop/src/ext/json1.c
   SQLite.Interop/src/ext/percentile.c
   SQLite.Interop/src/ext/regexp.c
+  SQLite.Interop/src/ext/sha1.c
   SQLite.Interop/src/ext/totype.c
   SQLite.Interop/src/ext/vtshim.c
   SQLite.Interop/src/generic/
@@ -535,6 +597,12 @@ set sds_manifests(source) {
   SQLite.NET.2013.sln
   SQLite.NET.2015.MSBuild.sln
   SQLite.NET.2015.sln
+  SQLite.NET.2017.MSBuild.sln
+  SQLite.NET.2017.sln
+  SQLite.NET.NetStandard20.MSBuild.sln
+  SQLite.NET.NetStandard21.MSBuild.sln
+  SQLite.NET.NetStandard20.sln
+  SQLite.NET.NetStandard21.sln
   System.Data.SQLite.url
   System.Data.SQLite/
   System.Data.SQLite/AssemblyInfo.cs
@@ -542,6 +610,8 @@ set sds_manifests(source) {
   System.Data.SQLite/AssemblySourceTimeStampAttribute.cs
   System.Data.SQLite/Configurations/
   System.Data.SQLite/Configurations/System.Data.SQLite.dll.config
+  System.Data.SQLite/Generated/
+  System.Data.SQLite/Generated/SR.resources
   System.Data.SQLite/ISQLiteNativeModule.cs
   System.Data.SQLite/LINQ/
   System.Data.SQLite/LINQ/SQLiteConnection_Linq.cs
@@ -558,6 +628,7 @@ set sds_manifests(source) {
   System.Data.SQLite/SQLite3_UTF16.cs
   System.Data.SQLite/SQLiteBackup.cs
   System.Data.SQLite/SQLiteBase.cs
+  System.Data.SQLite/SQLiteBlob.cs
   System.Data.SQLite/SQLiteCommand.cs
   System.Data.SQLite/SQLiteCommandBuilder.cs
   System.Data.SQLite/SQLiteConnection.cs
@@ -582,14 +653,18 @@ set sds_manifests(source) {
   System.Data.SQLite/SQLiteParameter.cs
   System.Data.SQLite/SQLiteParameterCollection.cs
   System.Data.SQLite/SQLitePatchLevel.cs
+  System.Data.SQLite/SQLiteSession.cs
   System.Data.SQLite/SQLiteStatement.cs
   System.Data.SQLite/SQLiteTransaction.cs
+  System.Data.SQLite/SQLiteTransaction2.cs
+  System.Data.SQLite/SQLiteTransactionBase.cs
   System.Data.SQLite/System.Data.SQLite.2005.csproj
   System.Data.SQLite/System.Data.SQLite.2008.csproj
   System.Data.SQLite/System.Data.SQLite.2010.csproj
   System.Data.SQLite/System.Data.SQLite.2012.csproj
   System.Data.SQLite/System.Data.SQLite.2013.csproj
   System.Data.SQLite/System.Data.SQLite.2015.csproj
+  System.Data.SQLite/System.Data.SQLite.2017.csproj
   System.Data.SQLite/System.Data.SQLite.Compact.2005.csproj
   System.Data.SQLite/System.Data.SQLite.Compact.2008.csproj
   System.Data.SQLite/System.Data.SQLite.Compact.2012.csproj
@@ -599,6 +674,9 @@ set sds_manifests(source) {
   System.Data.SQLite/System.Data.SQLite.Module.2012.csproj
   System.Data.SQLite/System.Data.SQLite.Module.2013.csproj
   System.Data.SQLite/System.Data.SQLite.Module.2015.csproj
+  System.Data.SQLite/System.Data.SQLite.Module.2017.csproj
+  System.Data.SQLite/System.Data.SQLite.NetStandard20.csproj
+  System.Data.SQLite/System.Data.SQLite.NetStandard21.csproj
   System.Data.SQLite/Targets/
   System.Data.SQLite/Targets/System.Data.SQLite.Files.targets
   System.Data.SQLite/Targets/System.Data.SQLite.Properties.targets
@@ -647,16 +725,24 @@ set sds_manifests(source) {
   System.Data.SQLite.Linq/System.Data.SQLite.Core.2012.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Core.2013.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Core.2015.csproj
+  System.Data.SQLite.Linq/System.Data.SQLite.Core.2017.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.EF6.2010.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.EF6.2012.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.EF6.2013.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.EF6.2015.csproj
+  System.Data.SQLite.Linq/System.Data.SQLite.EF6.2017.csproj
+  System.Data.SQLite.Linq/System.Data.SQLite.EF6.NetStandard21.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Linq.2008.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Linq.2010.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Linq.2012.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Linq.2013.csproj
   System.Data.SQLite.Linq/System.Data.SQLite.Linq.2015.csproj
+  System.Data.SQLite.Linq/System.Data.SQLite.Linq.2017.csproj
   Targets/
+  Targets/SQLite.NET.Mono.Settings.targets
+  Targets/SQLite.NET.NetStandard20.Settings.targets
+  Targets/SQLite.NET.NetStandard21.Settings.targets
+  Targets/SQLite.NET.Platform.Settings.targets
   Targets/SQLite.NET.Settings.targets
   Targets/SQLite.NET.Settings.targets.netFx35
   Targets/SQLite.NET.Settings.targets.netFx40
@@ -674,6 +760,7 @@ set sds_manifests(source) {
   test/test.2012.csproj
   test/test.2013.csproj
   test/test.2015.csproj
+  test/test.2017.csproj
   test/TestCases.cs
   test/TestCasesDialog.cs
   test/TestCasesDialog.Designer.cs
@@ -714,6 +801,14 @@ set sds_manifests(source) {
   testlinq/2015/EF6/App.config
   testlinq/2015/LINQ/
   testlinq/2015/LINQ/App.config
+  testlinq/2017/
+  testlinq/2017/EF6/
+  testlinq/2017/EF6/App.config
+  testlinq/2017/LINQ/
+  testlinq/2017/LINQ/App.config
+  testlinq/NetStandard21/
+  testlinq/NetStandard21/EF6/
+  testlinq/NetStandard21/EF6/App.config
   testlinq/northwindEF.db
   testlinq/NorthwindModel.EF6.2010.Designer.cs
   testlinq/NorthwindModel.EF6.2010.edmx
@@ -723,6 +818,10 @@ set sds_manifests(source) {
   testlinq/NorthwindModel.EF6.2013.edmx
   testlinq/NorthwindModel.EF6.2015.Designer.cs
   testlinq/NorthwindModel.EF6.2015.edmx
+  testlinq/NorthwindModel.EF6.2017.Designer.cs
+  testlinq/NorthwindModel.EF6.2017.edmx
+  testlinq/NorthwindModel.EF6.NetStandard21.Designer.cs
+  testlinq/NorthwindModel.EF6.NetStandard21.edmx
   testlinq/NorthwindModel.Linq.2008.Designer.cs
   testlinq/NorthwindModel.Linq.2008.edmx
   testlinq/NorthwindModel.Linq.2010.Designer.cs
@@ -733,6 +832,8 @@ set sds_manifests(source) {
   testlinq/NorthwindModel.Linq.2013.edmx
   testlinq/NorthwindModel.Linq.2015.Designer.cs
   testlinq/NorthwindModel.Linq.2015.edmx
+  testlinq/NorthwindModel.Linq.2017.Designer.cs
+  testlinq/NorthwindModel.Linq.2017.edmx
   testlinq/Program.cs
   testlinq/Properties/
   testlinq/Properties/AssemblyInfo.cs
@@ -740,15 +841,19 @@ set sds_manifests(source) {
   testlinq/test.2012.csproj
   testlinq/test.2013.csproj
   testlinq/test.2015.csproj
+  testlinq/test.2017.csproj
   testlinq/testef6.2010.csproj
   testlinq/testef6.2012.csproj
   testlinq/testef6.2013.csproj
   testlinq/testef6.2015.csproj
+  testlinq/testef6.2017.csproj
+  testlinq/testef6.NetStandard21.csproj
   testlinq/testlinq.2008.csproj
   testlinq/testlinq.2010.csproj
   testlinq/testlinq.2012.csproj
   testlinq/testlinq.2013.csproj
   testlinq/testlinq.2015.csproj
+  testlinq/testlinq.2017.csproj
   Tests/
   Tests/all.eagle
   Tests/authorizer.eagle
@@ -774,6 +879,7 @@ set sds_manifests(source) {
   Tests/linq.eagle
   Tests/memory.eagle
   Tests/progress.eagle
+  Tests/session.eagle
   Tests/speed.eagle
   Tests/stress.eagle
   Tests/template/
@@ -782,10 +888,15 @@ set sds_manifests(source) {
   Tests/tkt-00f86f9739.eagle
   Tests/tkt-0a32885109.eagle
   Tests/tkt-0d5b1ef362.eagle
+  Tests/tkt-0e48e80333.eagle
+  Tests/tkt-0ed01c447c.eagle
   Tests/tkt-17045010df.eagle
   Tests/tkt-1c456ae75f.eagle
+  Tests/tkt-1f7bfff467.eagle
   Tests/tkt-201128cc88.eagle
+  Tests/tkt-23d8d6171e.eagle
   Tests/tkt-2556655d1b.eagle
+  Tests/tkt-2abbf2c244.eagle
   Tests/tkt-2c630bffa7.eagle
   Tests/tkt-2ce0870fad.eagle
   Tests/tkt-3113734605.eagle
@@ -803,12 +914,16 @@ set sds_manifests(source) {
   Tests/tkt-4a791e70ab.eagle
   Tests/tkt-5251bd0878.eagle
   Tests/tkt-53633bbe39.eagle
+  Tests/tkt-53962f9eff.eagle
   Tests/tkt-544dba0a2f.eagle
+  Tests/tkt-5535448538.eagle
   Tests/tkt-56b42d99c1.eagle
   Tests/tkt-58ed318f2f.eagle
   Tests/tkt-59edc1018b.eagle
+  Tests/tkt-5cee5409f8.eagle
   Tests/tkt-6434e23a0f.eagle
   Tests/tkt-647d282d11.eagle
+  Tests/tkt-69cf6e5dc8.eagle
   Tests/tkt-6c6ecccc5f.eagle
   Tests/tkt-71bedaca19.eagle
   Tests/tkt-72905c9a77.eagle
@@ -829,15 +944,19 @@ set sds_manifests(source) {
   Tests/tkt-9ba9346f75.eagle
   Tests/tkt-9d353b0bd8.eagle
   Tests/tkt-a4d9c7ee94.eagle
+  Tests/tkt-a799e3978f.eagle
   Tests/tkt-a7d04fb111.eagle
   Tests/tkt-aba4549801.eagle
   Tests/tkt-ac47dd230a.eagle
   Tests/tkt-ae5267b863.eagle
+  Tests/tkt-b167206ad3.eagle
   Tests/tkt-b4a7ddc83f.eagle
+  Tests/tkt-baf42ee135.eagle
   Tests/tkt-bb4b04d457.eagle
   Tests/tkt-c010fa6584.eagle
   Tests/tkt-c28d7fe915.eagle
   Tests/tkt-ccfa69fc32.eagle
+  Tests/tkt-d4728aecb7.eagle
   Tests/tkt-da685c0bac.eagle
   Tests/tkt-da9f18d039.eagle
   Tests/tkt-daeaf3150a.eagle
@@ -845,11 +964,13 @@ set sds_manifests(source) {
   Tests/tkt-e06c4caff3.eagle
   Tests/tkt-e1b2e0f769.eagle
   Tests/tkt-e30b820248.eagle
+  Tests/tkt-e36e05e299.eagle
   Tests/tkt-e47b3d8346.eagle
   Tests/tkt-ef2216192d.eagle
   Tests/tkt-f2c47a01eb.eagle
   Tests/tkt-f8dbab8baf.eagle
   Tests/tkt-fe50b8c2e8.eagle
+  Tests/types.eagle
   Tests/version.eagle
   Tests/vtab.eagle
   tools/
@@ -860,6 +981,7 @@ set sds_manifests(source) {
   tools/install/Installer.2012.csproj
   tools/install/Installer.2013.csproj
   tools/install/Installer.2015.csproj
+  tools/install/Installer.2017.csproj
   tools/install/Installer.cs
   tools/install/Properties/
   tools/install/Properties/AssemblyInfo.cs
@@ -867,33 +989,81 @@ set sds_manifests(source) {
   tools/install/Resources/manifest.xml
 }
 
+###############################################################################
 #
 # NOTE: This is the list of Eagle files that should be present in the full
 #       source code archive.  These files are needed only to run the test
 #       suite.
 #
 set sds_manifests(eagle) {
-  Externals/Eagle/bin/Eagle.dll
-  Externals/Eagle/bin/EagleShell.exe
-  Externals/Eagle/bin/EagleShell32.exe
-  Externals/Eagle/bin/x64/
-  Externals/Eagle/bin/x64/Spilornis.dll
-  Externals/Eagle/bin/x86/
-  Externals/Eagle/bin/x86/Spilornis.dll
+  Externals/Eagle/bin/netFramework40/Eagle.dll
+  Externals/Eagle/bin/netFramework40/EagleShell.exe
+  Externals/Eagle/bin/netFramework40/EagleShell32.exe
+  Externals/Eagle/bin/netFramework40/x64/
+  Externals/Eagle/bin/netFramework40/x64/Spilornis.dll
+  Externals/Eagle/bin/netFramework40/x86/
+  Externals/Eagle/bin/netFramework40/x86/Spilornis.dll
+  Externals/Eagle/bin/netStandard20/
+  Externals/Eagle/bin/netStandard20/Eagle.dll
+  Externals/Eagle/bin/netStandard20/EagleShell.dll
+  Externals/Eagle/bin/netStandard20/EagleShell.runtimeconfig.json
+  Externals/Eagle/bin/netStandard21/
+  Externals/Eagle/bin/netStandard21/Eagle.dll
+  Externals/Eagle/bin/netStandard21/EagleShell.dll
+  Externals/Eagle/bin/netStandard21/EagleShell.runtimeconfig.json
+  Externals/Eagle/lib/Eagle1.0/auxiliary.eagle
+  Externals/Eagle/lib/Eagle1.0/compat.eagle
+  Externals/Eagle/lib/Eagle1.0/csharp.eagle
+  Externals/Eagle/lib/Eagle1.0/database.eagle
   Externals/Eagle/lib/Eagle1.0/embed.eagle
+  Externals/Eagle/lib/Eagle1.0/exec.eagle
+  Externals/Eagle/lib/Eagle1.0/file1.eagle
+  Externals/Eagle/lib/Eagle1.0/file2.eagle
+  Externals/Eagle/lib/Eagle1.0/file3.eagle
+  Externals/Eagle/lib/Eagle1.0/info.eagle
   Externals/Eagle/lib/Eagle1.0/init.eagle
+  Externals/Eagle/lib/Eagle1.0/list.eagle
+  Externals/Eagle/lib/Eagle1.0/object.eagle
   Externals/Eagle/lib/Eagle1.0/pkgIndex.eagle
   Externals/Eagle/lib/Eagle1.0/pkgIndex.tcl
+  Externals/Eagle/lib/Eagle1.0/pkgt.eagle
+  Externals/Eagle/lib/Eagle1.0/platform.eagle
+  Externals/Eagle/lib/Eagle1.0/process.eagle
+  Externals/Eagle/lib/Eagle1.0/runopt.eagle
   Externals/Eagle/lib/Eagle1.0/safe.eagle
   Externals/Eagle/lib/Eagle1.0/shell.eagle
+  Externals/Eagle/lib/Eagle1.0/shim.eagle
   Externals/Eagle/lib/Eagle1.0/test.eagle
+  Externals/Eagle/lib/Eagle1.0/testlog.eagle
+  Externals/Eagle/lib/Eagle1.0/unkobj.eagle
+  Externals/Eagle/lib/Eagle1.0/unzip.eagle
+  Externals/Eagle/lib/Eagle1.0/update.eagle
+  Externals/Eagle/lib/Eagle1.0/vendor.eagle
   Externals/Eagle/lib/Eagle1.0/word.tcl
+  Externals/Eagle/lib/Test1.0/
   Externals/Eagle/lib/Test1.0/all.eagle
   Externals/Eagle/lib/Test1.0/constraints.eagle
   Externals/Eagle/lib/Test1.0/epilogue.eagle
   Externals/Eagle/lib/Test1.0/pkgIndex.eagle
   Externals/Eagle/lib/Test1.0/pkgIndex.tcl
   Externals/Eagle/lib/Test1.0/prologue.eagle
+}
+
+###############################################################################
+#
+# NOTE: This is the list of external files that should be present in the full
+#       source code archive.  These files may be required by the build and/or
+#       during release processing.  If missing, some features and/or build
+#       options may be unavailable.
+#
+set sds_manifests(external) {
+  Externals/NuGet/
+  Externals/NuGet/NuGet.exe
+  Externals/ResGen/
+  Externals/ResGen/ResGen.exe
+  Externals/ResGen/ResGen.exe.config
+  Externals/vswhere/
+  Externals/vswhere/vswhere.exe
 }
 
 ###############################################################################
@@ -927,8 +1097,8 @@ set sds_manifests(binaryLinq) {
 ###############################################################################
 #
 # NOTE: This is the list of extra files that should be present in all binary
-#       archives that support EF6 (i.e. available with the desktop .NET
-#       Framework 4.0 and later).
+#       archives that support EF6 on desktop versions of the .NET Framework
+#       4.0 and later.
 #
 set sds_manifests(binaryEf6) {
   System.Data.SQLite.EF6.dll
@@ -936,6 +1106,21 @@ set sds_manifests(binaryEf6) {
   System.Data.SQLite.EF6.xml
   testef6.exe
   testef6.exe.config
+  testef6.pdb
+}
+
+###############################################################################
+#
+# NOTE: This is the list of extra files that should be present in all binary
+#       archives that support EF6 on .NET Core 3.0 and later.
+#
+set sds_manifests(binaryEf6NetCore) {
+  System.Data.SQLite.EF6.dll
+  System.Data.SQLite.EF6.pdb
+  System.Data.SQLite.EF6.xml
+  northwindEF.db
+  testef6.dll
+  testef6.dll.config
   testef6.pdb
 }
 
@@ -1193,7 +1378,7 @@ set sds_manifests(setupX64Vs2013) {
 #       supporting the .NET Framework 4.6 for x86.
 #
 set sds_manifests(setupX86Vs2015) {
-  {{tmp}\vcredist_x86_2015_VSU2.exe}
+  {{tmp}\vcredist_x86_2015_VSU3.exe}
 }
 
 ###############################################################################
@@ -1202,7 +1387,199 @@ set sds_manifests(setupX86Vs2015) {
 #       supporting the .NET Framework 4.6 for x64.
 #
 set sds_manifests(setupX64Vs2015) {
-  {{tmp}\vcredist_x64_2015_VSU2.exe}
+  {{tmp}\vcredist_x64_2015_VSU3.exe}
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all NuGet
+#       packages.
+#
+set sds_manifests(nuGetMetadata) {
+  _rels/.rels
+  [Content_Types].xml
+  package/services/metadata/core-properties/${md5}.psmdcp
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all NuGet
+#       packages that include the primary assembly, whether managed only
+#       or mixed-mode.
+#
+set sds_manifests(nuGetCoreCommon) {
+  lib/net20/System.Data.SQLite.dll
+  lib/net20/System.Data.SQLite.xml
+  lib/net40/System.Data.SQLite.dll
+  lib/net40/System.Data.SQLite.xml
+  lib/net45/System.Data.SQLite.dll
+  lib/net45/System.Data.SQLite.xml
+  lib/net451/System.Data.SQLite.dll
+  lib/net451/System.Data.SQLite.xml
+  lib/net46/System.Data.SQLite.dll
+  lib/net46/System.Data.SQLite.xml
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all NuGet
+#       packages that include the primary managed-only assembly.
+#
+set sds_manifests(nuGetCoreManagedOnly) {
+  lib/netstandard2.0/System.Data.SQLite.dll
+  lib/netstandard2.0/System.Data.SQLite.xml
+  lib/netstandard2.1/System.Data.SQLite.dll
+  lib/netstandard2.1/System.Data.SQLite.xml
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all core
+#       NuGet packages that include the primary interop assemblies.
+#
+set sds_manifests(nuGetCoreNative) {
+  build/net20/x64/SQLite.Interop.dll
+  build/net20/x86/SQLite.Interop.dll
+  build/net40/x64/SQLite.Interop.dll
+  build/net40/x86/SQLite.Interop.dll
+  build/net45/x64/SQLite.Interop.dll
+  build/net45/x86/SQLite.Interop.dll
+  build/net451/x64/SQLite.Interop.dll
+  build/net451/x86/SQLite.Interop.dll
+  build/net46/x64/SQLite.Interop.dll
+  build/net46/x86/SQLite.Interop.dll
+  build/net20/System.Data.SQLite.Core.targets
+  build/net40/System.Data.SQLite.Core.targets
+  build/net45/System.Data.SQLite.Core.targets
+  build/net451/System.Data.SQLite.Core.targets
+  build/net46/System.Data.SQLite.Core.targets
+  lib/net20/System.Data.SQLite.dll.config
+  lib/net40/System.Data.SQLite.dll.config
+  lib/net45/System.Data.SQLite.dll.config
+  lib/net451/System.Data.SQLite.dll.config
+  lib/net46/System.Data.SQLite.dll.config
+  lib/netstandard2.0/System.Data.SQLite.dll.config
+  lib/netstandard2.1/System.Data.SQLite.dll.config
+  runtimes/win-x86/native/netstandard2.0/SQLite.Interop.dll
+  runtimes/win-x64/native/netstandard2.0/SQLite.Interop.dll
+  runtimes/linux-x64/native/netstandard2.0/SQLite.Interop.dll
+  runtimes/osx-x64/native/netstandard2.0/SQLite.Interop.dll
+  runtimes/win-x86/native/netstandard2.1/SQLite.Interop.dll
+  runtimes/win-x64/native/netstandard2.1/SQLite.Interop.dll
+  runtimes/linux-x64/native/netstandard2.1/SQLite.Interop.dll
+  runtimes/osx-x64/native/netstandard2.1/SQLite.Interop.dll
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all NuGet
+#       packages that include support for the Entity Framework 6.x.
+#
+set sds_manifests(nuGetEf6) {
+  System.Data.SQLite.EF6.nuspec
+  content/net40/app.config.install.xdt
+  content/net40/web.config.install.xdt
+  content/net40/app.config.transform
+  content/net40/web.config.transform
+  content/net45/app.config.install.xdt
+  content/net45/web.config.install.xdt
+  content/net45/app.config.transform
+  content/net45/web.config.transform
+  content/net451/app.config.install.xdt
+  content/net451/web.config.install.xdt
+  content/net451/app.config.transform
+  content/net451/web.config.transform
+  content/net46/app.config.install.xdt
+  content/net46/web.config.install.xdt
+  content/net46/app.config.transform
+  content/net46/web.config.transform
+  lib/net40/System.Data.SQLite.EF6.dll
+  lib/net45/System.Data.SQLite.EF6.dll
+  lib/net451/System.Data.SQLite.EF6.dll
+  lib/net46/System.Data.SQLite.EF6.dll
+  lib/netstandard2.1/System.Data.SQLite.EF6.dll
+  tools/net40/install.ps1
+  tools/net45/install.ps1
+  tools/net451/install.ps1
+  tools/net46/install.ps1
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all NuGet
+#       packages that include support for LINQ.
+#
+set sds_manifests(nuGetLinq) {
+  System.Data.SQLite.Linq.nuspec
+  content/net20/app.config.transform
+  content/net20/web.config.transform
+  content/net40/app.config.transform
+  content/net40/web.config.transform
+  content/net45/app.config.transform
+  content/net45/web.config.transform
+  content/net451/app.config.transform
+  content/net451/web.config.transform
+  content/net46/app.config.transform
+  content/net46/web.config.transform
+  lib/net20/System.Data.SQLite.Linq.dll
+  lib/net40/System.Data.SQLite.Linq.dll
+  lib/net45/System.Data.SQLite.Linq.dll
+  lib/net451/System.Data.SQLite.Linq.dll
+  lib/net46/System.Data.SQLite.Linq.dll
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the primary
+#       NuGet package.
+#
+set sds_manifests(nuGetPrimary) {
+  System.Data.SQLite.nuspec
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the core
+#       NuGet package.
+#
+set sds_manifests(nuGetCore) {
+  System.Data.SQLite.Core.nuspec
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the core
+#       NuGet package that includes only the primary managed assembly.
+#
+set sds_manifests(nuGetCoreMsil) {
+  System.Data.SQLite.Core.MSIL.nuspec
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the NuGet
+#       package that includes only the managed assemblies.
+#
+set sds_manifests(nuGetMsil) {
+  System.Data.SQLite.MSIL.nuspec
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the NuGet
+#       package that includes the mixed-mode assembly for x64.
+#
+set sds_manifests(nuGetX64) {
+  System.Data.SQLite.x64.nuspec
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the NuGet
+#       package that includes the mixed-mode assembly for x86.
+#
+set sds_manifests(nuGetX86) {
+  System.Data.SQLite.x86.nuspec
 }
 
 ###############################################################################
@@ -1237,7 +1614,7 @@ set manifests(sqlite-netFx-source-.zip) [list sds \
     source]
 
 set manifests(sqlite-netFx-full-source-.zip) [list sds \
-    source eagle]
+    source eagle external]
 
 ###############################################################################
 ################### Visual Studio 2005 / .NET Framework 2.0 ###################
@@ -1682,6 +2059,274 @@ set manifests(sqlite-netFx46-setup-bundle-x86-2015-.exe) [list sds \
 set manifests(sqlite-netFx46-setup-bundle-x64-2015-.exe) [list sds \
     setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
     setupEf6Bundle setupX64Vs2015]
+
+###############################################################################
+################### Visual Studio 2017 / .NET Framework 4.7 ###################
+############################### Binary Packages ###############################
+###############################################################################
+
+set manifests(sqlite-netFx47-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-static-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-static-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-static-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-static-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+################### Visual Studio 2017 / .NET Framework 4.7 ###################
+############################### Setup Packages ################################
+###############################################################################
+
+set manifests(sqlite-netFx47-setup-x86-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-setup-x64-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX64Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-setup-bundle-x86-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx47-setup-bundle-x64-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX64Vs2017]
+
+###############################################################################
+################## Visual Studio 2017 / .NET Framework 4.7.1 ##################
+############################### Binary Packages ###############################
+###############################################################################
+
+set manifests(sqlite-netFx471-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-static-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-static-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-static-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-static-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+################## Visual Studio 2017 / .NET Framework 4.7.1 ##################
+############################### Setup Packages ################################
+###############################################################################
+
+set manifests(sqlite-netFx471-setup-x86-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-setup-x64-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX64Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-setup-bundle-x86-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx471-setup-bundle-x64-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX64Vs2017]
+
+###############################################################################
+################## Visual Studio 2017 / .NET Framework 4.7.2 ##################
+############################### Binary Packages ###############################
+###############################################################################
+
+set manifests(sqlite-netFx472-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-static-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-static-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-static-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-static-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+################## Visual Studio 2017 / .NET Framework 4.7.2 ##################
+############################### Setup Packages ################################
+###############################################################################
+
+set manifests(sqlite-netFx472-setup-x86-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-setup-x64-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX64Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-setup-bundle-x86-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx472-setup-bundle-x64-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX64Vs2017]
+
+###############################################################################
+################### Visual Studio 2017 / .NET Standard 2.0 ####################
+############################### Binary Packages ###############################
+###############################################################################
+
+set manifests(sqlite-netStandard20-binary-.zip) [list sds binaryCore]
+
+###############################################################################
+################### Visual Studio 2019 / .NET Standard 2.1 ####################
+############################### Binary Packages ###############################
+###############################################################################
+
+set manifests(sqlite-netStandard21-binary-.zip) [list sds binaryCore \
+    binaryEf6NetCore]
+
+###############################################################################
+############################### NuGet Packages ################################
+###############################################################################
+
+set manifests(System.Data.SQLite..nupkg) [list sds \
+    nuGetMetadata nuGetPrimary]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.Core..nupkg) [list sds \
+    nuGetMetadata nuGetCoreCommon nuGetCoreManagedOnly nuGetCoreNative \
+    nuGetCore]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.Core.MSIL..nupkg) [list sds \
+    nuGetMetadata nuGetCoreCommon nuGetCoreManagedOnly nuGetCoreMsil]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.EF6..nupkg) [list sds \
+    nuGetMetadata nuGetEf6]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.Linq..nupkg) [list sds \
+    nuGetMetadata nuGetLinq]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.MSIL..nupkg) [list sds \
+    nuGetMetadata nuGetMsil]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.x64..nupkg) [list sds \
+    nuGetMetadata nuGetCoreCommon nuGetX64]
+
+###############################################################################
+
+set manifests(System.Data.SQLite.x86..nupkg) [list sds \
+    nuGetMetadata nuGetCoreCommon nuGetX86]
 
 ###############################################################################
 # end of file

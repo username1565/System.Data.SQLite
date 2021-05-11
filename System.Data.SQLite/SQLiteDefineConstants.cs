@@ -76,6 +76,14 @@ namespace System.Data.SQLite
             "INTEROP_REGEXP_EXTENSION",
 #endif
 
+#if INTEROP_SESSION_EXTENSION
+            "INTEROP_SESSION_EXTENSION",
+#endif
+
+#if INTEROP_SHA1_EXTENSION
+            "INTEROP_SHA1_EXTENSION",
+#endif
+
 #if INTEROP_TEST_EXTENSION
             "INTEROP_TEST_EXTENSION",
 #endif
@@ -120,8 +128,32 @@ namespace System.Data.SQLite
             "NET_461",
 #endif
 
+#if NET_462
+            "NET_462",
+#endif
+
+#if NET_47
+            "NET_47",
+#endif
+
+#if NET_471
+            "NET_471",
+#endif
+
+#if NET_472
+            "NET_472",
+#endif
+
 #if NET_COMPACT_20
             "NET_COMPACT_20",
+#endif
+
+#if NET_STANDARD_20
+            "NET_STANDARD_20",
+#endif
+
+#if NET_STANDARD_21
+            "NET_STANDARD_21",
 #endif
 
 #if PLATFORM_COMPACTFRAMEWORK

@@ -1,0 +1,8 @@
+Source - here: https://www.nuget.org/packages/EntityFramework/
+
+entityframework.6.2.0.nupkg - this file https://www.nuget.org/api/v2/package/EntityFramework/6.2.0
+from this source: https://www.nuget.org/packages/EntityFramework/6.2.0
+
+After rename "entityframework.6.2.0.nupkg" to "entityframework.6.2.0.zip",
+and after unzip it,
+"lib"-folder was been extracted to "\Externals\EntityFramework\v6.2"-folder

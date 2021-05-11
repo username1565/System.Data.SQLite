@@ -13,6 +13,7 @@ namespace System.Data.SQLite.Linq
 {
     using System;
     using System.Data.Common;
+    using System.Globalization;
 
 #if USE_ENTITY_FRAMEWORK_6
     using System.Data.Entity.Core.Common;
@@ -140,7 +141,26 @@ namespace System.Data.SQLite.Linq
             if ((serviceType == typeof(ISQLiteSchemaExtensions)) ||
                 (serviceType == typeof(DbProviderServices)))
             {
-                return SQLiteProviderServices.Instance;
+                object result = SQLiteProviderServices.Instance;
+
+                if (SQLite3.ForceLogLifecycle())
+                {
+                    SQLiteLog.LogMessage(HelperMethods.StringFormat(
+                        CultureInfo.CurrentCulture,
+                        "Success of \"{0}\" from SQLiteProviderFactory.GetService(\"{1}\")...",
+                        (result != null) ? result.ToString() : "<null>",
+                        (serviceType != null) ? serviceType.ToString() : "<null>"));
+                }
+
+                return result;
+            }
+
+            if (SQLite3.ForceLogLifecycle())
+            {
+                SQLiteLog.LogMessage(HelperMethods.StringFormat(
+                    CultureInfo.CurrentCulture,
+                    "Failure of SQLiteProviderFactory.GetService(\"{0}\")...",
+                    (serviceType != null) ? serviceType.ToString() : "<null>"));
             }
 
             return null;

@@ -11,7 +11,7 @@
   <metadata>
     <id>System.Data.SQLite.Linq</id>
     <title>System.Data.SQLite LINQ</title>
-    <version>1.0.101.0</version>
+    <version>1.0.113.0</version>
     <authors>SQLite Development Team</authors>
     <description>Support for LINQ using System.Data.SQLite.</description>
     <language>en-US</language>
@@ -20,6 +20,13 @@
     <licenseUrl>https://www.sqlite.org/copyright.html</licenseUrl>
     <tags>sqlite database ado.net provider interop</tags>
     <copyright>Public Domain</copyright>
+    <dependencies>
+      <group targetFramework="net20" />
+      <group targetFramework="net40" />
+      <group targetFramework="net45" />
+      <group targetFramework="net451" />
+      <group targetFramework="net46" />
+    </dependencies>
   </metadata>
   <files>
     <file src="..\bin\2008\Release\bin\System.Data.SQLite.Linq.dll" target="lib\net20" />

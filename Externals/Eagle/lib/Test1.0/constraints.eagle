@@ -3,7 +3,7 @@
 # constraints.eagle --
 #
 # Extensible Adaptable Generalized Logic Engine (Eagle)
-# Test Constraints File
+# Eagle Test Constraints Package File
 #
 # Copyright (c) 2007-2012 by Joe Mistachkin.  All rights reserved.
 #
@@ -21,40 +21,66 @@
 #
 namespace eval ::Eagle {
   proc getKnownBuildTypes {} {
+    if {[info exists ::test_well_known(buildTypes)]} then {
+      return $::test_well_known(buildTypes)
+    }
+
     return [list \
-        NetFx20 NetFx35 NetFx40 NetFx45 NetFx451 NetFx452 \
-        NetFx46 NetFx461 Bare LeanAndMean Database MonoOnUnix \
-        Development]
+        NetFx20 NetFx35 NetFx40 NetFx45 NetFx451 \
+        NetFx452 NetFx46 NetFx461 NetFx462 NetFx47 \
+        NetFx471 NetFx472 NetFx48 NetStandard20 Bare \
+        LeanAndMean Database MonoOnUnix Development]
   }
 
   proc getKnownCompileOptions {} {
+    if {[info exists ::test_well_known(compileOptions)]} then {
+      return $::test_well_known(compileOptions)
+    }
+
     return [list \
-        APPDOMAINS APPROVED_VERBS ARM ARM64 ASSEMBLY_RELEASE \
-        ASSEMBLY_STRONG_NAME_TAG ASSEMBLY_TAG ASSEMBLY_TEXT ASSEMBLY_URI \
-        BREAK_ON_EXITING BREAKPOINTS CACHE_ARGUMENT_TOSTRING \
+        APPDOMAINS APPROVED_VERBS ARGUMENT_CACHE ARM ARM64 ASSEMBLY_DATETIME \
+        ASSEMBLY_RELEASE ASSEMBLY_STRONG_NAME_TAG ASSEMBLY_TAG ASSEMBLY_TEXT \
+        ASSEMBLY_URI BREAK_ON_EXITING BREAKPOINTS CACHE_ARGUMENT_TOSTRING \
         CACHE_ARGUMENTLIST_TOSTRING CACHE_DICTIONARY CACHE_RESULT_TOSTRING \
         CACHE_STATISTICS CACHE_STRINGLIST_TOSTRING CALLBACK_QUEUE CAS_POLICY \
-        CODE_ANALYSIS COM_TYPE_CACHE CONSOLE DAEMON DATA DEAD_CODE DEBUG \
-        DEBUGGER DEBUGGER_ARGUMENTS DEBUGGER_ENGINE DEBUGGER_EXECUTE \
-        DEBUGGER_EXPRESSION DEBUGGER_VARIABLE DEBUG_TRACE DEBUG_WRITE DRAWING \
-        DYNAMIC EAGLE EMBEDDED_LIBRARY EMBED_CERTIFICATE EXECUTE_CACHE \
+        CERTIFICATE_PLUGIN CERTIFICATE_POLICY CERTIFICATE_RENEWAL \
+        CODE_ANALYSIS COM_TYPE_CACHE CONFIGURATION CONSOLE DAEMON DATA \
+        DEAD_CODE DEBUG DEBUGGER DEBUGGER_ARGUMENTS DEBUGGER_ENGINE \
+        DEBUGGER_EXECUTE DEBUGGER_EXPRESSION DEBUGGER_VARIABLE DEBUG_TRACE \
+        DEBUG_WRITE DEMO_EDITION DRAWING DYNAMIC EAGLE EMBEDDED_LIBRARY \
+        EMBED_CERTIFICATES EMIT ENTERPRISE_LOCKDOWN EXECUTE_CACHE \
         EXPRESSION_FLAGS FAST_ERRORCODE FAST_ERRORINFO FOR_TEST_USE_ONLY \
-        HAVE_SIZEOF HISTORY IA64 INTERACTIVE_COMMANDS INTERNALS_VISIBLE_TO \
-        ISOLATED_INTERPRETERS ISOLATED_PLUGINS LIBRARY LICENSING \
-        LIMITED_EDITION LIST_CACHE MONO MONO_BUILD MONO_HACKS MONO_LEGACY \
-        NATIVE NATIVE_PACKAGE NATIVE_THREAD_ID NATIVE_UTILITY \
-        NATIVE_UTILITY_BSTR NETWORK NET_20 NET_20_FAST_ENUM NET_20_ONLY \
-        NET_20_SP1 NET_20_SP2 NET_30 NET_35 NET_40 NET_45 NET_451 NET_452 \
-        NET_46 NET_461 NON_WORKING_CODE NOTIFY NOTIFY_ACTIVE NOTIFY_ARGUMENTS \
-        NOTIFY_EXCEPTION NOTIFY_EXECUTE NOTIFY_EXPRESSION NOTIFY_GLOBAL \
-        NOTIFY_OBJECT OBSOLETE OBFUSCATION OFFICIAL PARSE_CACHE PATCHLEVEL \
-        PLUGIN_COMMANDS POLICY_TRACE PREVIOUS_RESULT RANDOMIZE_ID REMOTING \
-        SAMPLE SECURITY SERIALIZATION SHARED_ID_POOL SHELL SOURCE_ID \
-        SOURCE_TIMESTAMP STATIC TCL TCL_KITS TCL_THREADED TCL_THREADS \
-        TCL_UNICODE TCL_WRAPPER TEST THREADING THROW_ON_DISPOSED TRACE \
-        TYPE_CACHE UNIX USE_APPDOMAIN_FOR_ID USE_NAMESPACES VERBOSE WEB \
-        WINDOWS WINFORMS WIX_30 WIX_35 WIX_36 WIX_37 WIX_38 WIX_39 WIX_310 \
-        X64 X86 XML]
+        FORCE_TRACE HAVE_SIZEOF HISTORY IA64 INTERACTIVE_COMMANDS \
+        INTERNALS_VISIBLE_TO ISOLATED_INTERPRETERS ISOLATED_PLUGINS LIBRARY \
+        LICENSING LICENSE_MANAGER LIMITED_EDITION LIST_CACHE MONO MONO_BUILD \
+        MONO_HACKS MONO_LEGACY NATIVE NATIVE_PACKAGE NATIVE_THREAD_ID \
+        NATIVE_UTILITY NATIVE_UTILITY_BSTR NETWORK NET_20 NET_20_FAST_ENUM \
+        NET_20_ONLY NET_20_SP1 NET_20_SP2 NET_30 NET_35 NET_40 NET_45 NET_451 \
+        NET_452 NET_46 NET_461 NET_462 NET_47 NET_471 NET_472 NET_48 \
+        NET_CORE_20 NET_STANDARD_20 NON_WORKING_CODE NOTIFY NOTIFY_ACTIVE \
+        NOTIFY_ARGUMENTS NOTIFY_EXCEPTION NOTIFY_EXECUTE NOTIFY_EXPRESSION \
+        NOTIFY_GLOBAL NOTIFY_OBJECT OBSOLETE OBFUSCATION OFFICIAL PARSE_CACHE \
+        PATCHLEVEL PLUGIN_COMMANDS POLICY_TRACE PREVIOUS_RESULT RANDOMIZE_ID \
+        REMOTING RESULT_LIMITS SAMPLE SCRIPT_ARGUMENTS SECURITY SERIALIZATION \
+        SHARED_ID_POOL SHELL SOURCE_ID SOURCE_TIMESTAMP STATIC TCL TCL_KITS \
+        TCL_THREADED TCL_THREADS TCL_UNICODE TCL_WRAPPER TEST TEST_PLUGIN \
+        THREADING THROW_ON_DISPOSED TRACE TYPE_CACHE UNIX UNSAFE \
+        USE_APPDOMAIN_FOR_ID USE_NAMESPACES VERBOSE WEB WINDOWS WINFORMS \
+        WIX_30 WIX_35 WIX_36 WIX_37 WIX_38 WIX_39 WIX_310 WIX_311 X64 X86 XML]
+  }
+
+  proc getKnownWindowsVersions { {force false} } {
+    if {[info exists ::test_well_known(windowsVersions)]} then {
+      return $::test_well_known(windowsVersions)
+    }
+
+    if {$force || ![info exists ::no(windowsVersions)]} then {
+      return [list [list 3 1] [list 3 5] [list 3 51] [list 4 0] [list 5 0] \
+          [list 5 1] [list 5 2] [list 6 0] [list 6 1] [list 6 2] [list 6 3] \
+          [list 10 0]]
+    } else {
+      return [list]
+    }
   }
 
   proc getKnownMonoVersions { {force false} } {
@@ -62,18 +88,260 @@ namespace eval ::Eagle {
     # NOTE: This job of this procedure is to return the list of "known"
     #       versions of Mono supported by the test suite infrastructure.
     #
+    # NOTE: Other than version 2.11 (which was officially announced and
+    #       released), all of these releases are listed on the official
+    #       release history pages:
+    #
+    #       https://en.wikipedia.org/wiki/Mono_%28software%29
+    #       https://www.mono-project.com/docs/about-mono/releases/
+    #       https://www.mono-project.com/docs/about-mono/versioning/
+    #
+    # TODO: This list should be manually updated when a new version of
+    #       the Mono runtime is released -OR- when one is skipped (e.g.
+    #       5.6 and 5.22).
+    #
+    if {[info exists ::test_well_known(monoVersions)]} then {
+      return $::test_well_known(monoVersions)
+    }
+
     if {$force || ![info exists ::no(monoVersions)]} then {
       return [list \
           [list 2 0] [list 2 2] [list 2 4] [list 2 6] [list 2 8] [list 2 10] \
-          [list 2 11] [list 2 12] [list 3 0] [list 3 1] [list 3 2] [list 3 3] \
-          [list 3 4] [list 3 5] [list 3 6] [list 3 8] [list 3 10] [list 3 12] \
-          [list 4 0] [list 4 2]]
+          [list 2 11] [list 3 0] [list 3 1] [list 3 2] [list 3 4] [list 3 6] \
+          [list 3 8] [list 3 10] [list 3 12] [list 4 0] [list 4 2] [list 4 4] \
+          [list 4 6] [list 4 8] [list 5 0] [list 5 2] [list 5 4] [list 5 8] \
+          [list 5 10] [list 5 12] [list 5 14] [list 5 16] [list 5 18] \
+          [list 5 20] [list 6 0] [list 6 4] [list 6 6]]
+    } else {
+      return [list]
     }
+  }
+
+  proc addKnownMonoConstraints { generic } {
+    #
+    # NOTE: Does the caller want to add the version-specific constraints
+    #       or the generic ones?
+    #
+    if {!$generic} then {
+      #
+      # NOTE: Add the necessary constraints for each version of Mono that
+      #       we know about.
+      #
+      foreach monoVersion [getKnownMonoVersions] {
+        set constraintVersion [join $monoVersion ""]
+
+        addConstraint [appendArgs monoToDo $constraintVersion]
+        addConstraint [appendArgs monoToDo $constraintVersion Only]
+        addConstraint [appendArgs monoBug $constraintVersion]
+        addConstraint [appendArgs monoBug $constraintVersion Only]
+        addConstraint [appendArgs monoCrash $constraintVersion]
+        addConstraint [appendArgs monoCrash $constraintVersion Only]
+      }
+    } else {
+      #
+      # NOTE: Also add just the generic Mono constraints that do not have
+      #       a trailing version.
+      #
+      set constraints [list monoToDo monoBug monoCrash]
+
+      foreach constraint $constraints {
+        addConstraint $constraint
+      }
+    }
+  }
+
+  proc getKnownDotNetCoreVersions { {force false} } {
+    #
+    # NOTE: This job of this procedure is to return the list of "known"
+    #       versions of .NET Core supported by the test suite infrastructure.
+    #
+    #       https://en.wikipedia.org/wiki/.NET_Core
+    #       https://github.com/dotnet/core/releases
+    #
+    # TODO: This list should be manually updated when a new version of
+    #       the .NET Core runtime is released.
+    #
+    if {[info exists ::test_well_known(dotNetCoreVersions)]} then {
+      return $::test_well_known(dotNetCoreVersions)
+    }
+
+    if {$force || ![info exists ::no(dotNetCoreVersions)]} then {
+      return [list [list 2 0] [list 2 1] [list 2 2] [list 3 0]]
+    } else {
+      return [list]
+    }
+  }
+
+  proc addKnownDotNetCoreConstraints { generic } {
+    #
+    # NOTE: Does the caller want to add the version-specific constraints
+    #       or the generic ones?
+    #
+    if {!$generic} then {
+      #
+      # NOTE: Add the necessary constraints for each version of .NET Core
+      #       that we know about.
+      #
+      foreach dotNetCoreVersion [getKnownDotNetCoreVersions] {
+        set constraintVersion [join $dotNetCoreVersion ""]
+
+        addConstraint [appendArgs dotNetCoreToDo $constraintVersion]
+        addConstraint [appendArgs dotNetCoreToDo $constraintVersion Only]
+        addConstraint [appendArgs dotNetCoreBug $constraintVersion]
+        addConstraint [appendArgs dotNetCoreBug $constraintVersion Only]
+        addConstraint [appendArgs dotNetCoreCrash $constraintVersion]
+        addConstraint [appendArgs dotNetCoreCrash $constraintVersion Only]
+      }
+    } else {
+      #
+      # NOTE: Also add just the generic .NET Core constraints that do not
+      #       have a trailing version.
+      #
+      set constraints [list dotNetCoreToDo dotNetCoreBug dotNetCoreCrash]
+
+      foreach constraint $constraints {
+        addConstraint $constraint
+      }
+    }
+  }
+
+  proc getKnownTclVersions { {force false} } {
+    #
+    # NOTE: This job of this procedure is to return the list of "known"
+    #       versions of Tcl/Tk supported by the test suite infrastructure.
+    #
+    if {[info exists ::test_well_known(tclVersions)]} then {
+      return $::test_well_known(tclVersions)
+    }
+
+    if {$force || ![info exists ::no(tclVersions)]} then {
+      return [list [list 8 4] [list 8 5] [list 8 6] [list 8 7]]
+    } else {
+      return [list]
+    }
+  }
+
+  proc filterKnownVersions {
+          versions {minimumVersion ""} {maximumVersion ""} } {
+    if {[string length $minimumVersion] > 0} then {
+      set dotMinimumVersion [getDottedVersion $minimumVersion]
+    } else {
+      set dotMinimumVersion ""
+    }
+
+    if {[string length $maximumVersion] > 0} then {
+      set dotMaximumVersion [getDottedVersion $maximumVersion]
+    } else {
+      set dotMaximumVersion ""
+    }
+
+    set result [list]
+
+    foreach version $versions {
+      set dotVersion [getDottedVersion $version]
+
+      if {[string length $dotMinimumVersion] > 0 && \
+          $dotVersion < $dotMinimumVersion} then {
+        continue
+      }
+
+      if {[string length $dotMaximumVersion] > 0 && \
+          $dotVersion > $dotMaximumVersion} then {
+        continue
+      }
+
+      lappend result $version
+    }
+
+    return $result
+  }
+
+  proc getDotNetCoreDirectoryNameOnly { path } {
+    #
+    # HACK: Obtain parent directory name that matches "net*", if any (e.g.
+    #       "netcoreapp2.0", "netstandard2.0", etc).
+    #
+    if {[string length $path] > 0} then {
+      set tail [file tail $path]
+
+      if {[string match net* $tail]} then {
+        return $tail
+      }
+    }
+
+    return ""
+  }
+
+  proc getDotNetCoreLibPathDirectoryNameOnly { {name ""} } {
+    #
+    # NOTE: Search for matching directories based on the globally detected
+    #       library path associated with the current core library.
+    #
+    if {[info exists ::core_lib_path] && \
+        [string length $::core_lib_path] > 0} then {
+      #
+      # NOTE: Make sure the directory actually exists before trying to find
+      #       things within it.
+      #
+      if {[file isdirectory $::core_lib_path]} then {
+        #
+        # NOTE: Grab all directories that are directly beneath the detected
+        #       library path, if any.
+        #
+        foreach directory [glob \
+            -nocomplain -types {d} -- [file join $::core_lib_path *]] {
+          #
+          # NOTE: If the caller specified a (plugin) name to match against,
+          #       make sure it matches; otherwise, skip this directory.
+          #
+          if {[string length $name] > 0 && \
+              ![string match $name [file tail $directory]]} then {
+            continue
+          }
+
+          #
+          # NOTE: Find directories beneath the current candidate directory
+          #       that are .NET Core output directories.
+          #
+          set directories [glob \
+              -nocomplain -types {d} -- [file join $directory net*]]
+
+          #
+          # NOTE: If there is at least one match, we are done.  Return the
+          #       final path segment of the directory name to the caller.
+          #
+          if {[llength $directories] > 0} then {
+            return [file tail [lindex $directories 0]]
+          }
+        }
+      }
+    }
+
+    #
+    # NOTE: There was no match, just return something obviously invalid.
+    #
+    return ""
+  }
+
+  proc getDottedVersion { version } {
+    return [join $version .]
+  }
+
+  proc getDotlessVersion { version } {
+    if {[string first . $version] != -1} then {
+      return [string map [list . ""] $version]
+    } else {
+      return [join $version ""]
+    }
+  }
+
+  proc getMajorMinorVersion { version } {
+    return [join [lrange [split $version .] 0 1] .]
   }
 
   #
   # NOTE: This procedure was adapted from the one listed on the Tcl Wiki page
-  #       at "http://wiki.tcl.tk/43".  It is only intended to be used on very
+  #       at "https://wiki.tcl.tk/43".  It is only intended to be used on very
   #       small lists because of its heavy use of recursion and complexity on
   #       the order of O(N!).
   #
@@ -119,6 +387,12 @@ namespace eval ::Eagle {
     }]
   }
 
+  #
+  # NOTE: This procedure should return non-zero if the operating system
+  #       shell may be executed by the test suite infrastructure outside
+  #       the context of any specific tests.  The specific tests themselves
+  #       must make use of their own constraints to prevent its execution.
+  #
   proc canExecComSpec {} {
     if {[info exists ::no(exec)]} then {
       return false
@@ -138,7 +412,8 @@ namespace eval ::Eagle {
   #
   # NOTE: This procedure should return non-zero if the "whoami" command may
   #       be executed by the test suite infrastructure outside the context
-  #       of any specific tests.
+  #       of any specific tests.  The specific tests themselves must make
+  #       use of their own constraints to prevent its execution.
   #
   proc canExecWhoAmI {} {
     if {[info exists ::no(exec)]} then {
@@ -160,8 +435,7 @@ namespace eval ::Eagle {
   # NOTE: This procedure should return non-zero if the native Tcl shell may
   #       be executed by the test suite infrastructure outside the context
   #       of any specific tests.  The specific tests themselves must make
-  #       use of their own constraints to prevent execution of the native
-  #       Tcl shell.
+  #       use of their own constraints to prevent its execution.
   #
   proc canExecTclShell {} {
     if {[info exists ::no(exec)]} then {
@@ -183,7 +457,7 @@ namespace eval ::Eagle {
   # NOTE: This procedure should return non-zero if Fossil may be executed by
   #       the test suite infrastructure outside the context of any specific
   #       tests.  The specific tests themselves must make use of their own
-  #       constraints to prevent execution of Fossil.
+  #       constraints to prevent its execution.
   #
   proc canExecFossil {} {
     if {[info exists ::no(exec)]} then {
@@ -202,11 +476,63 @@ namespace eval ::Eagle {
   }
 
   #
+  # NOTE: This procedure should return non-zero if the "fsutil" tool may be
+  #       executed by the test suite infrastructure outside the context of
+  #       any specific tests.  The specific tests themselves must make use
+  #       of their own constraints to prevent its execution.
+  #
+  proc canExecFsUtil {} {
+    if {[info exists ::no(exec)]} then {
+      return false
+    }
+
+    if {[info exists ::no(fsutil)]} then {
+      return false
+    }
+
+    if {[info exists ::no(canExecFsUtil)]} then {
+      return false
+    }
+
+    return true
+  }
+
+  #
+  # NOTE: This procedure should return non-zero if the "vswhere" tool may be
+  #       executed by the test suite infrastructure outside the context of
+  #       any specific tests.  The specific tests themselves must make use
+  #       of their own constraints to prevent its execution.
+  #
+  proc canExecVsWhere {} {
+    if {[info exists ::no(exec)]} then {
+      return false
+    }
+
+    if {[info exists ::no(vswhere)]} then {
+      return false
+    }
+
+    if {[info exists ::no(canExecVsWhere)]} then {
+      return false
+    }
+
+    return true
+  }
+
+  #
   # NOTE: This procedure should return non-zero if the test suite should be
   #       considered to be running on Mono.
   #
   proc isTestMono {} {
     return [expr {![info exists ::no(mono)] && [isMono]}]
+  }
+
+  #
+  # NOTE: This procedure should return non-zero if the test suite should be
+  #       considered to be running on .NET Core.
+  #
+  proc isTestDotNetCore {} {
+    return [expr {![info exists ::no(dotNetCore)] && [isDotNetCore]}]
   }
 
   proc isTestAdministrator { {force false} } {
@@ -304,6 +630,83 @@ namespace eval ::Eagle {
     return false
   }
 
+  proc cleanConstraintName { name } {
+    #
+    # NOTE: Start with the original constraint name, removing surrounding
+    #       whitespace.  If this results in an empty string, we are done.
+    #
+    set result [string trim $name]
+
+    if {[string length $result] == 0} then {
+      return $result
+    }
+
+    #
+    # NOTE: The constraints for a test are actually a list; therefore, we
+    #       must remove anything that might confuse the list parser.
+    #
+    set result [string map [list \" "" \\ "" \{ "" \} ""] $result]
+
+    #
+    # NOTE: In order to avoid semantic confusion, remove other characters
+    #       that may be reserved by the test suite subsystems.
+    #
+    set result [string map [list ! "" # "" \$ "" \; "" \[ "" \] ""] $result]
+
+    #
+    # NOTE: Finally, remove all remaining whitespace.
+    #
+    regsub -all -- {\s} $result "" result; return $result
+  }
+
+  proc cleanPackageName { package full } {
+    #
+    # NOTE: Start out with the original package name, removing surrounding
+    #       whitespace.  If this results in an empty string, we are done.
+    #
+    set result [string trim $package]
+
+    if {[string length $result] == 0} then {
+      return $result
+    }
+
+    #
+    # NOTE: If the full package name is NOT wanted, use the short name.  It
+    #       will be whatever occurs before the first comma.  If this results
+    #       in an empty string, we are done.
+    #
+    if {!$full} then {
+      set result [string trim [lindex [split $result ,] 0]]
+
+      if {[string length $result] == 0} then {
+        return $result
+      }
+    }
+
+    #
+    # HACK: This is the list of "special" characters that are documented to
+    #       be used when constructing fully qualified .NET Framework type
+    #       names.  For now, they are all replaced with underscores by this
+    #       procedure.  Any existing underscores in the string are doubled.
+    #
+    set charMap [list _ __ " " _ + _ , _ . _ = _ \[ _ \\ _ \] _ ` _]
+
+    return [string map $charMap $result]
+  }
+
+  proc haveTclPlatformOsExtraUpdateName { name } {
+    if {[info exists ::tcl_platform(osExtra)]} then {
+      set updateNames [getDictionaryValue $::tcl_platform(osExtra) \
+          UpdateNames]
+
+      if {[lsearch -exact $updateNames $name] != -1} then {
+        return true
+      }
+    }
+
+    return false
+  }
+
   proc checkForTestSuiteFiles { channel } {
     tputs $channel "---- checking for test suite files... "
 
@@ -321,8 +724,14 @@ namespace eval ::Eagle {
       #       package path, add them here as well.
       #
       foreach fileNameOnly [list \
-          embed.eagle init.eagle pkgIndex.eagle pkgIndex.tcl \
-          safe.eagle shell.eagle test.eagle vendor.eagle word.tcl] {
+          auxiliary.eagle compat.eagle csharp.eagle database.eagle \
+          embed.eagle exec.eagle file1.eagle file2.eagle \
+          file3.eagle info.eagle init.eagle list.eagle \
+          object.eagle pkgIndex.eagle pkgIndex.tcl pkgt.eagle \
+          platform.eagle process.eagle runopt.eagle safe.eagle \
+          shell.eagle shim.eagle test.eagle testlog.eagle \
+          unkobj.eagle unzip.eagle update.eagle vendor.eagle \
+          word.tcl] {
         #
         # NOTE: First, check if the file resides in the Eagle-specific
         #       package sub-directory.  Failing that, fallback to using
@@ -345,7 +754,7 @@ namespace eval ::Eagle {
       }
 
       #
-      # TODO: If additional test suite files are added within the base
+      # TODO: If additional test suite files are added within the test
       #       package path, add them here as well.
       #
       foreach fileNameOnly [list \
@@ -379,7 +788,7 @@ namespace eval ::Eagle {
     if {[info exists ::test_path]} then {
       #
       # TODO: If additional test suite files are added within the test
-      #       package path, add them here as well.
+      #       suite path, add them here as well.
       #
       foreach fileNameOnly [list all.eagle epilogue.eagle prologue.eagle] {
         #
@@ -422,7 +831,7 @@ namespace eval ::Eagle {
             #         attempt is made here to work around any such bug.
             #         For further information, please see:
             #
-            #         http://core.tcl.tk/tcllib/info/ad20454023
+            #         https://core.tcl.tk/tcllib/info/ad20454023
             #
             set sha1 [sha1::sha1 -hex -filename $fileName]
           }
@@ -459,30 +868,10 @@ namespace eval ::Eagle {
       # BUGFIX: We do not normally want to skip any Mono bugs in native Tcl.
       #
       if {![info exists ::no(runtimeVersion)]} then {
-        #
-        # NOTE: Add the necessary constraints for each version of Mono that
-        #       we know about.
-        #
-        foreach monoVersion [getKnownMonoVersions] {
-          set constraintVersion [join $monoVersion ""]
-
-          addConstraint [appendArgs monoToDo $constraintVersion]
-          addConstraint [appendArgs monoToDo $constraintVersion Only]
-          addConstraint [appendArgs monoBug $constraintVersion]
-          addConstraint [appendArgs monoBug $constraintVersion Only]
-          addConstraint [appendArgs monoCrash $constraintVersion]
-          addConstraint [appendArgs monoCrash $constraintVersion Only]
-        }
-
-        #
-        # NOTE: Also add just the generic Mono constraints that do not have
-        #       a trailing version.
-        #
-        set constraints [list monoToDo monoBug monoCrash]
-
-        foreach constraint $constraints {
-          addConstraint $constraint
-        }
+        addKnownMonoConstraints true; # running in native Tcl.
+        addKnownMonoConstraints false; # running in native Tcl.
+        addKnownDotNetCoreConstraints true; # running in native Tcl.
+        addKnownDotNetCoreConstraints false; # running in native Tcl.
       }
     }
   }
@@ -530,15 +919,36 @@ namespace eval ::Eagle {
             #       replace it.  We must know the real Windows version.
             #
             if {$osVersion eq $comSpecVersion} then {
-              set extra "---- Reported and detected Windows versions match\n"
+              set extra "---- reported and detected Windows versions match\n"
             } else {
               set extra [appendArgs \
-                  "==== WARNING: Reported and detected Windows versions " \
+                  "==== WARNING: reported and detected Windows versions " \
                   "do not match: " $osVersion " versus " $comSpecVersion \
                   ", resetting...\n"]
 
               set osVersion $comSpecVersion
             }
+          }
+        }
+
+        #
+        # NOTE: Check all the well-known versions of Windows -AND- add
+        #       appropriate test constraints.
+        #
+        foreach windowsVersion [getKnownWindowsVersions] {
+          set dotWindowsVersion [getDottedVersion $windowsVersion]
+
+          if {$osVersion >= $dotWindowsVersion} then {
+            #
+            # NOTE: Start out with the OS name, removing all spaces and
+            #       then append the well-known OS version number as well
+            #       as the suffix "_OrHigher" to indicate a inexact match.
+            #
+            set version [appendArgs \
+                [string map [list " " ""] $::tcl_platform(os)] _ \
+                $dotWindowsVersion _ OrHigher]
+
+            addConstraint [appendArgs osVersion. $version]
           }
         }
 
@@ -576,6 +986,84 @@ namespace eval ::Eagle {
     }
 
     tputs $channel no\n
+  }
+
+  proc checkForGetInstalledUpdates { channel {populate true} {timeout 60000} } {
+    tputs $channel "---- checking for installed updates support... "
+
+    if {[info exists ::tcl_platform(osExtra)]} then {
+      #
+      # HACK: When running in Eagle, wait for the "setup" event in
+      #       the active interpreter.  This event will be signaled
+      #       (only) after the "tcl_platform(osExtra)" element has
+      #       been fully populated by its dedicated thread.
+      #
+      if {[isEagle]} then {
+        if {[catch {
+          object invoke -flags +NonPublic \
+              Eagle._Components.Private.PlatformOps \
+              ShouldPopulateOperatingSystemExtra "" \
+              false true false true
+        } should] == 0 && $should} then {
+          if {[catch {
+            if {$populate} then {
+              object invoke -flags +NonPublic \
+                  Eagle._Components.Private.PlatformOps \
+                  PopulateOperatingSystemExtra "" \
+                  false true
+            }
+
+            object invoke -flags +NonPublic \
+                Interpreter.GetActive WaitSetupEvent \
+                $timeout
+          } code] || $code ne "Ok"} then {
+            tputs $channel timeout\n
+
+            return
+          }
+        } else {
+          tputs $channel disabled\n
+
+          return
+        }
+      }
+
+      #
+      # HACK: Assume the GetInstalledUpdates method works if the
+      #       associated "tcl_platform" element is populated with
+      #       the update names.  Technically, this check does not
+      #       rely on anything specific to Windows; however, the
+      #       underlying functionality is currently only present
+      #       on Windows.
+      #
+      if {[llength [getDictionaryValue \
+          $::tcl_platform(osExtra) UpdateNames]] > 0} then {
+        addConstraint getInstalledUpdates
+
+        tputs $channel yes\n
+
+        return
+      }
+    }
+
+    tputs $channel no\n
+  }
+
+  proc checkForOperatingSystemUpdate { channel name } {
+    tputs $channel [appendArgs \
+        "---- checking for operating system update \"" \
+        $name "\"... "]
+
+    #
+    # NOTE: Is the specific OS update currently installed?
+    #
+    if {[haveTclPlatformOsExtraUpdateName $name]} then {
+      addConstraint [appendArgs osUpdate . [cleanConstraintName $name]]
+
+      tputs $channel yes\n
+    } else {
+      tputs $channel no\n
+    }
   }
 
   proc checkForScriptLibrary { channel } {
@@ -697,11 +1185,16 @@ namespace eval ::Eagle {
       }
 
       #
-      # NOTE: This test constraint is needed by tests "socket-*.*".
+      # NOTE: These test constraints are needed by tests "socket-*.*".
       #
       if {![info exists ::no(compileNetwork)]} then {
         lappend result compile.NETWORK
         addConstraint compile.NETWORK
+      }
+
+      if {![info exists ::no(compileConfiguration)]} then {
+        lappend result compile.CONFIGURATION
+        addConstraint compile.CONFIGURATION
       }
 
       #
@@ -739,6 +1232,46 @@ namespace eval ::Eagle {
         }
 
         tputs $channel [appendArgs "yes (\"" $::env(ComSpec) "\")\n"]
+
+        #
+        # NOTE: We are done here, return now.
+        #
+        return
+      }
+    }
+
+    tputs $channel no\n
+  }
+
+  proc checkForPackage { channel pattern } {
+    tputs $channel [appendArgs \
+        "---- checking for loaded package matching \"" \
+        $pattern "\"... "]
+
+    if {[catch {
+      foreach loaded [info loaded] {
+        if {[regexp -- $pattern [lindex $loaded end]]} then {
+          set package [lindex $loaded 1]; break
+        }
+      }
+    }] == 0} then {
+      #
+      # NOTE: Make sure that a matching package name was found.
+      #
+      if {[info exists package]} then {
+        #
+        # NOTE: Yes, it appears that it is loaded.
+        #
+        addConstraint [appendArgs \
+            loaded.name. [cleanPackageName $package false]]
+
+        addConstraint [appendArgs \
+            loaded.fullName. [cleanPackageName $package true]]
+
+        #
+        # NOTE: Show that the sub-command was found.
+        #
+        tputs $channel yes\n
 
         #
         # NOTE: We are done here, return now.
@@ -878,6 +1411,99 @@ namespace eval ::Eagle {
     tputs $channel no\n
   }
 
+  proc checkForVisualStudioViaVsWhere { channel } {
+    tputs $channel "---- checking for Visual Studio using \"vswhere\"... "
+
+    #
+    # NOTE: Initially, no versions of Visual Studio have been found.
+    #
+    set visualStudioVersions [list]
+
+    #
+    # NOTE: Use of the "vswhere" tool must be enabled for us to detect
+    #       any instances of Visual Studio.
+    #
+    if {[canExecVsWhere]} then {
+      #
+      # NOTE: The versions of Visual Studio that we support detection
+      #       of using the "vswhere" tool.
+      #
+      set versions [list [list 15.0 2017] [list 16.0 2019]]
+
+      #
+      # NOTE: Check each version and keep track of the ones we find.
+      #
+      foreach version $versions {
+        #
+        # NOTE: Attempt to fetch Visual Studio install directories
+        #       value using the "vswhere" tool.
+        #
+        if {[canExecVsWhere] && [catch {
+          exec -nocarriagereturns -- vswhere -products * \
+              -version [lindex $version 0] -property installationPath
+        } installationPaths] == 0} then {
+          #
+          # NOTE: Check each Visual Studio install directory, in the
+          #       order they were returned, after splitting them into
+          #       a proper Tcl list.
+          #
+          set installationPaths [split \
+              [string trim $installationPaths] \n]
+
+          foreach installationPath $installationPaths {
+            #
+            # NOTE: Remove the trailing backslash, if any.  Does the
+            #       directory name look valid and does it actually
+            #       exist?
+            #
+            set fileName [file join \
+                [string trimright $installationPath \\] Common7 IDE \
+                msenv.dll]
+
+            if {[file isfile $fileName]} then {
+              #
+              # NOTE: Yes, it appears that it is available.
+              #
+              addConstraint [appendArgs \
+                  visualStudio [lindex $version 1]]
+
+              #
+              # NOTE: Keep track of all the versions that we find.
+              #
+              lappend visualStudioVersions [lindex $version 1]
+
+              #
+              # NOTE: Save the directory for later usage by the test
+              #       suite itself.
+              #
+              if {![info exists ::no(setVisualStudio)]} then {
+                set ::test_visual_studio [file dirname $fileName]
+              }
+
+              #
+              # HACK: Stop after we find the first instance of Visual
+              #       Studio with the requested version.
+              #
+              break
+            }
+          }
+        }
+      }
+    }
+
+    if {[llength $visualStudioVersions] > 0} then {
+      #
+      # NOTE: Show where we found the latest version.
+      #
+      tputs $channel [appendArgs \
+          "yes (" $visualStudioVersions ", \"" \
+          [expr {[info exists ::test_visual_studio] ? \
+              $::test_visual_studio : "<none>"}] "\")\n"]
+    } else {
+      tputs $channel no\n
+    }
+  }
+
   proc checkForEagle { channel } {
     tputs $channel "---- checking for Eagle... "
 
@@ -899,7 +1525,9 @@ namespace eval ::Eagle {
       # NOTE: Add the necessary constraints for each
       #       version of Tcl we know about.
       #
-      foreach version [list 84 85 86] {
+      foreach tclVersion [getKnownTclVersions] {
+        set version [getDotlessVersion $tclVersion]
+
         addConstraint [appendArgs tclBug $version]
         addConstraint [appendArgs tclCrash $version]
       }
@@ -925,9 +1553,11 @@ namespace eval ::Eagle {
         #       skipping those tests that are buggy
         #       only for the particular version of Tcl.
         #
-        foreach dotVersion [list 8.4 8.5 8.6] {
+        foreach tclVersion [getKnownTclVersions] {
+          set dotVersion [getDottedVersion $tclVersion]
+
           if {$::tcl_version ne $dotVersion} then {
-            set version [string map [list . ""] $dotVersion]
+            set version [getDotlessVersion $tclVersion]
 
             addConstraint [appendArgs tclBug $version]
             addConstraint [appendArgs tclCrash $version]
@@ -1028,6 +1658,7 @@ namespace eval ::Eagle {
         #
         addConstraint shell
         addConstraint [appendArgs shell. $name]
+        addConstraint dotNetCoreOrShell
 
         tputs $channel "yes (Eagle)\n"
 
@@ -1043,6 +1674,7 @@ namespace eval ::Eagle {
         #
         addConstraint shell
         addConstraint [appendArgs shell. $name]
+        addConstraint dotNetCoreOrShell
 
         tputs $channel "yes (Tcl)\n"
 
@@ -1093,7 +1725,8 @@ namespace eval ::Eagle {
     #
     # HACK: For now, disable testing Tk 8.4/8.5 when running in Eagle.
     #
-    if {![isEagle] || [haveConstraint tclLibrary86]} then {
+    if {![isEagle] || [haveConstraint tclLibrary86] || \
+        [haveConstraint tclLibrary87]} then {
       addConstraint tk
 
       tputs $channel yes\n
@@ -1107,73 +1740,79 @@ namespace eval ::Eagle {
 
     if {[info exists ::tcl_version]} then {
       #
-      # TODO: Cleanup the semantics for adding test
-      #       constraints here.
+      # NOTE: First, obtain the list of all "known" Tcl versions.
       #
-      if {$::tcl_version eq "8.4"} then {
-        #
-        # NOTE: Baseline reported language and feature
-        #       version.
-        #
-        addConstraint tcl84
-        addConstraint tcl84Feature
-        addConstraint tcl84OrLower
-        addConstraint tcl84OrHigher
-        addConstraint tcl85OrLower
+      set tclVersions [getKnownTclVersions]
 
-        if {[isEagle]} then {
-          #
-          # NOTE: *EAGLE* We do want to include any
-          #       tests that target "Tcl 8.5 or higher"
-          #       features and/or "Tcl 8.6 or higher"
-          #       features because they would not be in
-          #       the test suite if we did not support
-          #       that particular feature, regardless
-          #       of the language version.
-          #
-          addConstraint tcl85Feature
-          addConstraint tcl86Feature
+      #
+      # NOTE: *EAGLE* We do want to include any tests that target
+      #       "Tcl 8.X or higher" features because those tests
+      #       would not be in the test suite if we did not support
+      #       that particular feature, regardless of the language
+      #       version.
+      #
+      if {[isEagle]} then {
+        #
+        # NOTE: Process each "known" Tcl version, adding each of
+        #       the "feature" constraints (i.e. since this is an
+        #       Eagle test suite infrastructure package).
+        #
+        foreach tclVersion(1) $tclVersions {
+          set version(1) [getDotlessVersion $tclVersion(1)]
+          addConstraint [appendArgs tcl $version(1) Feature]
         }
-      } elseif {$::tcl_version eq "8.5"} then {
-        #
-        # NOTE: Baseline reported language and feature
-        #       version.  Tcl 8.5 includes all the
-        #       features from itself and Tcl 8.4.
-        #
-        addConstraint tcl84Feature
-        addConstraint tcl84OrHigher
-        addConstraint tcl85
-        addConstraint tcl85Feature
-        addConstraint tcl85OrLower
-        addConstraint tcl85OrHigher
+      }
 
-        if {[isEagle]} then {
+      #
+      # NOTE: Process each "known" Tcl version, checking for an
+      #       exact match with the running Tcl version.  When an
+      #       exact match is found, add appropriate constraints.
+      #
+      foreach tclVersion(1) $tclVersions {
+        #
+        # NOTE: Does the running Tcl version match this "known"
+        #       Tcl version exactly?
+        #
+        if {$::tcl_version eq [getDottedVersion $tclVersion(1)]} then {
           #
-          # NOTE: *EAGLE* We do want to include any
-          #       tests that target "Tcl 8.5 or higher"
-          #       features and/or "Tcl 8.6 or higher"
-          #       features because they would not be in
-          #       the test suite if we did not support
-          #       that particular feature, regardless
-          #       of the language version.
+          # NOTE: Yes, it does.  First, add the "exact" match
+          #       constraint.  There can be only one of these.
           #
-          addConstraint tcl86Feature
+          addConstraint [appendArgs \
+              tcl [getDotlessVersion $tclVersion(1)]]
+
+          #
+          # NOTE: Next, process each of the "known" Tcl versions
+          #       less than or equal to the running Tcl version,
+          #       while adding both the "feature" and "or higher"
+          #       constraints.  There will always be at least one
+          #       of these.
+          #
+          foreach tclVersion(2) [filterKnownVersions \
+              $tclVersions "" $tclVersion(1)] {
+            set version(2) [getDotlessVersion $tclVersion(2)]
+            addConstraint [appendArgs tcl $version(2) Feature]
+            addConstraint [appendArgs tcl $version(2) OrHigher]
+          }
+
+          #
+          # NOTE: Finally, process each of the "known" Tcl versions
+          #       greater than or equal to the running Tcl version,
+          #       while adding the "or lower" constraints.  There
+          #       will always be at least one of these.
+          #
+          foreach tclVersion(3) [filterKnownVersions \
+              $tclVersions $tclVersion(1) ""] {
+            set version(3) [getDotlessVersion $tclVersion(3)]
+            addConstraint [appendArgs tcl $version(3) OrLower]
+          }
+
+          #
+          # NOTE: There can be only one exact Tcl version match;
+          #       therefore, we are done.
+          #
+          break
         }
-      } elseif {$::tcl_version eq "8.6"} then {
-        #
-        # NOTE: Baseline reported language and feature
-        #       version.  Tcl 8.6 includes all the
-        #       features from itself Tcl 8.4, and Tcl
-        #       8.5.
-        #
-        addConstraint tcl84Feature
-        addConstraint tcl84OrHigher
-        addConstraint tcl85Feature
-        addConstraint tcl85OrHigher
-        addConstraint tcl86
-        addConstraint tcl86Feature
-        addConstraint tcl86OrLower
-        addConstraint tcl86OrHigher
       }
 
       tputs $channel [appendArgs $::tcl_version \n]
@@ -1272,6 +1911,35 @@ namespace eval ::Eagle {
     tputs $channel no\n
   }
 
+  proc checkForEFormat { channel } {
+    tputs $channel "---- checking for \"eformat\" support... "
+
+    if {[catch {
+      #
+      # HACK: This test was stolen directly from the native Tcl source
+      #       file "library/tcltest/tcltest.tcl", which is part of the
+      #       "tcltest" package.
+      #
+      if {[isEagle]} then {
+        expr {
+          [string equal [format %.0e 5e-5] 5e-05] && \
+              [string equal [format %#.5g 0] 0.0000]
+        }
+      } else {
+        expr {
+          [string equal [format %g 5e-5] 5e-05] && \
+              [string equal [format %#.5g 0] 0.0000]
+        }
+      }
+    } eformat] == 0 && [string is true -strict $eformat]} then {
+      addConstraint eformat
+
+      tputs $channel yes\n
+    } else {
+      tputs $channel no\n
+    }
+  }
+
   proc checkForNamespaces { channel quiet } {
     tputs $channel "---- checking for namespace support... "
 
@@ -1295,7 +1963,7 @@ namespace eval ::Eagle {
       #       must be beta 29 or later); however, we still need to
       #       check if it has been enabled at runtime.
       #
-      if {$enabled} then {
+      if {[string is true -strict $enabled]} then {
         #
         # NOTE: Yes, it appears that it is available and enabled.
         #
@@ -1384,6 +2052,19 @@ namespace eval ::Eagle {
       addConstraint [appendArgs configuration. $::test_configuration]
 
       tputs $channel [appendArgs $::test_configuration \n]
+    } else {
+      tputs $channel unknown\n
+    }
+  }
+
+  proc checkForTestNamePrefix { channel } {
+    tputs $channel "---- checking for test name prefix... "
+
+    if {[info exists ::test_name_prefix] && \
+        [string length $::test_name_prefix] > 0} then {
+      addConstraint [appendArgs namePrefix. $::test_name_prefix]
+
+      tputs $channel [appendArgs $::test_name_prefix \n]
     } else {
       tputs $channel unknown\n
     }
@@ -1653,6 +2334,29 @@ namespace eval ::Eagle {
     }
   }
 
+  proc checkForTip421 { channel } {
+    tputs $channel "---- checking for TIP #421... "
+
+    #
+    # NOTE: Is the interpreter TIP #421 ready?
+    #
+    if {[catch {
+      set array(1) one; set list [list]
+
+      array for {name value} array {
+        lappend list $name $value
+      }
+
+      set list
+    } result] == 0 && $result eq [list 1 one]} then {
+      addConstraint tip421
+
+      tputs $channel yes\n
+    } else {
+      tputs $channel no\n
+    }
+  }
+
   proc checkForTip426 { channel } {
     tputs $channel "---- checking for TIP #426... "
 
@@ -1695,6 +2399,63 @@ namespace eval ::Eagle {
       addConstraint tip440
 
       tputs $channel [appendArgs "yes (" $engine ")\n"]
+    } else {
+      tputs $channel no\n
+    }
+  }
+
+  proc checkForTip461 { channel } {
+    tputs $channel "---- checking for TIP #461... "
+
+    #
+    # NOTE: Is the interpreter TIP #461 ready?
+    #
+    if {[catch {
+      set expr(ge) {int("abc" ge "abc")}
+      set expr(gt) {int("abc" gt "abc")}
+      set expr(le) {int("abc" le "abc")}
+      set expr(lt) {int("abc" lt "abc")}
+
+      list [expr $expr(ge)] [expr $expr(gt)] \
+          [expr $expr(le)] [expr $expr(lt)]
+    }] == 0} then {
+      addConstraint tip461
+
+      tputs $channel yes\n
+    } else {
+      tputs $channel no\n
+    }
+  }
+
+  proc checkForTip463 { channel } {
+    tputs $channel "---- checking for TIP #463... "
+
+    #
+    # NOTE: Is the interpreter TIP #463 ready?
+    #
+    if {[catch {
+      regsub -command . . list
+    }] == 0} then {
+      addConstraint tip463
+
+      tputs $channel yes\n
+    } else {
+      tputs $channel no\n
+    }
+  }
+
+  proc checkForTip471 { channel } {
+    tputs $channel "---- checking for TIP #471... "
+
+    #
+    # NOTE: Is the interpreter TIP #471 ready?
+    #
+    catch {info linkedname} error
+
+    if {[string match {wrong # args: should be "*} $error]} then {
+      addConstraint tip471
+
+      tputs $channel yes\n
     } else {
       tputs $channel no\n
     }
@@ -1918,8 +2679,9 @@ namespace eval ::Eagle {
         #
         if {[catch {
           object invoke -flags +NonPublic \
-              Eagle._Components.Private.NativeStack CanQueryThread
-        } canQueryThread] == 0 && $canQueryThread} then {
+              Eagle._Components.Private.NativeStack IsAvailable
+        } isAvailable] == 0 && \
+            [string is true -strict $isAvailable]} then {
           #
           # NOTE: Yes, it appears that it is available.
           #
@@ -1960,7 +2722,8 @@ namespace eval ::Eagle {
               [info nameofexecutable] reserve commit
 
           set reserve; # primitive, already numeric.
-        } stackSize] == 0 && $stackSize > 0} then {
+        } stackSize] == 0 && \
+            [string is integer -strict $stackSize] && $stackSize > 0} then {
           addConstraint [appendArgs stackSize.0x [format %x $stackSize]]
 
           tputs $channel [appendArgs "yes (" $stackSize ")\n"]
@@ -2044,7 +2807,7 @@ namespace eval ::Eagle {
     }
   }
 
-  proc checkForNetwork { channel host timeout } {
+  proc checkForNetwork { channel host timeout {successOnly false} } {
     tputs $channel [appendArgs \
         "---- checking for network connectivity to host \"" $host "\"... "]
 
@@ -2063,9 +2826,9 @@ namespace eval ::Eagle {
         #
         set expr {[llength [info commands uri]] > 0 && \
             [catch {uri ping $host $timeout} response] == 0 && \
-            [lindex $response 0] in [list Success TimedOut] && \
-            [string is integer -strict [lindex $response 1]] && \
-            [lindex $response 1] <= $timeout}
+            [lindex $response 0] in ($successOnly ? [list Success] : \
+            [list Success TimedOut]) && [string is integer -strict \
+            [lindex $response 1]] && [lindex $response 1] <= $timeout}
 
         #
         # NOTE: Does it look like we are able to contact the network host?
@@ -2167,6 +2930,28 @@ namespace eval ::Eagle {
     ############################ BEGIN Eagle ONLY #############################
     ###########################################################################
 
+    proc checkForSecurity { channel } {
+      tputs $channel "---- checking for security... "
+
+      if {[catch {
+        object invoke -flags +NonPublic Interpreter.GetActive HasSecurity
+      } security] == 0} then {
+        if {[string is true -strict $security]} then {
+          addConstraint security.enabled
+
+          tputs $channel yes\n
+        } else {
+          addConstraint security.disabled
+
+          tputs $channel no\n
+        }
+      } else {
+        addConstraint security.unavailable
+
+        tputs $channel unavailable\n
+      }
+    }
+
     proc checkForSoftwareUpdateTrust { channel } {
       tputs $channel "---- checking for software update trust... "
 
@@ -2282,7 +3067,7 @@ namespace eval ::Eagle {
 
       if {[catch {
         object invoke Interpreter.GetActive GetStrongName
-      } strongName] == 0 && [string length $strongName] > 0} then {
+      } strongName] == 0 && [isNonNullObjectHandle $strongName]} then {
         #
         # NOTE: Yes, it appears that the core library was signed with a
         #       strong name key.
@@ -2378,7 +3163,7 @@ namespace eval ::Eagle {
 
       if {[catch {
         object invoke Interpreter.GetActive GetCertificate
-      } certificate] == 0 && [string length $certificate] > 0} then {
+      } certificate] == 0 && [isNonNullObjectHandle $certificate]} then {
         #
         # NOTE: Yes, it appears that the core library was signed with a
         #       code-signing certificate.
@@ -2406,7 +3191,8 @@ namespace eval ::Eagle {
     proc checkForCompileCSharp { channel } {
       tputs $channel "---- checking for test use of C# compiler... "
 
-      if {![info exists ::no(compileCSharp)]} then {
+      if {![info exists ::no(compileCSharp)] && \
+          [doesCompileCSharpWork]} then {
         addConstraint compileCSharp
 
         tputs $channel yes\n
@@ -2431,13 +3217,13 @@ namespace eval ::Eagle {
       tputs $channel "---- checking for host... "
 
       if {[catch {host isopen} open] == 0} then {
-        if {$open} then {
+        if {[string is true -strict $open]} then {
           addConstraint hostIsOpen
 
           tputs $channel open\n
         } else {
           if {[catch {host redirected Input} redirected] == 0} then {
-            if {$redirected} then {
+            if {[string is true -strict $redirected]} then {
               addConstraint hostInputRedirected
 
               tputs $channel redirected\n
@@ -2489,7 +3275,7 @@ namespace eval ::Eagle {
 
       if {[catch {
         object invoke AppDomain CurrentDomain
-      } appDomain] == 0 && [string length $appDomain] > 0} then {
+      } appDomain] == 0 && [isNonNullObjectHandle $appDomain]} then {
         if {[catch {
           object invoke $appDomain IsDefaultAppDomain
         } default] || [string length $default] == 0} then {
@@ -2517,29 +3303,52 @@ namespace eval ::Eagle {
       tputs $channel "---- checking for runtime... "
 
       #
-      # NOTE: Are we running inside Mono (regardless of operating system)?
+      # NOTE: Are we running inside Mono -OR- on .NET Core (regardless
+      #       of operating system)?
       #
-      if {[isTestMono]} then {
+      if {[isTestDotNetCore]} then {
+        #
+        # NOTE: Yes, it appears that we are running on .NET Core.
+        #
+        addConstraint dotNetCore; # running on .NET Core.
+        addConstraint dotNetOrDotNetCore
+        addConstraint dotNetCoreOrShell
+
+        #
+        # NOTE: We do not want to skip Mono bugs on .NET Core.
+        #
+        addKnownMonoConstraints true; # running on .NET Core.
+
+        tputs $channel [appendArgs [expr {[info exists \
+            ::eagle_platform(runtime)] ? \
+            $::eagle_platform(runtime) : ".NET Core"}] \n]
+      } elseif {[isTestMono]} then {
         #
         # NOTE: Yes, it appears that we are running inside Mono.
         #
         addConstraint mono; # running on Mono.
+        addConstraint monoOrDotNetCore
+
+        #
+        # NOTE: We do not want to skip .NET Core bugs on Mono.
+        #
+        addKnownDotNetCoreConstraints true; # running on Mono.
 
         tputs $channel [appendArgs [expr {[info exists \
             ::eagle_platform(runtime)] ? \
             $::eagle_platform(runtime) : "Mono"}] \n]
       } else {
         #
-        # NOTE: No, it appears that we are not running inside Mono.
+        # NOTE: It appears that we are running on the full .NET.
         #
         addConstraint dotNet; # running on .NET.
+        addConstraint dotNetOrDotNetCore
 
         #
-        # NOTE: We do not want to skip Mono bugs on .NET.
+        # NOTE: We do not want to skip Mono -OR- .NET Core bugs on .NET.
         #
-        addConstraint monoToDo; # running on .NET.
-        addConstraint monoBug; # running on .NET.
-        addConstraint monoCrash; # running on .NET.
+        addKnownMonoConstraints true; # running on .NET.
+        addKnownDotNetCoreConstraints true; # running on .NET.
 
         tputs $channel [appendArgs [expr {[info exists \
             ::eagle_platform(runtime)] ? \
@@ -2555,8 +3364,8 @@ namespace eval ::Eagle {
         #
         # NOTE: Get the major and minor portions of the version only.
         #
-        set dotVersion [join [lrange [split \
-            $::eagle_platform(imageRuntimeVersion) .] 0 1] .]
+        set dotVersion [getMajorMinorVersion \
+            $::eagle_platform(imageRuntimeVersion)]
 
         #
         # NOTE: Now create a version string for use in the constraint name
@@ -2571,7 +3380,7 @@ namespace eval ::Eagle {
         addConstraint [appendArgs imageRuntime $version]
 
         tputs $channel [appendArgs \
-            $::eagle_platform(imageRuntimeVersion) " (" $dotVersion )\n]
+            $::eagle_platform(imageRuntimeVersion) " (" $dotVersion ")\n"]
       } else {
         tputs $channel no\n
       }
@@ -2585,14 +3394,14 @@ namespace eval ::Eagle {
         #
         # NOTE: Get the major and minor portions of the version only.
         #
-        set dotVersion [join [lrange [split \
-            $::eagle_platform(frameworkVersion) .] 0 1] .]
+        set dotVersion [getMajorMinorVersion \
+            $::eagle_platform(frameworkVersion)]
 
         #
         # NOTE: Now create a version string for use in the constraint name
         #       (remove the periods).
         #
-        set version [string map [list . ""] $dotVersion]
+        set version [getDotlessVersion $dotVersion]
 
         #
         # NOTE: If the framework version was found, add a test constraint
@@ -2603,9 +3412,94 @@ namespace eval ::Eagle {
         }
 
         tputs $channel [appendArgs \
-            $::eagle_platform(frameworkVersion) " (" $dotVersion )\n]
+            $::eagle_platform(frameworkVersion) " (" $dotVersion ")\n"]
       } else {
         tputs $channel no\n
+      }
+    }
+
+    proc checkForMatchingFrameworkVersion { channel } {
+      tputs $channel "---- checking for matching framework version... "
+
+      if {[info exists ::eagle_platform(frameworkVersion)] && \
+          [string length $::eagle_platform(frameworkVersion)] > 0} then {
+        if {[info exists ::eagle_platform(imageRuntimeVersion)] && \
+            [string length $::eagle_platform(imageRuntimeVersion)] > 0} then {
+          #
+          # NOTE: Get the major and minor portions of the versions only.
+          #
+          set dotVersion(1) [getMajorMinorVersion \
+              $::eagle_platform(frameworkVersion)]
+
+          set dotVersion(2) [getMajorMinorVersion \
+              $::eagle_platform(imageRuntimeVersion)]
+
+          #
+          # NOTE: Remove single leading "v" characters, if applicable.
+          #
+          if {[string index $dotVersion(1) 0] eq "v"} then {
+            set dotVersion(1) [string range $dotVersion(1) 1 end]
+          }
+
+          if {[string index $dotVersion(2) 0] eq "v"} then {
+            set dotVersion(2) [string range $dotVersion(2) 1 end]
+          }
+
+          #
+          # NOTE: Now create a version string for use in the constraint
+          #       name (remove the periods).
+          #
+          set version(1) [string map [list . ""] $dotVersion(1)]
+
+          #
+          # NOTE: Check for an exact match between the image runtime
+          #       version and the framework version.
+          #
+          if {$dotVersion(1) eq $dotVersion(2)} then {
+            #
+            # NOTE: Yes, the image runtime version matches the framework.
+            #
+            addConstraint matchFramework
+            addConstraint [appendArgs matchFramework $version(1)]
+
+            addConstraint dotNetMatchFramework
+            addConstraint [appendArgs dotNetMatchFramework $version(1)]
+
+            addConstraint monoMatchFramework
+            addConstraint [appendArgs monoMatchFramework $version(1)]
+
+            addConstraint dotNetCoreMatchFramework
+            addConstraint [appendArgs dotNetCoreMatchFramework $version(1)]
+
+            tputs $channel yes\n
+          } else {
+            if {[isTestDotNetCore]} then {
+              addConstraint dotNetMatchFramework
+              addConstraint [appendArgs dotNetMatchFramework $version(1)]
+
+              addConstraint monoMatchFramework
+              addConstraint [appendArgs monoMatchFramework $version(1)]
+            } elseif {[isTestMono]} then {
+              addConstraint dotNetMatchFramework
+              addConstraint [appendArgs dotNetMatchFramework $version(1)]
+
+              addConstraint dotNetCoreMatchFramework
+              addConstraint [appendArgs dotNetCoreMatchFramework $version(1)]
+            } else {
+              addConstraint monoMatchFramework
+              addConstraint [appendArgs monoMatchFramework $version(1)]
+
+              addConstraint dotNetCoreMatchFramework
+              addConstraint [appendArgs dotNetCoreMatchFramework $version(1)]
+            }
+
+            tputs $channel no\n
+          }
+        } else {
+          tputs $channel "no, missing image runtime version\n"
+        }
+      } else {
+        tputs $channel "no, missing framework version\n"
       }
     }
 
@@ -2617,8 +3511,8 @@ namespace eval ::Eagle {
         #
         # NOTE: Get the major and minor portions of the version only.
         #
-        set dotVersion [join [lrange [split \
-            $::eagle_platform(runtimeVersion) .] 0 1] .]
+        set dotVersion [getMajorMinorVersion \
+            $::eagle_platform(runtimeVersion)]
 
         #
         # NOTE: Now create a version string for use in the constraint name
@@ -2626,7 +3520,118 @@ namespace eval ::Eagle {
         #
         set version [string map [list . ""] $dotVersion]
 
-        if {[isTestMono]} then {
+        if {[isTestDotNetCore]} then {
+          #
+          # NOTE: If the runtime version was found, add a test constraint
+          #       for it now.
+          #
+          if {[string length $version] > 0} then {
+            #
+            # NOTE: We are running on the .NET Core.  Keep track of the
+            #       specific version for usage in test constraints.
+            #
+            addConstraint [appendArgs dotNetCore $version]
+            addConstraint [appendArgs dotNetCore $version OrHigher]
+          }
+
+          #
+          # NOTE: Attempt to parse the version into its major and minor
+          #       components.
+          #
+          if {[string length $dotVersion] > 0 && [regexp -- {^(\d+)\.(\d+)$} \
+              $dotVersion dummy majorVersion minorVersion]} then {
+            #
+            # NOTE: This is the list of .NET Core versions to add test
+            #       constraints for.
+            #
+            set dotNetCoreVersions [list]
+
+            #
+            # NOTE: Check each .NET Core version "known" to the test
+            #       suite.
+            #
+            foreach dotNetCoreVersion [getKnownDotNetCoreVersions] {
+              #
+              # NOTE: Check for any .NET Core major version X or higher.
+              #
+              if {$majorVersion >= [lindex $dotNetCoreVersion 0]} then {
+                #
+                # NOTE: Check for any .NET Core major/minor version
+                #       higher than X.Y.
+                #
+                if {$majorVersion > [lindex $dotNetCoreVersion 0] || \
+                    $minorVersion > [lindex $dotNetCoreVersion 1]} then {
+                  #
+                  # NOTE: Add this "known" version of .NET Core.
+                  #
+                  lappend dotNetCoreVersions $dotNetCoreVersion
+                }
+              }
+            }
+
+            #
+            # NOTE: Add the necessary constraints for each version of .NET
+            #       Core we should NOT skip bugs for.
+            #
+            foreach dotNetCoreVersion $dotNetCoreVersions {
+              set constraintVersion [join $dotNetCoreVersion ""]
+
+              addConstraint [appendArgs \
+                  dotNetCore $constraintVersion OrHigher]
+
+              addConstraint [appendArgs \
+                  dotNetCoreToDo $constraintVersion]
+
+              addConstraint [appendArgs \
+                  dotNetCoreBug $constraintVersion]
+
+              addConstraint [appendArgs \
+                  dotNetCoreCrash $constraintVersion]
+            }
+
+            #
+            # NOTE: Check all known versions of .NET Core for an exact match
+            #       with the currently running one.
+            #
+            foreach dotNetCoreVersion [getKnownDotNetCoreVersions] {
+              #
+              # NOTE: Check if .NET Core major/minor version is exactly the
+              #       one we are currently processing.
+              #
+              set constraintVersion [join $dotNetCoreVersion ""]
+
+              if {[lindex $dotNetCoreVersion 0] == $majorVersion && \
+                  [lindex $dotNetCoreVersion 1] == $minorVersion} then {
+                #
+                # NOTE: Add test constraints that only apply to this exact
+                #       version of .NET Core.
+                #
+                addConstraint [appendArgs \
+                    dotNetCore $constraintVersion Only]
+              } else {
+                #
+                # NOTE: Add test constraints that apply to all versions of
+                #       .NET Core except this exact version.
+                #
+                addConstraint [appendArgs \
+                    dotNetCoreToDo $constraintVersion Only]
+
+                addConstraint [appendArgs \
+                    dotNetCoreBug $constraintVersion Only]
+
+                addConstraint [appendArgs \
+                    dotNetCoreCrash $constraintVersion Only]
+              }
+            }
+          }
+
+          #
+          # NOTE: We do not want to skip any Mono bugs on .NET Core.  Add
+          #       the necessary constraints for each version of Mono we
+          #       know about.
+          #
+          addKnownMonoConstraints false; # running on .NET.
+        } elseif {[isTestMono]} then {
           #
           # NOTE: If the runtime version was found, add a test constraint
           #       for it now.
@@ -2716,6 +3721,13 @@ namespace eval ::Eagle {
               }
             }
           }
+
+          #
+          # NOTE: We do not want to skip any .NET Core bugs on Mono.  Add
+          #       the necessary constraints for each version of Mono we
+          #       know about.
+          #
+          addKnownDotNetCoreConstraints false; # running on Mono.
         } else {
           #
           # NOTE: If the runtime version was found, add a test constraint
@@ -2735,20 +3747,12 @@ namespace eval ::Eagle {
           #       necessary constraints for each version of Mono we know
           #       about.
           #
-          foreach monoVersion [getKnownMonoVersions] {
-            set constraintVersion [join $monoVersion ""]
-
-            addConstraint [appendArgs monoToDo $constraintVersion]
-            addConstraint [appendArgs monoToDo $constraintVersion Only]
-            addConstraint [appendArgs monoBug $constraintVersion]
-            addConstraint [appendArgs monoBug $constraintVersion Only]
-            addConstraint [appendArgs monoCrash $constraintVersion]
-            addConstraint [appendArgs monoCrash $constraintVersion Only]
-          }
+          addKnownMonoConstraints false; # running on .NET.
+          addKnownDotNetCoreConstraints false; # running on .NET.
         }
 
         tputs $channel [appendArgs \
-            $::eagle_platform(runtimeVersion) " (" $dotVersion )\n]
+            $::eagle_platform(runtimeVersion) " (" $dotVersion ")\n"]
       } else {
         tputs $channel no\n
       }
@@ -2828,9 +3832,14 @@ namespace eval ::Eagle {
 
       #
       # HACK: Make sure the call stack does not end up confusing
-      #       the tests that rely on absolute call frames.
+      #       the tests that rely on absolute call frames.  The
+      #       [runTestPrologue] is allowed here because it will
+      #       not be active on the call stack at the point the
+      #       tests are actually run.  Actually, the same thing
+      #       goes for [checkForTestCallStack] as well.
       #
-      if {$command in [list checkForTestCallStack]} then {
+      if {$command in \
+          [list runTestPrologue checkForTestCallStack]} then {
         addConstraint testCallStack
 
         tputs $channel [appendArgs "yes (\"" $command "\")\n"]
@@ -2872,10 +3881,36 @@ namespace eval ::Eagle {
       }
 
       #
-      # NOTE: Check for the Garuda DLL of the same platform (i.e. machine
-      #       type) as the native Tcl shell.
+      # NOTE: First, figure out what the file name for the Garuda DLL is,
+      #       if anything.
       #
-      return [checkForFile $channel [getGarudaDll $machine]]
+      set fileName [getGarudaDll $machine]
+
+      if {[string length $fileName] > 0} then {
+        #
+        # NOTE: Next, check if the Garuda DLL is the same platform (i.e.
+        #       machine type) as the native Tcl shell.
+        #
+        checkForFile $channel $fileName
+
+        #
+        # NOTE: Next, check if the Garuda DLL appears to be compatible
+        #       with this platform.
+        #
+        tputs $channel [appendArgs \
+            "---- checking if file \"" $fileName \
+            "\" matches architecture for current process... "]
+
+        if {[catch {
+          library matcharchitecture $fileName; # maybe missing command?
+        } match] == 0 && $match} then {
+          addConstraint garudaLibrary
+
+          tputs $channel yes\n
+        } else {
+          tputs $channel no\n
+        }
+      }
     }
 
     proc checkForCulture { channel } {
@@ -2929,7 +3964,7 @@ namespace eval ::Eagle {
 
       if {[catch {
         object invoke Interpreter.GetActive Quiet
-      } isQuiet] == 0 && $isQuiet} then {
+      } isQuiet] == 0 && [string is true -strict $isQuiet]} then {
         #
         # NOTE: Yes, quiet mode is enabled.
         #
@@ -2982,6 +4017,31 @@ namespace eval ::Eagle {
       }
     }
 
+    proc testForDynamicLoading { {fileName ""} } {
+      if {[catch {
+        if {[string length $fileName] == 0} then {
+          if {[isWindows]} then {
+            set fileName kernel32; # HACK: Always pre-loaded?
+          } elseif {[info exists ::tcl_platform(os)] && \
+              $::tcl_platform(os) eq "Darwin"} then {
+            set fileName libdl.dylib; # TODO: Good default?
+          } else {
+            set fileName libdl.so; # TODO: Good default?
+          }
+        }
+
+        set error null
+
+        object invoke -flags +NonPublic \
+            Eagle._Components.Private.NativeOps TestLoadLibrary \
+            $fileName error
+      } code] == 0 && $code eq "Ok"} then {
+        return true
+      }
+
+      return false
+    }
+
     proc checkForDynamicLoading { channel } {
       tputs $channel "---- checking for dynamic loading... "
 
@@ -2990,8 +4050,7 @@ namespace eval ::Eagle {
       #       On some Unix systems, dlopen does not work (e.g. because
       #       Mono is statically linked, etc).
       #
-      if {[isWindows] || ([llength [info commands library]] > 0 && \
-          [catch {library test}] == 0)} then {
+      if {[isWindows] || [testForDynamicLoading]} then {
         #
         # NOTE: Yes, it appears that it is available.
         #
@@ -3182,12 +4241,256 @@ namespace eval ::Eagle {
         if {[string length $constraint] > 0} then {
           addConstraint [appendArgs member_ $constraint]
         } else {
-          addConstraint [appendArgs $object. [string trim $member *?]]
+          addConstraint [appendArgs $object . [string trim $member *?]]
         }
 
         tputs $channel yes\n
       } else {
         tputs $channel no\n
+      }
+    }
+
+    proc checkForExcelUsable { channel {milliseconds 5000} } {
+      tputs $channel "---- checking for usable instance of Excel... "
+
+      #
+      # NOTE: As of this writing, this check is only supported on Windows.
+      #
+      if {[isWindows]} then {
+        #
+        # NOTE: This constraint check must run after the interop assembly for
+        #       Excel has been detected, because this check makes use of it.
+        #
+        if {[haveConstraint Microsoft.Office.Interop.Excel]} then {
+          #
+          # NOTE: This constraint check requires the (optional) interpreter
+          #       isolation feature of Eagle in order to keep the primary
+          #       interpreter and AppDomain tidy.  It also requires access
+          #       to native Windows support in order to use the [info hwnd]
+          #       sub-command.
+          #
+          if {[haveConstraint compile.ISOLATED_INTERPRETERS] && \
+              [haveConstraint compile.NATIVE] && \
+              [haveConstraint compile.WINDOWS]} then {
+            #
+            # NOTE: Allocate a temporary file name that can be used to save
+            #       the Excel spreadsheet.  This name will be provided to a
+            #       child interpreter for its use -AND- cleaned up by this
+            #       interpreter before exiting this procedure.
+            #
+            set tempName(1) [getTemporaryFileName]
+
+            #
+            # NOTE: Use a try/finally block to cleanup temporary files.
+            #
+            try {
+              if {[catch {
+                #
+                # NOTE: In an attempt to limit the assemblies loaded into the
+                #       primary AppDomain, create an isolated interpreter.
+                #
+                set interp [interp create -isolated]
+
+                #
+                # NOTE: Give the newly created (isolated) interpreter a means
+                #       to set variables in the parent (this) interpreter.
+                #
+                interp alias $interp pset {} set; # parent set
+
+                #
+                # NOTE: Give the newly created (isolated) interpreter a base
+                #       name for a temporary file and our milliseconds value.
+                #
+                interp set $interp milliseconds $milliseconds
+                interp set $interp tempName(1) $tempName(1)
+
+                #
+                # NOTE: Evaluate all the Excel interop assembly related code
+                #       in the other AppDomain.
+                #
+                interp eval $interp {
+                  #
+                  # NOTE: First, attempt to load the Excel interop assembly.
+                  #       If this fails, we cannot continue and Excel is not
+                  #       considered usable.
+                  #
+                  set assembly [object load -import -declare \
+                      Microsoft.Office.Interop.Excel]
+
+                  #
+                  # NOTE: Next, attempt to run the Excel application using
+                  #       its automation object model.  If this fails, we
+                  #       cannot continue and Excel is not considered usable.
+                  #
+                  set application [object create -alias \
+                      Microsoft.Office.Interop.Excel.ApplicationClass]; # run
+
+                  #
+                  # NOTE: Next, attempt to extract the process ID associated
+                  #       with the Excel application window.  This is used to
+                  #       help make sure the running Excel instance is closed
+                  #       after our testing is complete.  Generally, this will
+                  #       not fail because we know the [info hwnd] sub-command
+                  #       should be available, due to define constant checks.
+                  #
+                  pset pid [getDictionaryValue \
+                      [info hwnd [$application Hwnd]] processId]
+
+                  #
+                  # NOTE: Next, attempt to make sure that the Excel instance
+                  #       is not visible and will not display alerts/prompts.
+                  #       If this fails, Excel is not considered usable.
+                  #
+                  $application Visible false
+                  $application DisplayAlerts false
+
+                  #
+                  # NOTE: Wait for a bit to make sure that the Excel process
+                  #       is actually running (?).
+                  #
+                  after $milliseconds
+
+                  #
+                  # NOTE: Next, create a value of an enumerated type exposed
+                  #       by the Excel automation object model so that we can
+                  #       add a new workbook.  Generally, this does not fail.
+                  #       If this fails, Excel is not considered usable.
+                  #
+                  set enumValue [object invoke -create \
+                      Enum Parse XlWBATemplate xlWBATWorksheet]
+
+                  #
+                  # NOTE: Next, attempt to add a new workbook.  If this fails,
+                  #       Excel is not considered usable.
+                  #
+                  set workbook [object invoke -alias \
+                      $application.Workbooks Add $enumValue]
+
+                  #
+                  # NOTE: Setup a temporary file name that can be used to save
+                  #       the Excel spreadsheet.
+                  #
+                  pset fileName [set fileName [file nativename [appendArgs \
+                      $tempName(1) .xls]]]
+
+                  #
+                  # NOTE: Next, attempt to save a new workbook.  If this fails,
+                  #       Excel is not considered usable.
+                  #
+                  $workbook SaveAs $fileName
+
+                  #
+                  # NOTE: Next, attempt to close Excel.  If this fails, Excel
+                  #       is not considered usable.
+                  #
+                  $application Quit; # close
+
+                  #
+                  # NOTE: Finally, cleanup our local state just to be tidy.
+                  #
+                  unset workbook enumValue application assembly; # dispose
+                }
+              } result] == 0} then {
+                #
+                # NOTE: It appears the Excel instance is usable.
+                #
+                addConstraint excel.usable
+
+                #
+                # NOTE: Show that a usable Excel instance was found.
+                #
+                tputs $channel yes\n
+              } else {
+                #
+                # NOTE: This is the list of error message patterns that may
+                #       indicate a trial version of Excel is being used.
+                #
+                set patterns [list \
+                    "* 0x80010001*" "* 0x800AC472*" "* 0x800A03EC*" \
+                    "* application has expired.*"]
+
+                #
+                # NOTE: Check each error message pattern.  Upon finding any
+                #       match, mark Excel as unusable due to being a trial
+                #       edition and then stop.
+                #
+                foreach pattern $patterns {
+                  #
+                  # TODO: For now, just use [string match] here; eventually,
+                  #       regular expressions may be needed.
+                  #
+                  if {[string match $pattern $result]} then {
+                    #
+                    # NOTE: It appears that Excel is a trial edition.
+                    #
+                    addConstraint excel.trial
+
+                    #
+                    # NOTE: Show that the Excel trial edition was found.
+                    #
+                    tputs $channel "no, trial\n"
+
+                    #
+                    # NOTE: We are done here, return now.
+                    #
+                    return
+                  }
+                }
+
+                #
+                # NOTE: It appears the Excel instance is not usable.
+                #
+                addConstraint excel.unusable
+
+                #
+                # NOTE: Show that a unusable Excel instance was found.
+                #
+                tputs $channel "no, broken\n"
+              }
+            } finally {
+              #
+              # NOTE: Make sure the isolated interpreter is deleted if it was
+              #       actually created.
+              #
+              if {[info exists interp] && [interp exists $interp]} then {
+                catch {interp delete $interp}
+              }
+
+              #
+              # NOTE: Make sure the Excel process is (forcibly) closed if it
+              #       is still running at this point.
+              #
+              if {[info exists pid] && $pid in [getProcesses excel]} then {
+                catch {kill -force $pid}
+              }
+
+              #
+              # NOTE: Make sure the temporary spreadsheet file is deleted if
+              #       it was actually created.
+              #
+              if {[info exists fileName] && [file exists $fileName]} then {
+                catch {file delete $fileName}
+              }
+
+              #
+              # NOTE: Make sure the dummy temporary files are cleaned up.
+              #
+              if {[array exists tempName]} then {
+                foreach tempFileName [array values tempName] {
+                  if {[file exists $tempFileName]} then {
+                    catch {file delete $tempFileName}
+                  }
+                }
+              }
+            }
+          } else {
+            tputs $channel "unknown, missing optional feature\n"
+          }
+        } else {
+          tputs $channel "unknown, no Excel interop assembly\n"
+        }
+      } else {
+        tputs $channel "unknown, not running on Windows\n"
       }
     }
 
@@ -3200,15 +4503,15 @@ namespace eval ::Eagle {
       #
       if {[catch {tcl select -architecture} tcl] == 0} then {
         #
-        # NOTE: Did we find one?  Attempt to grab the index
-        #       of the version field from the list.
+        # NOTE: Found one?  Ok, attempt to grab the index of the version
+        #       field from the list.
         #
         set index [lsearch -exact $tcl version]
 
         if {$index != -1} then {
           #
-          # NOTE: The very next list index contains the value
-          #       (i.e. like a Tcl 8.5+ dict).
+          # NOTE: The very next list index contains the value (i.e. like
+          #       a Tcl 8.5+ dict).
           #
           set dotVersion [lindex $tcl [incr index]]
 
@@ -3225,12 +4528,17 @@ namespace eval ::Eagle {
             #
             # NOTE: Is the version 8.x or higher?
             #
-            if {$dotVersion >= 8.6} then {
-              addConstraint tclLibrary86
-            } elseif {$dotVersion >= 8.5} then {
-              addConstraint tclLibrary85
-            } elseif {$dotVersion >= 8.4} then {
-              addConstraint tclLibrary84
+            foreach tclVersion [lreverse [getKnownTclVersions]] {
+              if {$dotVersion >= [getDottedVersion $tclVersion]} then {
+                addConstraint [appendArgs \
+                    tclLibrary [getDotlessVersion $tclVersion]]
+
+                #
+                # NOTE: For now, there can be only one Tcl library match;
+                #       therefore, we are done.
+                #
+                break
+              }
             }
 
             tputs $channel [appendArgs $dotVersion \n]
@@ -3249,7 +4557,8 @@ namespace eval ::Eagle {
     proc checkForTclReady { channel } {
       tputs $channel "---- checking for Tcl readiness... "
 
-      if {[catch {tcl ready} ready] == 0 && $ready} then {
+      if {[catch {tcl ready} ready] == 0 && \
+          [string is true -strict $ready]} then {
         #
         # NOTE: Yes, native Tcl is loaded and ready.
         #
@@ -3265,24 +4574,31 @@ namespace eval ::Eagle {
         #
         if {[catch {
           tcl eval [tcl master] {info tclversion}
-        } version] == 0 && [regexp -- {^\d+\.\d+$} $version]} then {
+        } dotVersion] == 0 && [regexp -- {^\d+\.\d+$} $dotVersion]} then {
           addConstraint [appendArgs \
-              tclReady [string map [list . ""] $version]]
+              tclReady [getDotlessVersion $dotVersion]]
 
           #
           # NOTE: The Tcl library is ready; however, we need to add the
           #       appropriate test constraint to indicate that a specific
           #       version of Tcl is "either ready or available".
           #
-          if {[haveConstraint tclLibrary86] && $version >= 8.6} then {
-            addConstraint tclReadyOrLibrary86
-          } elseif {[haveConstraint tclLibrary85] && $version >= 8.5} then {
-            addConstraint tclReadyOrLibrary85
-          } elseif {[haveConstraint tclLibrary84] && $version >= 8.4} then {
-            addConstraint tclReadyOrLibrary84
+          foreach tclVersion [lreverse [getKnownTclVersions]] {
+            set version [getDotlessVersion $tclVersion]
+
+            if {[haveConstraint [appendArgs tclLibrary $version]] && \
+                $dotVersion >= [getDottedVersion $tclVersion]} then {
+              addConstraint [appendArgs tclReadyOrLibrary $version]
+
+              #
+              # NOTE: For now, there can be only one Tcl library match;
+              #       therefore, we are done.
+              #
+              break
+            }
           }
 
-          tputs $channel [appendArgs "yes (" $version ")\n"]
+          tputs $channel [appendArgs "yes (" $dotVersion ")\n"]
         } else {
           #
           # NOTE: The Tcl library is ready; however, we have no idea what
@@ -3298,12 +4614,18 @@ namespace eval ::Eagle {
         #       the appropriate test constraint to indicate that a specific
         #       version of Tcl is "either ready or available".
         #
-        if {[haveConstraint tclLibrary86]} then {
-          addConstraint tclReadyOrLibrary86
-        } elseif {[haveConstraint tclLibrary85]} then {
-          addConstraint tclReadyOrLibrary85
-        } elseif {[haveConstraint tclLibrary84]} then {
-          addConstraint tclReadyOrLibrary84
+        foreach tclVersion [lreverse [getKnownTclVersions]] {
+          set version [getDotlessVersion $tclVersion]
+
+          if {[haveConstraint [appendArgs tclLibrary $version]]} then {
+            addConstraint [appendArgs tclReadyOrLibrary $version]
+
+            #
+            # NOTE: For now, there can be only one Tcl library match;
+            #       therefore, we are done.
+            #
+            break
+          }
         }
 
         tputs $channel no\n
@@ -3350,8 +4672,10 @@ namespace eval ::Eagle {
       set prefix "---- checking for Tcl shell version... "
 
       if {[canExecTclShell] && \
-          [catch {getTclVersionForTclShell} version] == 0 && \
-          $version ne "error"} then {
+          ![info exists ::no(getTclVersionForTclShell)] && [catch {
+        getTclVersionForTclShell "" [getTclShellVerbosity]
+      } version] == 0 && $version ne "error" && \
+          ![string match "error: *" $version]} then {
         #
         # NOTE: Yes, a native Tcl shell appears to be available.
         #
@@ -3379,8 +4703,10 @@ namespace eval ::Eagle {
       set prefix "---- checking for Tk package version... "
 
       if {[canExecTclShell] && \
-          [catch {getTkVersionForTclShell} version] == 0 && \
-          $version ne "error"} then {
+          ![info exists ::no(getTkVersionForTclShell)] && [catch {
+        getTkVersionForTclShell "" [getTclShellVerbosity]
+      } version] == 0 && $version ne "error" && \
+          ![string match "error: *" $version]} then {
         #
         # NOTE: Yes, a native Tk package appears to be available.
         #
@@ -3500,7 +4826,7 @@ namespace eval ::Eagle {
           #
           # NOTE: The versions of WiX that we support.
           #
-          set versions [list 3.7 3.6 3.5 3.0]
+          set versions [list 3.11 3.10 3.9 3.8 3.7 3.6 3.5 3.0]
 
           #
           # NOTE: Check each version, stopping when one is found.
@@ -3606,7 +4932,7 @@ namespace eval ::Eagle {
         #
         addConstraint [appendArgs targetFramework. $targetFramework]
 
-        tputs $channel [appendArgs "yes (" $targetFramework )\n]
+        tputs $channel [appendArgs "yes (" $targetFramework ")\n"]
       } else {
         tputs $channel no\n
       }
@@ -3624,7 +4950,7 @@ namespace eval ::Eagle {
 
           if {[string length $version] > 0} then {
             set nativeUtility [appendArgs \
-                $name . [join [lrange [split $version .] 0 1] .]]
+                $name . [getMajorMinorVersion $version]]
           } else {
             set nativeUtility $name
           }
@@ -3636,7 +4962,7 @@ namespace eval ::Eagle {
           addConstraint [appendArgs nativeUtility. $nativeUtility]
 
           tputs $channel [appendArgs \
-              $::eagle_platform(nativeUtility) " (" $nativeUtility )\n]
+              $::eagle_platform(nativeUtility) " (" $nativeUtility ")\n"]
         } else {
           tputs $channel unknown\n
         }
@@ -3667,7 +4993,7 @@ namespace eval ::Eagle {
         #       servicing registry hive.  If this value does not exist -OR-
         #       is less than 1, then no .NET Framework 2.0 service pack is
         #       installed.  If this raises a script error, that will almost
-        #       certainly cause the result to be a non-integer, this failing
+        #       certainly cause the result to be a non-integer, thus failing
         #       the check below.
         #
         catch {
@@ -3705,11 +5031,34 @@ namespace eval ::Eagle {
       tputs $channel no\n
     }
 
+    proc getFrameworkSetup451Value {} {
+      #
+      # NOTE: Check if we are running on Windows 8.1.
+      #
+      # BUGBUG: Is exact matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) == 6.3} then {
+        #
+        # NOTE: We are running on Windows 8.1, return the special value.
+        #
+        return 378675
+      }
+
+      #
+      # NOTE: We are not running on Windows 8.1, return the normal value.
+      #
+      return 378758
+    }
+
     proc getFrameworkSetup46Value {} {
       #
       # NOTE: Check if we are running on Windows 10 or later.
       #
-      if {[isWindows] && $::tcl_platform(osVersion) >= 10.0} then {
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0} then {
         #
         # NOTE: We are running on Windows 10, return the special value.
         #
@@ -3726,17 +5075,126 @@ namespace eval ::Eagle {
       #
       # NOTE: Check if we are running on Windows 10 or later.
       #
-      if {[isWindows] && $::tcl_platform(osVersion) >= 10.0} then {
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0 && \
+          [haveTclPlatformOsExtraUpdateName "November Update"]} then {
         #
         # NOTE: We are running on Windows 10, return the special value.
         #
-        return 394254
+        return 394254; # BUGBUG: November Update only?
       }
 
       #
       # NOTE: We are not running on Windows 10, return the normal value.
       #
       return 394271
+    }
+
+    proc getFrameworkSetup462Value {} {
+      #
+      # NOTE: Check if we are running on Windows 10 or later.
+      #
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0 && \
+          [haveTclPlatformOsExtraUpdateName "Anniversary Update"]} then {
+        #
+        # NOTE: We are running on Windows 10, return the special value.
+        #
+        return 394802; # BUGBUG: Anniversary Update only?
+      }
+
+      #
+      # NOTE: We are not running on Windows 10, return the normal value.
+      #
+      return 394806
+    }
+
+    proc getFrameworkSetup47Value {} {
+      #
+      # NOTE: Check if we are running on Windows 10 or later.
+      #
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0 && \
+          [haveTclPlatformOsExtraUpdateName "Creators Update"]} then {
+        #
+        # NOTE: We are running on Windows 10, return the special value.
+        #
+        return 460798; # BUGBUG: Creators Update only?
+      }
+
+      #
+      # NOTE: We are not running on Windows 10, return the normal value.
+      #
+      return 460805
+    }
+
+    proc getFrameworkSetup471Value {} {
+      #
+      # NOTE: Check if we are running on Windows 10 or later.
+      #
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0 && \
+          [haveTclPlatformOsExtraUpdateName "Fall Creators Update"]} then {
+        #
+        # NOTE: We are running on Windows 10, return the special value.
+        #
+        return 461308; # BUGBUG: Fall Creators Update only?
+      }
+
+      #
+      # NOTE: We are not running on Windows 10, return the normal value.
+      #
+      return 461310
+    }
+
+    proc getFrameworkSetup472Value {} {
+      #
+      # NOTE: Check if we are running on Windows 10 or later.
+      #
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0 && \
+          [haveTclPlatformOsExtraUpdateName "April 2018 Update"]} then {
+        #
+        # NOTE: We are running on Windows 10, return the special value.
+        #
+        return 461808; # BUGBUG: April 2018 Update only?
+      }
+
+      #
+      # NOTE: We are not running on Windows 10, return the normal value.
+      #
+      return 461814
+    }
+
+    proc getFrameworkSetup48Value {} {
+      #
+      # NOTE: Check if we are running on Windows 10 or later.
+      #
+      # BUGBUG: Is greater-than-or-equal-to matching correct here?
+      #
+      if {[isWindows] && [info exists ::tcl_platform(osVersion)] && \
+          $::tcl_platform(osVersion) >= 10.0 && \
+          [haveTclPlatformOsExtraUpdateName "May 2019 Update"]} then {
+        #
+        # NOTE: We are running on Windows 10, return the special value.
+        #
+        return 528040; # BUGBUG: May 2019 Update only?
+      }
+
+      #
+      # NOTE: We are not running on Windows 10, return the normal value.
+      #
+      return 528049
     }
 
     proc checkForNetFx4x { channel } {
@@ -3761,7 +5219,7 @@ namespace eval ::Eagle {
         #       the servicing registry hive.  If this value does not exist
         #       -OR- is less than 378389, then the .NET Framework 4.5 is not
         #       installed.  If this raises a script error, that will almost
-        #       certainly cause the result to be a non-integer, this failing
+        #       certainly cause the result to be a non-integer, thus failing
         #       the check below.
         #
         catch {
@@ -3784,11 +5242,67 @@ namespace eval ::Eagle {
           #       equal to 393297 (393295 on Windows 10), then the .NET
           #       Framework 4.6 is installed, which is an in-place upgrade
           #       to 4.5.x.  Similar handling is necessary for the .NET
-          #       Framework 4.6.1.  For more information, see:
+          #       Framework 4.6.1, 4.6.2, 4.7, 4.7.1, 4.7.2, and 4.8.  For
+          #       more information, see:
           #
           #       https://msdn.microsoft.com/en-us/library/hh925568.aspx
           #
-          if {$release >= [getFrameworkSetup461Value]} then {
+          if {$release >= [getFrameworkSetup48Value]} then {
+            addConstraint dotNet451OrHigher
+            addConstraint dotNet452OrHigher
+            addConstraint dotNet46OrHigher
+            addConstraint dotNet461OrHigher
+            addConstraint dotNet462OrHigher
+            addConstraint dotNet47OrHigher
+            addConstraint dotNet471OrHigher
+            addConstraint dotNet472OrHigher
+            addConstraint dotNet48
+            addConstraint dotNet48OrHigher
+
+            set version 4.8
+          } elseif {$release >= [getFrameworkSetup472Value]} then {
+            addConstraint dotNet451OrHigher
+            addConstraint dotNet452OrHigher
+            addConstraint dotNet46OrHigher
+            addConstraint dotNet461OrHigher
+            addConstraint dotNet462OrHigher
+            addConstraint dotNet47OrHigher
+            addConstraint dotNet471OrHigher
+            addConstraint dotNet472
+            addConstraint dotNet472OrHigher
+
+            set version 4.7.2
+          } elseif {$release >= [getFrameworkSetup471Value]} then {
+            addConstraint dotNet451OrHigher
+            addConstraint dotNet452OrHigher
+            addConstraint dotNet46OrHigher
+            addConstraint dotNet461OrHigher
+            addConstraint dotNet462OrHigher
+            addConstraint dotNet47OrHigher
+            addConstraint dotNet471
+            addConstraint dotNet471OrHigher
+
+            set version 4.7.1
+          } elseif {$release >= [getFrameworkSetup47Value]} then {
+            addConstraint dotNet451OrHigher
+            addConstraint dotNet452OrHigher
+            addConstraint dotNet46OrHigher
+            addConstraint dotNet461OrHigher
+            addConstraint dotNet462OrHigher
+            addConstraint dotNet47
+            addConstraint dotNet47OrHigher
+
+            set version 4.7
+          } elseif {$release >= [getFrameworkSetup462Value]} then {
+            addConstraint dotNet451OrHigher
+            addConstraint dotNet452OrHigher
+            addConstraint dotNet46OrHigher
+            addConstraint dotNet461OrHigher
+            addConstraint dotNet462
+            addConstraint dotNet462OrHigher
+
+            set version 4.6.2
+          } elseif {$release >= [getFrameworkSetup461Value]} then {
             addConstraint dotNet451OrHigher
             addConstraint dotNet452OrHigher
             addConstraint dotNet46OrHigher
@@ -3809,7 +5323,7 @@ namespace eval ::Eagle {
             addConstraint dotNet452OrHigher
 
             set version 4.5.2
-          } elseif {$release >= 378675} then {
+          } elseif {$release >= [getFrameworkSetup451Value]} then {
             addConstraint dotNet451
             addConstraint dotNet451OrHigher
 
@@ -3835,15 +5349,18 @@ namespace eval ::Eagle {
       tputs $channel no\n
     }
 
-    proc checkForVisualStudio { channel } {
-      tputs $channel "---- checking for Visual Studio... "
+    proc checkForVisualStudioViaRegistry { channel } {
+      tputs $channel "---- checking for Visual Studio using registry... "
+
+      #
+      # NOTE: Initially, no versions of Visual Studio have been found.
+      #
+      set visualStudioVersions [list]
 
       #
       # NOTE: Platform must be Windows for this constraint to even be
       #       checked (i.e. we require the registry).
       #
-      set visualStudioVersions [list]
-
       if {[isWindows]} then {
         #
         # NOTE: Registry hive where Visual Studio install information is
@@ -3854,7 +5371,11 @@ namespace eval ::Eagle {
             [getSoftwareRegistryKey true] {\Microsoft\VisualStudio}]
 
         #
-        # NOTE: The versions of Visual Studio that we support.
+        # NOTE: The versions of Visual Studio that we support detection
+        #       of using the registry.  This no longer works as of the
+        #       release of Visual Studio 2017.  For Visual Studio 2017
+        #       and beyond, the [checkForVisualStudioViaVsWhere] method
+        #       must be used instead.
         #
         set versions [list [list 8.0 2005] [list 9.0 2008] \
             [list 10.0 2010] [list 11.0 2012] [list 12.0 2013] \
@@ -3867,30 +5388,38 @@ namespace eval ::Eagle {
           #
           # NOTE: Attempt to fetch the Visual Studio install directory
           #       value from the registry, removing the trailing backslash,
-          #       if any.  Does the directory name look valid and does it
-          #       actually exist?
+          #       if any.
           #
-          if {[catch {file normalize [file join [string trimright [object \
-                  invoke Microsoft.Win32.Registry GetValue [appendArgs $key \\ \
-                  [lindex $version 0]] InstallDir null] \\] msenv.dll]} \
-                  fileName] == 0 && \
-              [string length $fileName] > 0 && [file isfile $fileName]} then {
+          if {[catch {
+            file normalize [file join [string trimright [object \
+                invoke Microsoft.Win32.Registry GetValue [appendArgs \
+                $key \\ [lindex $version 0]] InstallDir null] \\] \
+                msenv.dll]
+          } fileName] == 0} then {
             #
-            # NOTE: Yes, it appears that it is available.
+            # NOTE: Does the directory name look valid and does it
+            #       actually exist?
             #
-            addConstraint [appendArgs visualStudio [lindex $version 1]]
+            if {[string length $fileName] > 0 && \
+                [file isfile $fileName]} then {
+              #
+              # NOTE: Yes, it appears that it is available.
+              #
+              addConstraint [appendArgs \
+                  visualStudio [lindex $version 1]]
 
-            #
-            # NOTE: Keep track of all the versions that we find.
-            #
-            lappend visualStudioVersions [lindex $version 1]
+              #
+              # NOTE: Keep track of all the versions that we find.
+              #
+              lappend visualStudioVersions [lindex $version 1]
 
-            #
-            # NOTE: Save the directory for later usage by
-            #       the test itself.
-            #
-            if {![info exists ::no(setVisualStudio)]} then {
-              set ::test_visual_studio [file dirname $fileName]
+              #
+              # NOTE: Save the directory for later usage by the test
+              #       suite itself.
+              #
+              if {![info exists ::no(setVisualStudio)]} then {
+                set ::test_visual_studio [file dirname $fileName]
+              }
             }
           }
         }
@@ -3902,7 +5431,8 @@ namespace eval ::Eagle {
         #
         tputs $channel [appendArgs \
             "yes (" $visualStudioVersions ", \"" \
-            $::test_visual_studio "\")\n"]
+            [expr {[info exists ::test_visual_studio] ? \
+                $::test_visual_studio : "<none>"}] "\")\n"]
       } else {
         tputs $channel no\n
       }
@@ -3918,7 +5448,7 @@ namespace eval ::Eagle {
         object invoke -flags +NonPublic \
             Eagle._Components.Private.NativeOps+SafeNativeMethods \
             IsDebuggerPresent
-      } present] == 0 && $present} then {
+      } present] == 0 && [string is true -strict $present]} then {
         #
         # NOTE: Yes, it appears that it is present.
         #
@@ -3938,7 +5468,7 @@ namespace eval ::Eagle {
       #
       if {[catch {
         object invoke System.Diagnostics.Debugger IsAttached
-      } attached] == 0 && $attached} then {
+      } attached] == 0 && [string is true -strict $attached]} then {
         #
         # NOTE: Yes, it appears that it is attached.
         #
@@ -3962,7 +5492,7 @@ namespace eval ::Eagle {
         #
         # NOTE: We do not own this, do not dispose it.
         #
-        if {[string length $debugger] > 0} then {
+        if {[isNonNullObjectHandle $debugger]} then {
           catch {object flags $debugger +NoDispose}
         }
 
@@ -3996,7 +5526,7 @@ namespace eval ::Eagle {
         #
         # NOTE: We do not own this, do not dispose it.
         #
-        if {[string length $debugger] > 0} then {
+        if {[isNonNullObjectHandle $debugger]} then {
           catch {object flags $debugger +NoDispose}
         }
 
@@ -4005,7 +5535,7 @@ namespace eval ::Eagle {
           #
           # NOTE: We do not own this, do not dispose it.
           #
-          if {[string length $interp] > 0} then {
+          if {[isNonNullObjectHandle $interp]} then {
             catch {object flags $interp +NoDispose}
           }
 
@@ -4041,21 +5571,28 @@ namespace eval ::Eagle {
     #       global namespace.
     #
     exportAndImportPackageCommands [namespace current] [list \
-        getKnownBuildTypes getKnownCompileOptions getKnownMonoVersions \
-        lpermute alwaysFullInterpReady canExecComSpec canExecWhoAmI \
-        canExecTclShell canExecFossil isTestMono isTestAdministrator \
-        canPing checkForTestSuiteFiles checkForPlatform \
-        checkForWindowsVersion checkForScriptLibrary checkForVariable \
-        checkForTclOptions checkForWindowsCommandProcessor checkForFossil \
-        checkForEagle checkForSymbols checkForLogFile checkForGaruda \
-        checkForShell checkForOfficialStableReleaseInProgress checkForDebug \
-        checkForTk checkForVersion checkForCommand checkForSubCommand \
+        getKnownBuildTypes getKnownCompileOptions getKnownWindowsVersions \
+        getKnownMonoVersions addKnownMonoConstraints \
+        getKnownDotNetCoreVersions addKnownDotNetCoreConstraints \
+        getDotNetCoreLibPathDirectoryNameOnly lpermute alwaysFullInterpReady \
+        canExecComSpec canExecWhoAmI canExecTclShell canExecFossil \
+        canExecVsWhere isTestMono isTestDotNetCore isTestAdministrator canPing \
+        cleanConstraintName cleanPackageName haveTclPlatformOsExtraUpdateName \
+        checkForTestSuiteFiles checkForPlatform checkForWindowsVersion \
+        checkForGetInstalledUpdates checkForOperatingSystemUpdate \
+        checkForScriptLibrary checkForVariable checkForTclOptions \
+        checkForWindowsCommandProcessor checkForPackage checkForFossil \
+        checkForVisualStudioViaVsWhere checkForEagle checkForSymbols \
+        checkForLogFile checkForGaruda checkForShell \
+        checkForOfficialStableReleaseInProgress checkForDebug checkForTk \
+        checkForVersion checkForCommand checkForSubCommand checkForEFormat \
         checkForNamespaces checkForTestExec checkForTestMachine \
-        checkForTestPlatform checkForTestConfiguration checkForTestSuffix \
-        checkForFile checkForPathFile checkForNativeCode checkForTip127 \
-        checkForTip194 checkForTip207 checkForTip241 checkForTip285 \
-        checkForTip405 checkForTip426 checkForTip429 checkForTip440 \
-        checkForTiming checkForPerformance checkForBigLists \
+        checkForTestPlatform checkForTestConfiguration checkForTestNamePrefix \
+        checkForTestSuffix checkForFile checkForPathFile checkForNativeCode \
+        checkForTip127 checkForTip194 checkForTip207 checkForTip241 \
+        checkForTip285 checkForTip405 checkForTip421 checkForTip426 \
+        checkForTip429 checkForTip440 checkForTip461 checkForTip463 \
+        checkForTip471 checkForTiming checkForPerformance checkForBigLists \
         checkForProcessorIntensive checkForTimeIntensive checkForFullTest \
         checkForMemoryIntensive checkForStackIntensive checkForStackSize \
         checkForInteractive checkForInteractiveCommand \
@@ -4068,7 +5605,7 @@ namespace eval ::Eagle {
   }
 
   #
-  # NOTE: Provide the Eagle test constraints package to the interpreter.
+  # NOTE: Provide the Eagle "test constraints" package to the interpreter.
   #
   package provide Eagle.Test.Constraints \
     [expr {[isEagle] ? [info engine PatchLevel] : "1.0"}]

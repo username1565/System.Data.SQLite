@@ -27,6 +27,11 @@ if {![info exists no([file tail [info script]])]} then {
       user password percent checkout timeStamp loaded
 
   #
+  # NOTE: Remove any stale test suite error messages from prior runs.
+  #
+  unset -nocomplain test_suite_errors
+
+  #
   # NOTE: Indicate that the test suite is currently running.
   #
   if {![info exists test_suite_running] || !$test_suite_running} then {
@@ -38,6 +43,13 @@ if {![info exists no([file tail [info script]])]} then {
   #
   if {![info exists test_all_path]} then {
     set test_all_path [file normalize [file dirname [info script]]]
+  }
+
+  #
+  # NOTE: Set the location of the primary test suite file, if necessary.
+  #
+  if {![info exists test_suite_file]} then {
+    set test_suite_file [file normalize [info script]]
   }
 
   #
@@ -81,6 +93,14 @@ if {![info exists no([file tail [info script]])]} then {
     }
 
     unset expr
+  }
+
+  #
+  # NOTE: Set the location of the home directory for the current
+  #       user.
+  #
+  if {![info exists test_home_path]} then {
+    set test_home_path [file normalize ~]
   }
 
   #
@@ -169,7 +189,8 @@ if {![info exists no([file tail [info script]])]} then {
   #
   # NOTE: Set the location of the [non-script] library directory
   #       (i.e. the directory where the plugins are located), if
-  #       necessary.
+  #       necessary.  This variant is based on where the process
+  #       executable is located.
   #
   if {![info exists lib_path]} then {
     #
@@ -179,6 +200,68 @@ if {![info exists no([file tail [info script]])]} then {
     #       beneath that.
     #
     set lib_path [file normalize [file join [file dirname $bin_path] lib]]
+  }
+
+  #
+  # NOTE: Set the location of the Eagle core library -OR- Tcl core
+  #       library file is located.  This may be different than the
+  #       location of the (shell?) executable file.
+  #
+  if {![info exists core_bin_path]} then {
+    #
+    # NOTE: Attempt to obtain the information for the Eagle core
+    #       library assembly.  This will not work for native Tcl.
+    #
+    if {[catch {info assembly} bin_dir] == 0} then {
+      #
+      # NOTE: Grab the directory for the core library assembly.
+      #
+      set core_bin_path [file dirname [lindex $bin_dir end]]
+    } else {
+      #
+      # NOTE: This is native Tcl.  There is no way to query the
+      #       path for the Tcl core library itself (e.g. "tcl*.dll",
+      #       "libtcl*.so", etc); however, using [info library] is
+      #       close enough.
+      #
+      set core_bin_path [file dirname [info library]]
+    }
+
+    unset bin_dir
+  }
+
+  #
+  # NOTE: Set the location of the [non-script] library directory
+  #       (i.e. the directory where the plugins are located), if
+  #       necessary.  This variant is based on where the Eagle
+  #       core library -OR- Tcl core library file is located.
+  #
+  if {![info exists core_lib_path]} then {
+    #
+    # NOTE: Start with the directory for the core library assembly.
+    #
+    set core_lib_path $core_bin_path
+
+    #
+    # NOTE: Perform a check for the .NET Core output directories
+    #       (e.g. "netcoreapp2.0", etc), which must be removed
+    #       if present, prior to further checks.
+    #
+    if {![info exists no(dotNetCoreLibPath)] && \
+        [string match net* [file tail $core_lib_path]]} then {
+      #
+      # NOTE: Remove the .NET Core output directory name.
+      #
+      set core_lib_path [file dirname $core_lib_path]
+    }
+
+    #
+    # NOTE: Go up one level, to remove the "bin" directory and
+    #       then append the "lib" directory.  This gives us the
+    #       final path we need.
+    #
+    set core_lib_path [file normalize \
+        [file join [file dirname $core_lib_path] lib]]
   }
 
   #
@@ -219,14 +302,16 @@ if {![info exists no([file tail [info script]])]} then {
   #
   # NOTE: Make sure our primary package path is part of the auto-path.
   #
-  if {[lsearch -exact $auto_path $test_package_path] == -1} then {
+  if {[info exists auto_path] && \
+      [lsearch -exact $auto_path $test_package_path] == -1} then {
     lappend auto_path $test_package_path
   }
 
   #
   # NOTE: Make sure the test suite package is part of the auto-path.
   #
-  if {[lsearch -exact $auto_path $test_all_path] == -1} then {
+  if {[info exists auto_path] && \
+      [lsearch -exact $auto_path $test_all_path] == -1} then {
     lappend auto_path $test_all_path
   }
 
@@ -234,7 +319,8 @@ if {![info exists no([file tail [info script]])]} then {
   # NOTE: Make sure the test suite is part of the auto-path.  This is
   #       now done for legacy compatibility only.
   #
-  if {[lsearch -exact $auto_path $test_path] == -1} then {
+  if {[info exists auto_path] && \
+      [lsearch -exact $auto_path $test_path] == -1} then {
     lappend auto_path $test_path
   }
 
@@ -385,6 +471,7 @@ if {![info exists no([file tail [info script]])]} then {
   set test_flags(-machine) ""; # machine architecture, default to empty.
   set test_flags(-platform) ""; # build platform, default to empty.
   set test_flags(-configuration) ""; # build configuration, default to empty.
+  set test_flags(-namePrefix) ""; # test name prefix, default to empty.
   set test_flags(-suffix) ""; # build suffix, default to empty.
   set test_flags(-file) [list *.eagle]; # default to running all test files.
   set test_flags(-notFile) [list l.*.eagle]; # COMPAT: Tcl.
@@ -394,6 +481,8 @@ if {![info exists no([file tail [info script]])]} then {
   set test_flags(-skip) [list]; # default to skipping no tests.
   set test_flags(-constraints) [list]; # default to no manual constraints.
   set test_flags(-verbose) ""; # default to pass, body, skip, start, error.
+  set test_flags(-logPath) ""; # default to using standard log file path.
+  set test_flags(-logId) ""; # default to using no log identifier.
   set test_flags(-logFile) ""; # default to using standard log file naming.
   set test_flags(-threshold) ""; # default to requiring all tests to pass.
   set test_flags(-randomOrder) ""; # default to deterministic order.
@@ -428,6 +517,22 @@ if {![info exists no([file tail [info script]])]} then {
       }
 
       unset -nocomplain name value
+    }
+
+    if {[info exists test_flags(-logPath)] && \
+        [string length $test_flags(-logPath)] > 0} then {
+      #
+      # NOTE: Set the log path to the one provided by the command line.
+      #
+      set test_log_path $test_flags(-logPath)
+    }
+
+    if {[info exists test_flags(-logId)] && \
+        [string length $test_flags(-logId)] > 0} then {
+      #
+      # NOTE: Set the log identifier to the one provided by the command line.
+      #
+      set test_log_id $test_flags(-logId)
     }
 
     if {[info exists test_flags(-logFile)] && \
@@ -565,6 +670,13 @@ if {![info exists no([file tail [info script]])]} then {
   }
 
   #
+  # NOTE: Set the name prefix used for some tests, if necessary.
+  #
+  if {![info exists test_name_prefix]} then {
+    set test_name_prefix ""
+  }
+
+  #
   # NOTE: Has automatic log file naming been disabled?
   #
   if {![info exists no(logFileName)]} then {
@@ -582,6 +694,14 @@ if {![info exists no([file tail [info script]])]} then {
   # NOTE: Has native Tcl shell detection and use been disabled?
   #
   if {![info exists no(tclsh)]} then {
+    #
+    # NOTE: By default, disable verbose output when using the native
+    #       Tcl shell within the test suite.
+    #
+    if {![info exists test_tclsh_verbose]} then {
+      set test_tclsh_verbose 0
+    }
+
     #
     # NOTE: Set the Tcl shell executable to use for those specialized
     #       tests that may require it, if necessary.
@@ -617,7 +737,8 @@ if {![info exists no([file tail [info script]])]} then {
 
             set test_tclsh [getTclShellFileName \
                 [expr {![info exists no(automaticTclShell)]}] \
-                [expr {![info exists no(tclKit)]}]]
+                [expr {![info exists no(tclKit)]}] \
+                [expr {[info exists test_machine] ? $test_machine : ""}]]
           } else {
             #
             # NOTE: Skip detection and use the fallback default.
@@ -731,11 +852,24 @@ if {![info exists no([file tail [info script]])]} then {
   #       any.  This must be done after the log file has been setup; otherwise,
   #       this information will not be visible in the log file.
   #
+  if {![info exists test_run_id]} then {
+    set test_run_id [getNewTestRunId]
+  }
+
   tputs $test_channel [appendArgs "---- testRunId: " \
-      [getTestRunId] \n]
+      [expr {[info exists test_run_id] ? \
+          $test_run_id : "<none>"}] \n]
 
   tputs $test_channel [appendArgs "---- processId: " \
       [pid] \n]
+
+  set ppid(0) [catch {info ppid} ppid(1)]
+
+  tputs $test_channel [appendArgs "---- parentProcessId: " \
+      [expr {$ppid(0) == 0 ? \
+          $ppid(1) : "<none>"}] \n]
+
+  unset ppid
 
   tputs $test_channel [appendArgs "---- test suite: " \
       [expr {[info exists test_suite] ? \
@@ -755,6 +889,10 @@ if {![info exists no([file tail [info script]])]} then {
   tputs $test_channel [appendArgs "---- test configuration: " \
       [expr {[info exists test_configuration] ? \
           $test_configuration : "<none>"}] \n]
+
+  tputs $test_channel [appendArgs "---- test name prefix: " \
+      [expr {[info exists test_name_prefix] ? \
+          $test_name_prefix : "<none>"}] \n]
 
   tputs $test_channel [appendArgs "---- test suffix: " \
       [expr {[info exists test_suffix] ? \
@@ -834,6 +972,16 @@ if {![info exists no([file tail [info script]])]} then {
       [expr {[info exists test_flags(-bad)] && \
           [string length $test_flags(-bad)] > 0 ? \
               $test_flags(-bad) : "<none>"}] \n]
+
+  tputs $test_channel [appendArgs "---- logging path: " \
+      [expr {[info exists test_log_path] && \
+          [string length $test_log_path] > 0 ? \
+              [appendArgs \" $test_log_path \"] : "<none>"}] \n]
+
+  tputs $test_channel [appendArgs "---- logging identifier: " \
+      [expr {[info exists test_log_id] && \
+          [string length $test_log_id] > 0 ? \
+              [appendArgs \" $test_log_id \"] : "<none>"}] \n]
 
   tputs $test_channel [appendArgs "---- logging to: " \
       [expr {[info exists test_log] && [string length $test_log] > 0 ? \
@@ -934,6 +1082,15 @@ if {![info exists no([file tail [info script]])]} then {
   tputs $test_channel [appendArgs "---- library path: \"" \
       $lib_path \"\n]
 
+  tputs $test_channel [appendArgs "---- core binary path: \"" \
+      $core_bin_path \"\n]
+
+  tputs $test_channel [appendArgs "---- core library path: \"" \
+      $core_lib_path \"\n]
+
+  tputs $test_channel [appendArgs "---- test home path: \"" \
+      $test_home_path \"\n]
+
   tputs $test_channel [appendArgs "---- test suite files located in: \"" \
       $test_all_path \"\n]
 
@@ -952,6 +1109,11 @@ if {![info exists no([file tail [info script]])]} then {
   tputs $test_channel [appendArgs "---- native Tcl shell: " \
       [expr {[info exists test_tclsh] && [string length $test_tclsh] > 0 ? \
           [appendArgs \" $test_tclsh \"] : "<none>"}] \n]
+
+  tputs $test_channel [appendArgs \
+      "---- verbosity level for native Tcl shell: " [expr {[info exists \
+          test_tclsh_verbose] && [string length $test_tclsh_verbose] > 0 ? \
+          $test_tclsh_verbose : "<none>"}] \n]
 
   tputs $test_channel [appendArgs "---- disabled options: " \
       [formatList [lsort [array names no]] <none>] \n]
@@ -1034,7 +1196,7 @@ if {![info exists no([file tail [info script]])]} then {
     #       does not control or change any hacks for Mono that may
     #       be present in the library itself.
     #
-    # if {[isTestMono]} then {
+    # if {[isMono]} then {
     #   set no(mono) true
     # }
 
@@ -1054,7 +1216,7 @@ if {![info exists no([file tail [info script]])]} then {
     if {![info exists no(quiet)]} then {
       #
       # NOTE: For tests "basic-1.36", "benchmark-1.*", "debug-1.3",
-      #       "debug-1.4", "glob-99.*", "object-10.*", "perf-2.2",
+      #       "debug-1.4.*", "glob-99.*", "object-10.*", "perf-2.2",
       #       and various other places within the test suite code
       #       itself.
       #
@@ -1136,6 +1298,13 @@ if {![info exists no([file tail [info script]])]} then {
     }
 
     #
+    # NOTE: Check if the image runtime version matches the framework.
+    #
+    if {![info exists no(matchingFrameworkVersion)]} then {
+      checkForMatchingFrameworkVersion $test_channel
+    }
+
+    #
     # NOTE: Has process bits detection support been disabled?
     #
     if {![info exists no(processBits)]} then {
@@ -1172,6 +1341,13 @@ if {![info exists no([file tail [info script]])]} then {
     #
     if {![info exists no(threadCulture)]} then {
       checkForThreadCulture $test_channel
+    }
+
+    #
+    # NOTE: Has security detection support been disabled?
+    #
+    if {![info exists no(security)]} then {
+      checkForSecurity $test_channel
     }
 
     #
@@ -1321,13 +1497,6 @@ if {![info exists no([file tail [info script]])]} then {
     }
 
     #
-    # NOTE: Has testing using the C# compiler been disabled?
-    #
-    if {![info exists no(checkForCompileCSharp)]} then {
-      checkForCompileCSharp $test_channel
-    }
-
-    #
     # NOTE: Has compile/runtime option testing support been disabled?
     #
     if {![info exists no(compileOptions)]} then {
@@ -1361,6 +1530,17 @@ if {![info exists no([file tail [info script]])]} then {
         }
 
         #
+        # NOTE: Has configuration support been enabled (at compile-time)?
+        #
+        if {![info exists no(compileConfiguration)]} then {
+          #
+          # NOTE: For tests "debug-1.3", "object-99.1", "object-11.4",
+          #       and "garuda-1.2".
+          #
+          checkForCompileOption $test_channel CONFIGURATION
+        }
+
+        #
         # NOTE: Has console support been enabled (at compile-time)?
         #
         if {![info exists no(compileConsole)]} then {
@@ -1385,10 +1565,42 @@ if {![info exists no([file tail [info script]])]} then {
         #
         if {![info exists no(compileDebugger)]} then {
           #
-          # NOTE: For tests "debug-1.1", "debug-2.1", "debug-3.1" and
-          #       "debug-4.1".
+          # NOTE: For tests "debug-1.1", "debug-2.1", "debug-3.1",
+          #       "debug-4.1", and "proc-2.1".
           #
           checkForCompileOption $test_channel DEBUGGER
+        }
+
+        #
+        # NOTE: Has script debugger arguments support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileDebuggerArguments)]} then {
+          #
+          # NOTE: For tests "object-5.1.*".
+          #
+          checkForCompileOption $test_channel DEBUGGER_ARGUMENTS
+        }
+
+        #
+        # NOTE: Has script arguments stack support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileScriptArguments)]} then {
+          #
+          # NOTE: For test "debug-2.86".
+          #
+          checkForCompileOption $test_channel SCRIPT_ARGUMENTS
+        }
+
+        #
+        # NOTE: Has script breakpoint support been enabled (at compile-time)?
+        #
+        if {![info exists no(compileBreakpoints)]} then {
+          #
+          # NOTE: For test "proc-2.1".
+          #
+          checkForCompileOption $test_channel BREAKPOINTS
         }
 
         #
@@ -1444,6 +1656,42 @@ if {![info exists no([file tail [info script]])]} then {
         }
 
         #
+        # NOTE: Has embedded library support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileEmbeddedLibrary)]} then {
+          #
+          # NOTE: For test "interp-1.400".
+          #
+          checkForCompileOption $test_channel EMBEDDED_LIBRARY
+        }
+
+        #
+        # NOTE: Has System.Reflection.Emit support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileEmit)]} then {
+          #
+          # NOTE: For tests "commands-1.1.*", "debug-9.1", "library-*",
+          #       "object-4.10", "object-4.11", "object-4.12",
+          #       "object-8.1??", and "perf-101.0".
+          #
+          checkForCompileOption $test_channel EMIT
+        }
+
+        #
+        # NOTE: Has .NET Standard 2.0 support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileNetStandard20)]} then {
+          #
+          # NOTE: For tests "basic-1.29.*", "basic-1.30.*", "host-1.1",
+          #       "interp-1.601", "redefine-6.2", and "sql-1.17".
+          #
+          checkForCompileOption $test_channel NET_STANDARD_20
+        }
+
+        #
         # NOTE: Has Mono support been enabled (at compile-time)?
         #
         if {![info exists no(compileMono)]} then {
@@ -1471,6 +1719,16 @@ if {![info exists no([file tail [info script]])]} then {
           # NOTE: For tests "object-10.21", "tclLoad-1.2", "winForms-*.*".
           #
           checkForCompileOption $test_channel WINFORMS
+        }
+
+        #
+        # NOTE: Has native library support been enabled (at compile-time)?
+        #
+        if {![info exists no(compileLibrary)]} then {
+          #
+          # NOTE: For tests "commands-1.*".
+          #
+          checkForCompileOption $test_channel LIBRARY
         }
 
         #
@@ -1502,6 +1760,27 @@ if {![info exists no([file tail [info script]])]} then {
           #       "socket-3.1".
           #
           checkForCompileOption $test_channel NETWORK
+        }
+
+        #
+        # NOTE: Has notification support been enabled (at compile-time)?
+        #
+        if {![info exists no(compileNotify)]} then {
+          #
+          # NOTE: For test "basic-1.75".
+          #
+          checkForCompileOption $test_channel NOTIFY
+        }
+
+        #
+        # NOTE: Has notification argument support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileNotifyArguments)]} then {
+          #
+          # NOTE: For test "basic-1.75".
+          #
+          checkForCompileOption $test_channel NOTIFY_ARGUMENTS
         }
 
         #
@@ -1539,6 +1818,27 @@ if {![info exists no([file tail [info script]])]} then {
         }
 
         #
+        # NOTE: Has remoting support been enabled (at compile-time)?
+        #
+        if {![info exists no(compileRemoting)]} then {
+          #
+          # NOTE: For tests "remotingServer-1.*".
+          #
+          checkForCompileOption $test_channel REMOTING
+        }
+
+        #
+        # NOTE: Has result size limit support been enabled (at
+        #       compile-time)?
+        #
+        if {![info exists no(compileResultLimits)]} then {
+          #
+          # NOTE: For tests "interp-1.500" and "interp-1.501".
+          #
+          checkForCompileOption $test_channel RESULT_LIMITS
+        }
+
+        #
         # NOTE: Has dedicated test support been enabled (at compile-time)?
         #
         if {![info exists no(compileTest)]} then {
@@ -1566,7 +1866,7 @@ if {![info exists no([file tail [info script]])]} then {
         #
         if {![info exists no(compileTclThreaded)]} then {
           #
-          # NOTE: For tests "tclLoad-3.1" and "tclLoad-3.2".
+          # NOTE: For tests "tclLoad-3.*".
           #
           checkForCompileOption $test_channel TCL_THREADED
         }
@@ -1577,7 +1877,7 @@ if {![info exists no([file tail [info script]])]} then {
         #
         if {![info exists no(compileTclThreads)]} then {
           #
-          # NOTE: For tests "tclLoad-3.1" and "tclLoad-3.2".
+          # NOTE: For tests "tclLoad-3.*".
           #
           checkForCompileOption $test_channel TCL_THREADS
         }
@@ -1587,13 +1887,6 @@ if {![info exists no([file tail [info script]])]} then {
         #
         if {![info exists no(compileDrawing)]} then {
           checkForCompileOption $test_channel DRAWING
-        }
-
-        #
-        # NOTE: Has WinForms support been enabled (at compile-time)?
-        #
-        if {![info exists no(compileWinForms)]} then {
-          checkForCompileOption $test_channel WINFORMS
         }
 
         #
@@ -1619,7 +1912,26 @@ if {![info exists no([file tail [info script]])]} then {
           #
           checkForCompileOption $test_channel LIMITED_EDITION
         }
+
+        #
+        # NOTE: Has runtime "demo edition" checking support been
+        #       disabled (at compile-time)?  This only applies to
+        #       third-party plugins and applications.
+        #
+        if {![info exists no(compileDemoEdition)]} then {
+          #
+          # NOTE: This is not currently used by any tests.
+          #
+          checkForCompileOption $test_channel DEMO_EDITION
+        }
       }
+    }
+
+    #
+    # NOTE: Has testing using the C# compiler been disabled?
+    #
+    if {![info exists no(checkForCompileCSharp)]} then {
+      checkForCompileCSharp $test_channel
     }
 
     #
@@ -1670,6 +1982,68 @@ if {![info exists no([file tail [info script]])]} then {
     # NOTE: Has custom test method support been disabled?
     #
     if {![info exists no(core)] && ![info exists no(test)]} then {
+      #
+      # NOTE: Has UnknownCallback testing support been disabled?
+      #
+      if {![info exists no(testUnknownCallback)]} then {
+        #
+        # NOTE: For tests "unknown-*".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetUnknownSpyCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetUnknownScriptObjectCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetUnknownScriptCommandCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetUnknownObjectInvokeCallback*
+      }
+
+      #
+      # NOTE: Has PackageCallback testing support been disabled?
+      #
+      if {![info exists no(testPackageCallback)]} then {
+        #
+        # NOTE: For test "package-2.1".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetPackageFallbackCallback*
+      }
+
+      #
+      # NOTE: Has ExecuteCallback testing support been disabled?
+      #
+      if {![info exists no(testExecuteCallback)]} then {
+        #
+        # NOTE: For tests "executeCallback-1.*".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestAddExecuteCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestExecuteCallback1*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestExecuteCallback2*
+      }
+
+      #
+      # NOTE: Has SleepWaitCallback testing support been disabled?
+      #
+      if {![info exists no(testSleepWaitCallback)]} then {
+        #
+        # NOTE: For test "vwait-1.31".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestGetSleepWaitCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetSleepWaitCallback*
+      }
+
       #
       # NOTE: Has WriteHeader testing support been disabled?
       #
@@ -1745,6 +2119,31 @@ if {![info exists no([file tail [info script]])]} then {
       }
 
       #
+      # NOTE: Has new interpreter callback testing support been disabled?
+      #
+      if {![info exists no(testNewInterpreter)]} then {
+        #
+        # NOTE: For tests "interp-1.101" and "interp-1.102".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetNewInterpreterCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestNewInterpreterCallback*
+      }
+
+      #
+      # NOTE: Has use interpreter callback testing support been disabled?
+      #
+      if {![info exists no(testUseInterpreter)]} then {
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetUseInterpreterCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestUseInterpreterCallback*
+      }
+
+      #
       # NOTE: Has custom match mode testing been disabled?
       #
       if {![info exists no(testMatchMode)]} then {
@@ -1763,10 +2162,13 @@ if {![info exists no([file tail [info script]])]} then {
         # NOTE: For test "socket-3.50".
         #
         checkForObjectMember $test_channel Eagle._Tests.Default \
-            *TestHasNewScriptWebClientCallback*
+            *TestHasScriptNewWebClientCallback*
 
         checkForObjectMember $test_channel Eagle._Tests.Default \
-            *TestSetNewScriptWebClientCallback*
+            *TestHasErrorNewWebClientCallback*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetScriptNewWebClientCallback*
       }
 
       if {![info exists no(testLoad)]} then {
@@ -1802,6 +2204,9 @@ if {![info exists no([file tail [info script]])]} then {
             *TestCallDynamicCallback3*
 
         checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestCallDynamicCallback4*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestGetDynamicCallbacks*
 
         checkForObjectMember $test_channel Eagle._Tests.Default \
@@ -1815,6 +2220,9 @@ if {![info exists no([file tail [info script]])]} then {
 
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestCallStaticDynamicCallback3*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestCallStaticDynamicCallback4*
 
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestGetStaticDynamicCallbacks*
@@ -1840,6 +2248,23 @@ if {![info exists no([file tail [info script]])]} then {
         #
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestRemoting*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestRemotingHaveChannel*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestRemotingTryGetChannel*
+      }
+
+      #
+      # NOTE: Has embedded resource testing support been disabled?
+      #
+      if {![info exists no(testResources)]} then {
+        #
+        # NOTE: For test "interp-1.400".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestGetResourceString*
       }
 
       #
@@ -1933,6 +2358,34 @@ if {![info exists no([file tail [info script]])]} then {
       }
 
       #
+      # NOTE: Has special variable testing support been disabled?
+      #
+      if {![info exists no(testSetVariable)]} then {
+        #
+        # NOTE: For test "basic-1.107".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetVariableWithTypedValue*
+      }
+
+      #
+      # NOTE: Has enumerable variable testing support been disabled?
+      #
+      if {![info exists no(testEnumerableVariables)]} then {
+        #
+        # NOTE: For test "basic-1.105".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetupIntArray*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestSetVariableEnumerable*
+
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestUnsetVariableEnumerable*
+      }
+
+      #
       # NOTE: Has linked variable testing support been disabled?
       #
       if {![info exists no(testLinkedVariables)]} then {
@@ -1963,6 +2416,17 @@ if {![info exists no([file tail [info script]])]} then {
 
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestUnsetVariableSystemArray*
+      }
+
+      #
+      # NOTE: Has reparse point testing support been disabled?
+      #
+      if {![info exists no(reparsePoints)]} then {
+        #
+        # NOTE: For tests "fileIO-14.*".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestProcessReparseData*
       }
 
       #
@@ -2018,13 +2482,13 @@ if {![info exists no([file tail [info script]])]} then {
             *TestRestoreObjects*
 
         #
-        # NOTE: For test "basic-1.29".
+        # NOTE: For test "basic-1.29.*".
         #
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestExecuteStaticDelegates*
 
         #
-        # NOTE: For tests "basic-1.30" and "basic-1.31".
+        # NOTE: For tests "basic-1.30.*" and "basic-1.31".
         #
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestExecuteDelegateCommands*
@@ -2106,6 +2570,18 @@ if {![info exists no([file tail [info script]])]} then {
         #
         checkForObjectMember $test_channel Eagle._Tests.Default \
             *TestStringIDictionaryReturnValue*
+
+        #
+        # NOTE: For tests "object-3.14" and "object-3.15".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestReturnOfSelf*
+
+        #
+        # NOTE: For test "object-3.17".
+        #
+        checkForObjectMember $test_channel Eagle._Tests.Default \
+            *TestByRefByteArray*
 
         #
         # NOTE: For test "object-4.1".
@@ -2239,6 +2715,18 @@ if {![info exists no([file tail [info script]])]} then {
       }
 
       #
+      # NOTE: Has script limiter testing support been disabled?
+      #
+      if {![info exists no(testLimiter)]} then {
+        #
+        # NOTE: For tests "interp-1.90?".
+        #
+        checkForObjectMember $test_channel \
+            Eagle._Tests.Default+ScriptLimiter *ToString* \
+            Eagle._Tests.Default.ScriptLimiter.ToString
+      }
+
+      #
       # NOTE: Has TraceListener testing support been disabled?
       #
       if {![info exists no(testTraceListener)]} then {
@@ -2256,6 +2744,30 @@ if {![info exists no([file tail [info script]])]} then {
         #
         checkForObjectMember $test_channel Eagle._Tests.Default+Listener \
             * Eagle._Tests.Default.Listener
+      }
+
+      #
+      # NOTE: Has script event thread testing support been disabled?
+      #
+      if {![info exists no(testScriptEventThread)]} then {
+        #
+        # NOTE: For test "interp-1.801".
+        #
+        checkForObjectMember $test_channel \
+            Eagle._Tests.Default+ScriptEventState \
+            *ToString* Eagle._Tests.Default.ScriptEventState.ToString
+
+        checkForObjectMember $test_channel \
+            Eagle._Tests.Default+ScriptEventThread \
+            *ToString* Eagle._Tests.Default.ScriptEventThread.ToString
+
+        checkForObjectMember $test_channel \
+            Eagle._Tests.Default+ScriptThreadClientData \
+            *ToString* Eagle._Tests.Default.ScriptThreadClientData.ToString
+
+        checkForObjectMember $test_channel \
+            Eagle._Tests.Default+ScriptTimeoutThread \
+            *ToString* Eagle._Tests.Default.ScriptTimeoutThread.ToString
       }
     }
 
@@ -2282,6 +2794,16 @@ if {![info exists no([file tail [info script]])]} then {
       # NOTE: For tests "excel-*.*".
       #
       checkForAssembly $test_channel Microsoft.Office.Interop.Excel
+
+      #
+      # NOTE: Has Excel usability testing been disabled?
+      #
+      if {![info exists no(excelUsable)]} then {
+        #
+        # NOTE: For tests "excel-*.*".
+        #
+        checkForExcelUsable $test_channel
+      }
     }
 
     #
@@ -2391,7 +2913,7 @@ if {![info exists no([file tail [info script]])]} then {
     # NOTE: Has Visual Studio testing support been disabled?
     #
     if {![info exists no(visualStudio)]} then {
-      checkForVisualStudio $test_channel
+      checkForVisualStudioViaRegistry $test_channel
     }
 
     #
@@ -2555,6 +3077,53 @@ if {![info exists no([file tail [info script]])]} then {
       "---- start of common (Tcl & Eagle) test constraints...\n"
 
   #
+  # NOTE: Force tests that are normally blocked by Mono issues to run?
+  #
+  if {[info exists no(monoHacks)]} then {
+    addKnownMonoConstraints true
+    addKnownMonoConstraints false
+
+    tputs $test_channel \
+        "---- added all known Mono test constraints (forced)\n"
+  }
+
+  #
+  # NOTE: Has Visual Studio testing support been disabled?
+  #
+  if {![info exists no(visualStudio)]} then {
+    checkForVisualStudioViaVsWhere $test_channel
+  }
+
+  #
+  # NOTE: Check for Eagle core library package names...
+  #
+  if {![info exists no(corePackageNames)]} then {
+    checkForPackage $test_channel {^Eagle\._Plugins\.Core, .*$}
+    checkForPackage $test_channel {^Eagle\._Plugins\.Object, .*$}
+    checkForPackage $test_channel {^Eagle\._Plugins\.Test, .*$}
+    checkForPackage $test_channel {^Eagle\._Plugins\.Trace, .*$}
+  }
+
+  #
+  # NOTE: Check for Eagle Enterprise Edition package names...
+  #
+  if {![info exists no(enterprisePackageNames)]} then {
+    #
+    # NOTE: These are from various SKUs of the Harpy plugin.
+    #
+    checkForPackage $test_channel {^Licensing\.Core, .*$}
+    checkForPackage $test_channel {^Licensing\.Standard, .*$}
+    checkForPackage $test_channel {^Licensing\.Enterprise, .*$}
+    checkForPackage $test_channel {^Security\.Core, .*$}
+
+    #
+    # NOTE: These are from various SKUs of the Badge plugin.
+    #
+    checkForPackage $test_channel {^Badge\.Enterprise, .*$}
+    checkForPackage $test_channel {^Security\.Certificates, .*$}
+  }
+
+  #
   # NOTE: Check for the test suite infrastructure files...
   #
   if {![info exists no(testSuiteFiles)]} then {
@@ -2587,6 +3156,13 @@ if {![info exists no([file tail [info script]])]} then {
   #
   if {![info exists no(testConfiguration)]} then {
     checkForTestConfiguration $test_channel
+  }
+
+  #
+  # NOTE: Has checking for the test name prefix been disabled?
+  #
+  if {![info exists no(testNamePrefix)]} then {
+    checkForTestNamePrefix $test_channel
   }
 
   #
@@ -2686,6 +3262,14 @@ if {![info exists no([file tail [info script]])]} then {
     #
     if {![info exists no(file.dat)]} then {
       checkForFile $test_channel [file join $test_data_path file.dat]
+    }
+
+    #
+    # NOTE: For tests "fileIO-5.6.*".
+    #
+    if {![info exists no(HomeDocuments)]} then {
+      checkForFile $test_channel [file join \
+          $test_home_path Documents] HomeDocuments
     }
 
     #
@@ -2799,28 +3383,30 @@ if {![info exists no([file tail [info script]])]} then {
     # NOTE: For tests "load-1.1.*".
     #
     if {![info exists no(Plugin.dll)]} then {
-      checkForFile $test_channel [file join $lib_path Plugin1.0 Plugin.dll]
+      checkForFile $test_channel [file join \
+          $core_lib_path Plugin1.0 [getDotNetCoreLibPathDirectoryNameOnly \
+          Plugin1.0] Plugin.dll]
     }
 
     #
     # NOTE: For test "object-6.1".
     #
     if {![info exists no(Sample.exe)]} then {
-      checkForFile $test_channel [file join $bin_path Sample.exe]
+      checkForFile $test_channel [file join $core_bin_path Sample.exe]
     }
 
     #
     # NOTE: For test "object-4.8".
     #
     if {![info exists no(EagleCmdlets.dll)]} then {
-      checkForFile $test_channel [file join $bin_path EagleCmdlets.dll]
+      checkForFile $test_channel [file join $core_bin_path EagleCmdlets.dll]
     }
 
     #
     # NOTE: For test "object-4.10".
     #
     if {![info exists no(EagleExtensions.dll)]} then {
-      checkForFile $test_channel [file join $bin_path EagleExtensions.dll]
+      checkForFile $test_channel [file join $core_bin_path EagleExtensions.dll]
     }
 
     #
@@ -2835,36 +3421,163 @@ if {![info exists no([file tail [info script]])]} then {
     #       "sql-1.8", and "sql-1.9".
     #
     if {![info exists no(sqlite3.dll)]} then {
-      checkForFile $test_channel [file join $bin_path sqlite3.dll]
+      checkForFile $test_channel [file join $core_bin_path sqlite3.dll]
 
       #
-      # NOTE: Did we manage to find the native SQLite library?  If not, do we
-      #       at least know the machine type?
+      # NOTE: Did we manage to find the native SQLite library yet?  If not,
+      #       try to check using the machine type as a sub-directory.
       #
       if {![haveConstraint file_sqlite3.dll]} then {
         #
-        # NOTE: Ok, now try to check for the machine specific native SQLite
-        #       library.
+        # NOTE: Ok, now try to check for the machine specific native
+        #       SQLite library.
         #
-        checkForFile $test_channel [file join $bin_path [machineToPlatform \
-            $test_machine true] sqlite3.dll]
+        checkForFile $test_channel [file join $core_bin_path \
+            [machineToPlatform $test_machine true] sqlite3.dll]
 
         #
         # NOTE: Did we manage to find the native SQLite library yet?
         #
         if {![haveConstraint file_sqlite3.dll]} then {
           #
-          # NOTE: Ok, now try to check for the platform specific native SQLite
-          #       library.
+          # NOTE: Ok, now try to check for the platform specific native
+          #       SQLite library.
           #
-          checkForFile $test_channel [file join $bin_path [machineToPlatform \
-              $test_machine false] sqlite3.dll]
+          checkForFile $test_channel [file join $core_bin_path \
+              [machineToPlatform $test_machine false] sqlite3.dll]
+        }
+      }
+
+      if {[isEagle] && ![isWindows]} then {
+        #
+        # NOTE: Did we manage to find the native SQLite library yet?  If not,
+        #       try to check using the machine type as a sub-directory -AND-
+        #       using the Unix file name.
+        #
+        if {![haveConstraint file_sqlite3.dll]} then {
+          #
+          # NOTE: Ok, now try to check for the machine specific native
+          #       SQLite library, near the binary, using the Unix name.
+          #
+          checkForFile $test_channel [file join $core_bin_path \
+              [machineToPlatform $test_machine true] [appendArgs \
+              libsqlite3 [info sharedlibextension]]] sqlite3.dll
+
+          #
+          # NOTE: Did we manage to find the native SQLite library yet?
+          #
+          if {![haveConstraint file_sqlite3.dll]} then {
+            #
+            # NOTE: Ok, now try to check for the platform specific native
+            #       SQLite library, near the binary, using the Unix name.
+            #
+            checkForFile $test_channel [file join $core_bin_path \
+                [machineToPlatform $test_machine false] [appendArgs \
+                libsqlite3 [info sharedlibextension]]] sqlite3.dll
+          }
+        }
+
+        #
+        # NOTE: Did we manage to find the native SQLite library yet?  If not,
+        #       try to check using the Unix library directories -AND- using
+        #       the Unix file name.
+        #
+        if {![haveConstraint file_sqlite3.dll]} then {
+          #
+          # NOTE: Attempt to obtain the path information for the Unix
+          #       local library directory.  This will not work for
+          #       native Tcl.
+          #
+          if {[catch {
+            info path "=NativeLibrary +Local"
+          } lib_dir] == 0} then {
+            #
+            # NOTE: Ok, now try to check for the machine specific native
+            #       SQLite library, in the Unix local library directory,
+            #       and the Unix file name.
+            #
+            checkForFile $test_channel [file join $lib_dir [appendArgs \
+                libsqlite3 [info sharedlibextension]]] sqlite3.dll
+          }
+
+          #
+          # NOTE: Did we manage to find the native SQLite library yet?
+          #
+          if {![haveConstraint file_sqlite3.dll]} then {
+            #
+            # NOTE: Attempt to obtain the path information for the Unix
+            #       global library directory.  This will not work for
+            #       native Tcl.
+            #
+            if {[catch {
+              info path "=NativeLibrary -Local"
+            } lib_dir] == 0} then {
+              #
+              # NOTE: Ok, now try to check for the machine specific native
+              #       SQLite library, in the Unix global library directory,
+              #       and the Unix file name.
+              #
+              checkForFile $test_channel [file join $lib_dir [appendArgs \
+                  libsqlite3 [info sharedlibextension]]] sqlite3.dll
+            }
+          }
+
+          unset lib_dir
+        }
+
+        #
+        # NOTE: Did we manage to find the native SQLite library yet?  If not,
+        #       try to check using the Unix library directories -AND- using
+        #       the Unix file name, without using the processor name.
+        #
+        if {![haveConstraint file_sqlite3.dll]} then {
+          #
+          # NOTE: Attempt to obtain the path information for the Unix
+          #       local library directory without the processor name.
+          #       This will not work for native Tcl.
+          #
+          if {[catch {
+            info path "=NativeLibrary +Local +NoProcessor"
+          } lib_dir] == 0} then {
+            #
+            # NOTE: Ok, now try to check for the machine specific native
+            #       SQLite library, in the Unix local library directory,
+            #       and the Unix file name.
+            #
+            checkForFile $test_channel [file join $lib_dir [appendArgs \
+                libsqlite3 [info sharedlibextension]]] sqlite3.dll
+          }
+
+          #
+          # NOTE: Did we manage to find the native SQLite library yet?
+          #
+          if {![haveConstraint file_sqlite3.dll]} then {
+            #
+            # NOTE: Attempt to obtain the path information for the Unix
+            #       global library directory without the processor name.
+            #       This will not work for native Tcl.
+            #
+            if {[catch {
+              info path "=NativeLibrary -Local +NoProcessor"
+            } lib_dir] == 0} then {
+              #
+              # NOTE: Ok, now try to check for the machine specific native
+              #       SQLite library, in the Unix global library directory,
+              #       and the Unix file name.
+              #
+              checkForFile $test_channel [file join $lib_dir [appendArgs \
+                  libsqlite3 [info sharedlibextension]]] sqlite3.dll
+            }
+          }
+
+          unset lib_dir
         }
       }
     }
 
     if {![info exists no(System.Data.SQLite.dll)]} then {
-      checkForFile $test_channel [file join $bin_path System.Data.SQLite.dll]
+      checkForFile $test_channel [file join $core_bin_path \
+          System.Data.SQLite.dll]
     }
 
     if {![info exists no(test.sqlite3)]} then {
@@ -2882,6 +3595,26 @@ if {![info exists no([file tail [info script]])]} then {
 
   if {![info exists no(windowsVersion)]} then {
     checkForWindowsVersion $test_channel
+  }
+
+  if {![info exists no(getInstalledUpdates)]} then {
+    checkForGetInstalledUpdates $test_channel
+  }
+
+  if {![info exists no(operatingSystemUpdates)]} then {
+    if {[isEagle] && [info exists tcl_platform(osExtra)]} then {
+      vwaitWithTimeout tcl_platform(osExtra) $test_timeout
+    }
+
+    checkForOperatingSystemUpdate $test_channel KB936929
+    checkForOperatingSystemUpdate $test_channel KB976932
+    checkForOperatingSystemUpdate $test_channel "November Update"
+    checkForOperatingSystemUpdate $test_channel "Anniversary Update"
+    checkForOperatingSystemUpdate $test_channel "Creators Update"
+    checkForOperatingSystemUpdate $test_channel "Fall Creators Update"
+    checkForOperatingSystemUpdate $test_channel "April 2018 Update"
+    checkForOperatingSystemUpdate $test_channel "October 2018 Update"
+    checkForOperatingSystemUpdate $test_channel "May 2019 Update"
   }
 
   if {![info exists no(scriptLibrary)]} then {
@@ -2985,8 +3718,48 @@ if {![info exists no([file tail [info script]])]} then {
   #
   # NOTE: Check for various extra commands that may be present.
   #
+  if {![info exists no(base64Command)]} then {
+    checkForCommand $test_channel base64
+  }
+
+  if {![info exists no(bgerrorCommand)]} then {
+    checkForCommand $test_channel bgerror
+  }
+
   if {![info exists no(callbackCommand)]} then {
     checkForCommand $test_channel callback
+  }
+
+  if {![info exists no(debugCommand)]} then {
+    checkForCommand $test_channel debug
+  }
+
+  if {![info exists no(doCommand)]} then {
+    checkForCommand $test_channel do
+  }
+
+  if {![info exists no(downlevelCommand)]} then {
+    checkForCommand $test_channel downlevel
+  }
+
+  if {![info exists no(guidCommand)]} then {
+    checkForCommand $test_channel guid
+  }
+
+  if {![info exists no(hashCommand)]} then {
+    checkForCommand $test_channel hash
+  }
+
+  if {![info exists no(hostCommand)]} then {
+    checkForCommand $test_channel host
+  }
+
+  if {![info exists no(invokeCommand)]} then {
+    checkForCommand $test_channel invoke
+  }
+
+  if {![info exists no(killCommand)]} then {
+    checkForCommand $test_channel kill
   }
 
   if {![info exists no(lgetCommand)]} then {
@@ -2997,8 +3770,28 @@ if {![info exists no([file tail [info script]])]} then {
     checkForCommand $test_channel library
   }
 
+  if {![info exists no(lremoveCommand)]} then {
+    checkForCommand $test_channel lremove
+  }
+
+  if {![info exists no(nopCommand)]} then {
+    checkForCommand $test_channel nop
+  }
+
+  if {![info exists no(nprocCommand)]} then {
+    checkForCommand $test_channel nproc
+  }
+
   if {![info exists no(objectCommand)]} then {
     checkForCommand $test_channel object
+  }
+
+  if {![info exists no(parseCommand)]} then {
+    checkForCommand $test_channel parse
+  }
+
+  if {![info exists no(scopeCommand)]} then {
+    checkForCommand $test_channel scope
   }
 
   if {![info exists no(socketCommand)]} then {
@@ -3013,8 +3806,35 @@ if {![info exists no([file tail [info script]])]} then {
     checkForCommand $test_channel tcl
   }
 
+  if {![info exists no(throwCommand)]} then {
+    checkForCommand $test_channel throw
+  }
+
+  if {![info exists no(truncateCommand)]} then {
+    checkForCommand $test_channel truncate
+  }
+
+  if {![info exists no(tryCommand)]} then {
+    checkForCommand $test_channel try
+  }
+
+  if {![info exists no(uriCommand)]} then {
+    checkForCommand $test_channel uri
+  }
+
+  if {![info exists no(versionCommand)]} then {
+    checkForCommand $test_channel version
+  }
+
   if {![info exists no(xmlCommand)]} then {
     checkForCommand $test_channel xml
+  }
+
+  #
+  # NOTE: Has "eformat" detection support been disabled?
+  #
+  if {![info exists no(eformat)]} then {
+    checkForEFormat $test_channel
   }
 
   #
@@ -3025,8 +3845,8 @@ if {![info exists no([file tail [info script]])]} then {
   }
 
   #
-  # NOTE: Check for various features that were added through
-  #       the TIP process.
+  # NOTE: Check for various native Tcl features that were added
+  #       (or simply proposed) through the TIP process.
   #
   if {![info exists no(tip127)]} then {
     checkForTip127 $test_channel
@@ -3052,6 +3872,10 @@ if {![info exists no([file tail [info script]])]} then {
     checkForTip405 $test_channel
   }
 
+  if {![info exists no(tip421)]} then {
+    checkForTip421 $test_channel
+  }
+
   if {![info exists no(tip426)]} then {
     checkForTip426 $test_channel
   }
@@ -3062,6 +3886,18 @@ if {![info exists no([file tail [info script]])]} then {
 
   if {![info exists no(tip440)]} then {
     checkForTip440 $test_channel
+  }
+
+  if {![info exists no(tip461)]} then {
+    checkForTip461 $test_channel
+  }
+
+  if {![info exists no(tip463)]} then {
+    checkForTip463 $test_channel
+  }
+
+  if {![info exists no(tip471)]} then {
+    checkForTip471 $test_channel
   }
 
   #
@@ -3125,6 +3961,13 @@ if {![info exists no([file tail [info script]])]} then {
     # NOTE: For test "object-15.9".
     #
     checkForInteractiveCommand $test_channel args
+
+    #
+    # NOTE: For test "debug-10.1".
+    #
+    checkForInteractiveCommand $test_channel exit
+    checkForInteractiveCommand $test_channel pause
+    checkForInteractiveCommand $test_channel unpause
   }
 
   if {![info exists no(userInteraction)]} then {
@@ -3138,6 +3981,8 @@ if {![info exists no([file tail [info script]])]} then {
   if {![info exists no(core)] && ![info exists no(network)]} then {
     checkForNetwork $test_channel $test_host $test_timeout
   }
+
+  #############################################################################
 
   #
   # NOTE: Figure out the approximate relative performance of this machine.
@@ -3240,12 +4085,21 @@ if {![info exists no([file tail [info script]])]} then {
   }
 
   #############################################################################
+
+  #
+  # NOTE: The test constraints should now be fully built, cache them.
+  #
+  if {![info exists test_constraints]} then {
+    set test_constraints [getConstraints]
+  }
+
+  #############################################################################
   ######################## END Eagle & Tcl Constraints ########################
   #############################################################################
 
   #
-  # NOTE: For Eagle, dump the platform information, including
-  #       the compile options.
+  # NOTE: For Eagle, dump the platform information, including the compile
+  #       options.
   #
   if {[isEagle]} then {
     set timeStamp [getPlatformInfo timeStamp ""]
@@ -3311,10 +4165,19 @@ if {![info exists no([file tail [info script]])]} then {
       $test_file : "<none>"}] \n]
 
   #
-  # NOTE: Show the active test constraints.
+  # NOTE: Show the active and cached test constraints.
   #
-  tputs $test_channel [appendArgs "---- constraints: " \
+  tputs $test_channel [appendArgs "---- active constraints: " \
       [formatList [lsort [getConstraints]] <none>] \n]
+
+  tputs $test_channel [appendArgs "---- cached constraints: " \
+      [formatList [lsort [getCachedConstraints]] <none>] \n]
+
+  #
+  # NOTE: Show the lists of "well known" metadata.
+  #
+  tputs $test_channel [appendArgs "---- well known metadata: " \
+      [formatListAsDict [array get test_well_known] <none>] \n]
 
   #
   # NOTE: Show the starting command count (for both Tcl and Eagle).

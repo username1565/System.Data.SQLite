@@ -95,13 +95,14 @@ IF NOT DEFINED YEARS (
 )
 
 %_VECHO% Years = '%YEARS%'
-%_VECHO% PreArgs = '%PREARGS%'
 
 IF NOT DEFINED TEST_FILE (
   SET TEST_FILE=Tests\all.eagle
 )
 
 %_VECHO% TestFile = '%TEST_FILE%'
+%_VECHO% PreArgs = '%PREARGS%'
+%_VECHO% MidArgs = '%MIDARGS%'
 %_VECHO% PostArgs = '%POSTARGS%'
 
 IF NOT DEFINED 32BITONLY (
@@ -143,7 +144,8 @@ IF NOT DEFINED SKIPMAIN (
         )
 
         IF NOT DEFINED NOMANAGEDONLY (
-          %__ECHO% "Externals\Eagle\bin\%EAGLESHELL%" %PREARGS% -anyInitialize "set test_year {%%Y}; set test_configuration {%%C}" -file "%TEST_FILE%" %POSTARGS%
+          %_CECHO% "Externals\Eagle\bin\netFramework40\%EAGLESHELL%" %PREARGS% -anyInitialize "set test_year {%%Y}; set test_configuration {%%C}" %MIDARGS% -file "%TEST_FILE%" %POSTARGS%
+          %__ECHO% "Externals\Eagle\bin\netFramework40\%EAGLESHELL%" %PREARGS% -anyInitialize "set test_year {%%Y}; set test_configuration {%%C}" %MIDARGS% -file "%TEST_FILE%" %POSTARGS%
 
           IF ERRORLEVEL 1 (
             ECHO Testing of "%%Y/%%C" managed-only assembly failed.
@@ -224,7 +226,8 @@ IF NOT DEFINED SKIPMAIN (
               )
             )
 
-            %__ECHO% "Externals\Eagle\bin\%EAGLESHELL%" %PREARGS% -preInitialize "set test_year {%%Y}; set test_configuration {%%C}" -initialize -runtimeOption native -file "%TEST_FILE%" %POSTARGS%
+            %_CECHO% "Externals\Eagle\bin\netFramework40\%EAGLESHELL%" %PREARGS% -preInitialize "set test_year {%%Y}; set test_configuration {%%C}" -initialize -runtimeOption native %MIDARGS% -file "%TEST_FILE%" %POSTARGS%
+            %__ECHO% "Externals\Eagle\bin\netFramework40\%EAGLESHELL%" %PREARGS% -preInitialize "set test_year {%%Y}; set test_configuration {%%C}" -initialize -runtimeOption native %MIDARGS% -file "%TEST_FILE%" %POSTARGS%
 
             IF ERRORLEVEL 1 (
               ECHO Testing of "%%Y/%%C" mixed-mode assembly failed.
@@ -289,6 +292,10 @@ GOTO no_errors
     SET HAVE_EF6=1
   )
   IF /I "%1" == "2015" (
+    SET HAVE_LINQ=1
+    SET HAVE_EF6=1
+  )
+  IF /I "%1" == "2017" (
     SET HAVE_LINQ=1
     SET HAVE_EF6=1
   )

@@ -25,6 +25,7 @@
     <ConfigurationYear>2012</ConfigurationYear>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Platform.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.targets" />
   <PropertyGroup Condition="'$(BinaryOutputPath)' != ''">
@@ -57,15 +58,19 @@
   <ItemGroup Condition="'$(UseEntityFramework6)' != 'false'">
     <Reference Include="EntityFramework"
                Condition="'$(NetFx40)' != 'false'">
-      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\lib\net40\EntityFramework.dll</HintPath>
+      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\v6.2\lib\net40\EntityFramework.dll</HintPath>
     </Reference>
     <Reference Include="EntityFramework"
                Condition="'$(NetFx45)' != 'false' Or
                           '$(NetFx451)' != 'false' Or
                           '$(NetFx452)' != 'false' Or
                           '$(NetFx46)' != 'false' Or
-                          '$(NetFx461)' != 'false'">
-      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\lib\net45\EntityFramework.dll</HintPath>
+                          '$(NetFx461)' != 'false' Or
+                          '$(NetFx462)' != 'false' Or
+                          '$(NetFx47)' != 'false' Or
+                          '$(NetFx471)' != 'false' Or
+                          '$(NetFx472)' != 'false'">
+      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\v6.2\lib\net45\EntityFramework.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

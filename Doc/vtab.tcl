@@ -29,6 +29,13 @@ proc escapeSubSpec { data } {
   return $data
 }
 
+proc preProcessLine { value } {
+  regsub -- { id="[0-9a-z_]+"} $value "" value
+  regsub -- {</p><h(\d)>} $value </p>\n<h\\1> value
+  regsub -- {</p><blockquote><pre>} $value <blockquote><pre> value
+  return $value
+}
+
 proc englishToList { value } {
   set result [list]
 
@@ -41,9 +48,10 @@ proc englishToList { value } {
   return $result
 }
 
-proc processLine { line prefix } {
+proc processLine { line prefix ltAndGt } {
   if {[string length [string trim $line]] == 0 || \
-      [regexp -- {<h\d(?: |>)} [string range $line 0 3]]} then {
+      [regexp -- {<h\d(?: |>)} [string range $line 0 3]] || \
+      [regexp -- {</p>\n<h\d(?: |>)} [string range $line 0 8]]} then {
     return ""
   }
 
@@ -59,8 +67,8 @@ proc processLine { line prefix } {
   }
 
   foreach escape [list \
-      {<b>} {</b>} {<br>} {<dd>} {</dd>} {<dl>} {</dl>} {<dt>} \
-      {</dt>} {<li>} {</li>} {<ol>} {</ol>} {<tt>} {</tt>} \
+      {<b>} {</b>} {<br>} {</br>} {<dd>} {</dd>} {<dl>} {</dl>} \
+      {<dt>} {</dt>} {<li>} {</li>} {<ol>} {</ol>} {<tt>} {</tt>} \
       {<ul>} {</ul>}] {
     regsub -all -- ($escape) $result {<![CDATA[\1]]>} result
   }
@@ -68,8 +76,19 @@ proc processLine { line prefix } {
   regsub -all -- {&ne;} $result {\&#8800;} result
   regsub -all -- {&#91(?:;)?} $result {[} result
   regsub -all -- {&#93(?:;)?} $result {]} result
-  regsub -all -- {<( |\"|\d|=)} $result {\&lt;\1} result
-  regsub -all -- {( |\"|\d|=)>} $result {\1\&gt;} result
+
+  if {$ltAndGt} then {
+    regsub -all -- {<( |\"|\d|=)} $result {\&lt;\1} result
+    regsub -all -- {( |\"|\d|=)>} $result {\1\&gt;} result
+  }
+
+  regsub -all -- { < } $result { \&lt; } result
+  regsub -all -- { > } $result { \&gt; } result
+
+  regsub -all -- {<div class="codeblock"><pre>} $result \
+      <para><code>\n${prefix} result
+
+  regsub -all -- {</pre></div>} $result </code></para> result
   regsub -all -- {<blockquote><pre>} $result <para><code> result
   regsub -all -- {</pre></blockquote>} $result </code></para> result
   regsub -all -- {<blockquote>} $result <para><code> result
@@ -78,7 +97,8 @@ proc processLine { line prefix } {
   return $result
 }
 
-proc extractMethod { name lines pattern prefix indexVarName methodsVarName } {
+proc extractMethod {
+        name lines pattern prefix indexVarName methodsVarName ltAndGt } {
   upvar 1 $indexVarName index
   upvar 1 $methodsVarName methods
 
@@ -86,7 +106,7 @@ proc extractMethod { name lines pattern prefix indexVarName methodsVarName } {
   set length [llength $lines]
 
   while {$index < $length} {
-    set line [lindex $lines $index]
+    set line [preProcessLine [lindex $lines $index]]
 
     if {[regexp -- $pattern $line]} then {
       break; # stop on this line for outer loop.
@@ -104,10 +124,11 @@ proc extractMethod { name lines pattern prefix indexVarName methodsVarName } {
         }
 
         incr levels(p) -1
-      } elseif {[string range $trimLine 0 2] eq "<p>"} then {
+      } elseif {[string range $trimLine 0 2] eq "<p>" || \
+          [string range $trimLine 0 6] eq "</p><p>"} then {
         # open tag ... maybe one line?
         if {[string range $trimLine end-3 end] eq "</p>"} then {
-          set newLine [processLine $line $prefix]
+          set newLine [processLine $line $prefix $ltAndGt]
 
           if {[string length $newLine] > 0} then {
             # one line tag, wrap.
@@ -131,7 +152,7 @@ proc extractMethod { name lines pattern prefix indexVarName methodsVarName } {
             append data $prefix <para>
           }
 
-          set newLine [processLine $line $prefix]
+          set newLine [processLine $line $prefix $ltAndGt]
 
           if {[string length $newLine] > 0} then {
             append data \n $prefix $newLine
@@ -140,7 +161,7 @@ proc extractMethod { name lines pattern prefix indexVarName methodsVarName } {
           incr levels(p)
         }
       } else {
-        set newLine [processLine $line $prefix]
+        set newLine [processLine $line $prefix $ltAndGt]
 
         if {[string length $newLine] > 0} then {
           if {[info exists methods($name)]} then {
@@ -190,28 +211,43 @@ set inputData [string map [list \
 
 set inputData [string map [list {<p align="center"></p>} ""] $inputData]
 
+if {[string first &lt\; $inputData] != -1 || \
+    [string first &gt\; $inputData] != -1} then {
+  set ltAndGt false
+} else {
+  set ltAndGt true
+}
+
 set lines [split [string map [list \r\n \n] $inputData] \n]
-set patterns(method) {^<h3>2\.\d+ The (.*) Method(?:s)?</h3>$}
+
+set patterns(start) [string trim {
+  ^(?:</p>\n)?<h1>(?:<span>)?2\. (?:</span>)?Virtual Table Methods</h1>$
+}]
+
+set patterns(method) [string trim {
+  ^(?:</p>\n)?<h2>(?:<span>)?2\.\d+\. (?:</span>)?The (.*) Method(?:s)?</h2>$
+}]
+
 set prefix "        /// "
 unset -nocomplain methods; set start false
 
 for {set index 0} {$index < [llength $lines]} {} {
-  set line [lindex $lines $index]
+  set line [preProcessLine [lindex $lines $index]]
 
   if {$start} then {
     if {[regexp -- $patterns(method) $line dummy capture]} then {
       foreach method [englishToList $capture] {
         set methodIndex [expr {$index + 1}]
 
-        extractMethod \
-            $method $lines $patterns(method) $prefix methodIndex methods
+        extractMethod $method $lines $patterns(method) $prefix \
+            methodIndex methods $ltAndGt
       }
 
       set index $methodIndex
     } else {
       incr index
     }
-  } elseif {[regexp -- {^<h2>2\.0 Virtual Table Methods</h2>$} $line]} then {
+  } elseif {[regexp -- $patterns(start) $line]} then {
     set start true; incr index
   } else {
     incr index
@@ -254,7 +290,7 @@ foreach name [list \
         $outputData 0 $summaryStart]$methods($name)[string \
         range $outputData [expr {$summaryEnd + 1}] end]
 
-    incr count; set start [expr {$summaryEnd + 1}]
+    incr count; incr start [expr {[string length $methods($name)] + 1}]
   } else {
     error "cannot find virtual table method \"$name\" in \"$outputFileName\""
   }

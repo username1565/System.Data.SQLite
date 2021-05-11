@@ -175,11 +175,11 @@
                      HasTrailingSlash('$(OutputPath)') And
                      Exists('$(OutputPath)')">
     <CreateItem Include="$(OutputPath)*.config">
-      <Output ItemName="ConfigurationFiles" TaskParameter="Include" />
+      <Output ItemName="CleanConfigurationsItem" TaskParameter="Include" />
     </CreateItem>
 
-    <Delete Condition="'@(ConfigurationFiles)' != ''"
-            Files="@(ConfigurationFiles)" />
+    <Delete Condition="'@(CleanConfigurationsItem)' != ''"
+            Files="@(CleanConfigurationsItem)" />
   </Target>
 
   <!--
@@ -194,10 +194,10 @@
           Inputs="$(TargetPath)"
           Outputs="$(TargetPath).CopyConfigurations.done">
     <CreateItem Include="Configurations\*.config" Exclude="Configurations\no_*">
-      <Output ItemName="ConfigurationFiles" TaskParameter="Include" />
+      <Output ItemName="CopyConfigurationsItem" TaskParameter="Include" />
     </CreateItem>
 
-    <Copy SourceFiles="@(ConfigurationFiles)"
+    <Copy SourceFiles="@(CopyConfigurationsItem)"
           DestinationFolder="$(OutputPath)" />
 
     <Touch AlwaysCreate="true"
@@ -220,5 +220,157 @@
   <Target Name="MissingVsSdk"
           Condition="'$(ProjectName)' != ''">
     <Warning Text="The Visual Studio SDK is missing, skipping project &quot;$(ProjectName)&quot;..." />
+  </Target>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <Target Name="ReSignMixedModeAssembly"
+          Condition="'$(ReSignMixedModeAssembly)' != 'false' And
+                     '$(TargetPath)' != '' And
+                     Exists('$(TargetPath)') And
+                     '$(INTEROP_KEY_FILE)' != '' And
+                     Exists('$(INTEROP_KEY_FILE)')">
+    <Exec Condition="'$(TargetFrameworkSDKToolsDirectory)' == '' And
+                     '$(FrameworkSDKDir)' != '' And
+                     Exists('$(FrameworkSDKDir)Bin\sn.exe')"
+          Command="&quot;$(FrameworkSDKDir)Bin\sn.exe&quot; -Ra &quot;$(TargetPath)&quot; &quot;$(INTEROP_KEY_FILE)&quot;" />
+
+    <Exec Condition="'$(TargetFrameworkSDKToolsDirectory)' != '' And
+                     Exists('$(TargetFrameworkSDKToolsDirectory)sn.exe')"
+          Command="&quot;$(TargetFrameworkSDKToolsDirectory)sn.exe&quot; -Ra &quot;$(TargetPath)&quot; &quot;$(INTEROP_KEY_FILE)&quot;" />
+  </Target>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <Target Name="CopyInteropAssembly"
+          Condition="'$(CopyInteropAssembly)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     '$(TargetName)' != '' And
+                     '$(BaseConfiguration)' != '' And
+                     '$(Platform)' != ''">
+    <Exec Command="XCOPY &quot;$(OutDir)$(TargetName).*&quot; &quot;$(OutDir)..\..\$(BaseConfiguration)\bin\$(Platform)\&quot; /D /E /V /I /F /H /Y" />
+
+    <Exec Condition="'$(DoesMachineMatchPlatform)' != 'false'"
+          Command="XCOPY &quot;$(OutDir)$(TargetName).*&quot; &quot;$(OutDir)..\..\$(BaseConfiguration)\bin\&quot; /D /E /V /I /F /H /Y" />
+  </Target>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <Target Name="DetectBuildTool"
+          Condition="'$(DetectBuildTool)' != 'false' And
+                     '$(MSBuildBinPath)' != '' And
+                     !HasTrailingSlash('$(MSBuildBinPath)')">
+    <CreateProperty Condition="Exists('$(MSBuildBinPath)\MSBuild.exe')"
+                    Value="MSBuild">
+      <Output TaskParameter="Value" PropertyName="BuildTool" />
+    </CreateProperty>
+
+    <CreateProperty Condition="Exists('$(MSBuildBinPath)\xbuild.exe')"
+                    Value="XBuild">
+      <Output TaskParameter="Value" PropertyName="BuildTool" />
+    </CreateProperty>
+
+    <CreateProperty Condition="Exists('$(MSBuildBinPath)\MSBuild.dll')"
+                    Value="DotNetCore">
+      <Output TaskParameter="Value" PropertyName="BuildTool" />
+    </CreateProperty>
+
+    <CreateProperty Condition="!Exists('$(MSBuildBinPath)\MSBuild.exe') And
+                               !Exists('$(MSBuildBinPath)\xbuild.exe') And
+                               !Exists('$(MSBuildBinPath)\MSBuild.dll')"
+                    Value="Unknown">
+      <Output TaskParameter="Value" PropertyName="BuildTool" />
+    </CreateProperty>
+  </Target>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <Target Name="DetectOperatingSystem"
+          Condition="'$(DetectOperatingSystem)' != 'false'">
+    <CreateProperty Condition="'$(OS)' == 'Windows_NT'" Value="Windows">
+      <Output TaskParameter="Value" PropertyName="OperatingSystem" />
+    </CreateProperty>
+
+    <CreateProperty Condition="'$(OS)' == 'Unix'" Value="Unix">
+      <Output TaskParameter="Value" PropertyName="OperatingSystem" />
+    </CreateProperty>
+
+    <CreateProperty Condition="'$(OS)' == 'OSX'" Value="MacOSX">
+      <Output TaskParameter="Value" PropertyName="OperatingSystem" />
+    </CreateProperty>
+
+    <CreateProperty Condition="'$(OS)' != 'Windows_NT' And
+                               '$(OS)' != 'Unix' And
+                               '$(OS)' != 'OSX'"
+                    Value="Unknown">
+      <Output TaskParameter="Value" PropertyName="OperatingSystem" />
+    </CreateProperty>
+  </Target>
+
+  <!--
+  ******************************************************************************
+  **                        Visual Studio 2017 Targets                        **
+  ******************************************************************************
+  -->
+
+  <Target Name="MaybeFindVsSdk2017"
+          Condition="'$(MaybeFindVsSdk2017)' != 'false' And
+                     '$(MSBuildProjectDirectory)' != '' And
+                     !HasTrailingSlash('$(MSBuildProjectDirectory)') And
+                     Exists('$(MSBuildProjectDirectory)\..\Externals\vswhere\vswhere.exe')">
+    <!--
+        HACK: Use a couple undocumented properties of the Exec task in order
+              to capture the console output of the "vswhere" command.  This
+              is needed to locate the SDK for Visual Studio 2017.  For more
+              information, see:
+
+              https://stackoverflow.com/questions/8938679
+    -->
+    <Exec ConsoleToMSBuild="true" Command="&quot;$(MSBuildProjectDirectory)\..\Externals\vswhere\vswhere.exe&quot; -version 15.0 -products * -requires Microsoft.VisualStudio.Component.VSSDK -property installationPath -latest"
+          WorkingDirectory="$(MSBuildProjectDirectory)\..\Externals\vswhere">
+      <Output TaskParameter="ConsoleOutput" PropertyName="VS150INSTALLATIONPATH" />
+    </Exec>
+
+    <CreateProperty Condition="'$(VS150INSTALLATIONPATH)' != '' And
+                               !HasTrailingSlash('$(VS150INSTALLATIONPATH)') And
+                               Exists('$(VS150INSTALLATIONPATH)\VSSDK')"
+                    Value="$(VS150INSTALLATIONPATH)\VSSDK\">
+      <Output TaskParameter="Value" PropertyName="VSSDK150Install" />
+    </CreateProperty>
+  </Target>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <Target Name="MaybeMissingVsSdk2017"
+          Condition="'$(MaybeMissingVsSdk2017)' != 'false' And
+                     ('$(VSSDK150Install)' == '' Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v4.0\Microsoft.Data.ConnectionUI.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v4.0\Microsoft.VisualStudio.Data.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v4.0\Microsoft.VisualStudio.Data.Services.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.OLE.Interop.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v4.0\Microsoft.VisualStudio.Shell.15.0.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.Shell.Interop.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.Shell.Interop.8.0.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.Shell.Interop.9.0.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v2.0\Microsoft.VisualStudio.Shell.Interop.10.0.dll') Or
+                      !Exists('$(VSSDK150Install)VisualStudioIntegration\Common\Assemblies\v4.0\Microsoft.VisualStudio.Shell.Interop.15.3.DesignTime.dll'))">
+    <!--
+        NOTE: We cannot build this project without the necessary reference
+              assemblies; therefore, skip building it altogether.
+    -->
+    <CreateProperty Value="MissingVsSdk">
+      <Output TaskParameter="Value" PropertyName="BuildDependsOn" />
+    </CreateProperty>
   </Target>
 </Project>

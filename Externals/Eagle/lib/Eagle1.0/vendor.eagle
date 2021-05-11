@@ -3,7 +3,7 @@
 # vendor.eagle --
 #
 # Extensible Adaptable Generalized Logic Engine (Eagle)
-# Vendor Initialization File for System.Data.SQLite
+# Eagle Vendor Initialization File for System.Data.SQLite
 #
 # Copyright (c) 2007-2012 by Joe Mistachkin.  All rights reserved.
 #
@@ -33,6 +33,25 @@
 #
 namespace eval ::Eagle {
   if {[isEagle]} then {
+    proc checkForVendorQuiet { {name ""} } {
+      if {![interp issafe]} then {
+        if {[info exists ::env(checkForVendorQuiet)]} then {
+          return true
+        }
+
+        if {[string length $name] > 0} then {
+          set envVarName [appendArgs quiet [string toupper \
+              [string index $name 0]] [string range $name 1 end]]
+
+          if {[info exists ::env($envVarName)]} then {
+            return true
+          }
+        }
+      }
+
+      return false
+    }
+
     proc checkForTestOverrides { channel varNames quiet } {
       set result 0
 
@@ -63,6 +82,68 @@ namespace eval ::Eagle {
       }
 
       return $result
+    }
+
+    proc checkForSecurityProtocols { channel quiet } {
+      #
+      # HACK: There is at least one test and one build tool in this source
+      #       tree require using HTTPS.  Therefore, make sure all protocol
+      #       versions are enabled so we do not get spurious TLS failures.
+      #
+      if {![info exists ::no(checkSecurityProtocols)] && \
+          [llength [info commands object]] > 0} then {
+        set allSecurityProtocols ""
+
+        if {[catch {
+          set oldSecurityProtocols [object invoke \
+              System.Net.ServicePointManager SecurityProtocol]
+
+          set allSecurityProtocols [object invoke \
+              Enum GetNames System.Net.SecurityProtocolType]
+
+          set allSecurityProtocols [string map \
+              [list SystemDefault ""] $allSecurityProtocols]
+
+          if {[isDotNetCore]} then {
+            #
+            # HACK: Including "Ssl3" will cause an exception to be thrown
+            #       in the ServicePointManager.ValidateSecurityProtocol()
+            #       method.
+            #
+            set allSecurityProtocols [string map \
+                [list Ssl3 ""] $allSecurityProtocols]
+          }
+
+          set allSecurityProtocols [join [string map [list "  " " "] \
+              [string trim $allSecurityProtocols]] ", "]
+
+          object invoke System.Net.ServicePointManager SecurityProtocol \
+              $allSecurityProtocols
+
+          set newSecurityProtocols [object invoke \
+              System.Net.ServicePointManager SecurityProtocol]
+        } error] == 0} then {
+          if {!$quiet} then {
+            catch {
+              tqputs $channel [appendArgs \
+                  "---- forcibly enabled all HTTPS security protocols \"" \
+                  $allSecurityProtocols "\", old \"" $oldSecurityProtocols \
+                  "\", new \"" $newSecurityProtocols \"\n]
+            }
+          }
+        } else {
+          if {!$quiet} then {
+            catch {
+              tqputs $channel [appendArgs \
+                  "==== WARNING: could not forcibly enable all HTTPS " \
+                  "security protocols " [expr {[string length \
+                  $allSecurityProtocols] > 0 ? [appendArgs \" \
+                  $allSecurityProtocols \"] : "<unknown>"}] ", error: " \
+                  \n\t $error \n]
+            }
+          }
+        }
+      }
     }
 
     proc refreshAutoPath {} {
@@ -336,16 +417,21 @@ namespace eval ::Eagle {
     #
     checkForTestOverrides stdout [expr {[info exists test_overrides] ? \
         $test_overrides : [list binary_directory build_base_directory \
-        build_directory common_directory connection_flags database_directory \
+        build_directory common_directory compile_option_prefix \
+        connection_flags core_library_version database_directory \
         datetime_format define_constant_prefix execute_on_setup \
-        interop_assembly_file_names native_library_file_names release_version \
-        scratch_directory temporary_directory test_clr test_clr_v2 \
-        test_clr_v4 test_configuration test_configurations test_constraints \
-        test_machine test_net_fx test_net_fx_2005 test_net_fx_2008 \
-        test_net_fx_2010 test_net_fx_2012 test_net_fx_2013 test_net_fx_2015 \
-        test_overrides test_platform test_suite test_year test_years \
-        test_year_clr_v2 test_year_clr_v4 vendor_directory \
-        vendor_test_directory]}] false
+        interop_assembly_file_names native_library_file_names \
+        release_version scratch_directory temporary_directory test_clr \
+        test_clr_v2 test_clr_v4 test_configuration test_configurations \
+        test_configuration_suffix test_configuration_suffixes \
+        test_constraints test_extra test_extras test_machine test_native \
+        test_native_configuration_suffix test_native_extra \
+        test_native_extras test_native_year test_net_fx test_net_fx_2005 \
+        test_net_fx_2008 test_net_fx_2010 test_net_fx_2012 test_net_fx_2013 \
+        test_net_fx_2015 test_net_fx_2017 test_overrides test_platform \
+        test_suite test_year test_years test_year_clr_v2 test_year_clr_v4 \
+        vendor_directory vendor_test_directory]}] [checkForVendorQuiet \
+        checkForTestOverrides]
 
     #
     # NOTE: Set the name of the running test suite, if necessary.
@@ -393,7 +479,7 @@ namespace eval ::Eagle {
       #
       addTestSuiteToAutoPath stdout \
           [expr {$have_vendor_directory ? "" : "vendor_directory"}] \
-          [info exists ::env(quietAddTestSuiteToAutoPath)]
+          [checkForVendorQuiet addTestSuiteToAutoPath]
 
       unset have_vendor_directory
 
@@ -405,7 +491,7 @@ namespace eval ::Eagle {
       #
       findInterpreterTestPath stdout $vendor_directory \
           [expr {$have_vendor_test_directory ? "" : "vendor_test_directory"}] \
-          [info exists ::env(quietFindInterpreterTestPath)]
+          [checkForVendorQuiet findInterpreterTestPath]
 
       unset have_vendor_test_directory
 
@@ -415,9 +501,45 @@ namespace eval ::Eagle {
       #       interpreter to point directly to it.
       #
       if {[string length $vendor_test_directory] > 0} then {
-        setupInterpreterTestPath stdout $vendor_test_directory [info exists \
-            ::env(quietSetupInterpreterTestPath)]
+        setupInterpreterTestPath stdout $vendor_test_directory \
+            [checkForVendorQuiet setupInterpreterTestPath]
       }
+
+      #
+      # NOTE: Check if the HTTPS security protocols need to be adjusted for
+      #       use with the test suite and/or build tools.
+      #
+      checkForSecurityProtocols stdout \
+          [checkForVendorQuiet checkForSecurityProtocols]
+    }
+
+    #
+    # HACK: When the Eagle core test suite infrastructure is beta 45 or
+    #       lower, override the list of "known" Mono runtime versions.
+    #       Eventually, this override should be removed (i.e. once the
+    #       Eagle core library included in "Externals" is updated).
+    #
+    if {[package vcompare \
+        $eagle_platform(patchLevel) 1.0.7213.50727] <= 0} then {
+      set test_well_known(monoVersions) [list \
+          [list 2 0] [list 2 2] [list 2 4] [list 2 6] [list 2 8] \
+          [list 2 10] [list 2 11] [list 3 0] [list 3 1] [list 3 2] \
+          [list 3 4] [list 3 6] [list 3 8] [list 3 10] [list 3 12] \
+          [list 4 0] [list 4 2] [list 4 4] [list 4 6] [list 4 8] \
+          [list 5 0] [list 5 2] [list 5 4] [list 5 8] [list 5 10] \
+          [list 5 12] [list 5 14] [list 5 16] [list 5 18] [list 5 20] \
+          [list 6 0] [list 6 4] [list 6 6] [list 6 8] [list 6 10]]
+    }
+
+    #
+    # HACK: When using [compileCSharp] on .NET Core 3.0, it will produce
+    #       compiler warnings complaining about mismatched versions of the
+    #       .NET Standard reference assemblies, e.g. 2.0 versus 2.1; Since
+    #       the test suite considers these warnings to be an indication of
+    #       test failure, we disable them here.
+    #
+    if {![info exists no(disableWarning1701)] && [isDotNetCore]} then {
+      lappend eagle_platform(csharpOptions) nowarn:1701
     }
 
     #
@@ -429,12 +551,34 @@ namespace eval ::Eagle {
     set no(core) 1
 
     #
+    # HACK: The custom test prologue already shows the final list of test
+    #       constraints; there is no need to repeat them.
+    #
+    set no(showActiveConstraints) 1
+    set no(showCachedConstraints) 1
+
+    #
+    # HACK: Prevent the Eagle core test suite infrastructure from checking
+    #       for a usable instance of Excel because it can be quite slow to
+    #       do so.
+    #
+    set no(excelUsable) 1
+
+    #
     # NOTE: Make the per-test connection flag output a little less noisy.
     #
     set no(emitLocalFlagsIfNone) 1
     set no(emitSharedFlagsIfNone) 1
     set no(emitGlobalFlagsIfNone) 1
     set no(emitCombinedFlagsIfNone) 1
+
+    #
+    # NOTE: Force use of the native library pre-loader when applicable.
+    #
+    if {![interp issafe] && [isWindows]} then {
+      set no(deleteSqliteImplicitNativeFiles) 1
+      set no(copySqliteImplicitNativeFiles) 1
+    }
   }
 }
 

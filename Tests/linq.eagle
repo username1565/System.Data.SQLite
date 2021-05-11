@@ -22,12 +22,7 @@ runSQLiteTestFilesPrologue
 ###############################################################################
 
 runTest {test linq-1.1 {DbUpdateCommandTree with UPDATE and SELECT} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -35,7 +30,7 @@ runTest {test linq-1.1 {DbUpdateCommandTree with UPDATE and SELECT} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -update
+        -success Success] -update
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -52,6 +47,8 @@ runTest {test linq-1.1 {DbUpdateCommandTree with UPDATE and SELECT} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -60,12 +57,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test linq-1.2 {ROUND function with two arguments} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -73,7 +65,7 @@ runTest {test linq-1.2 {ROUND function with two arguments} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -round
+        -success Success] -round
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -90,6 +82,8 @@ runTest {test linq-1.2 {ROUND function with two arguments} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle System.Data.SQLite.dll_v4.0.30319 monoToDo SQLite\
 file_System.Data.SQLite.dll testExec file_System.Data.SQLite.Linq.dll\

@@ -71,7 +71,7 @@ runTest {test tkt-ae5267b863-1.1 {segfault during command GC} -setup {
         public static void Main()
         {
           using (SQLiteConnection connection = new SQLiteConnection(
-              "Data Source=${dataSource};[getFlagsProperty]"))
+              "Data Source=${dataSource};[getTestProperties]"))
           {
             connection.Open();
 
@@ -135,7 +135,7 @@ runTest {test tkt-ae5267b863-1.1 {segfault during command GC} -setup {
         }
       }
     }
-  }] true true true results errors System.Data.SQLite.dll]
+  }] true false true results errors System.Data.SQLite.dll]
 
   list $code $results \
       [expr {[info exists errors] ? $errors : ""}] \
@@ -144,6 +144,7 @@ runTest {test tkt-ae5267b863-1.1 {segfault during command GC} -setup {
       } result] : [set result ""]}] $result
 } -cleanup {
   cleanupDb $fileName
+  collectGarbage $::test_channel
 
   unset -nocomplain result code results errors sql dataSource id db fileName
 } -constraints [fixConstraints {eagle command.object monoBug28 monoBug211\

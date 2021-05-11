@@ -22,12 +22,7 @@ runSQLiteTestFilesPrologue
 ###############################################################################
 
 runTest {test tkt-a4d9c7ee94-1.1 {LINQ w/BinaryGUID=false} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -35,7 +30,7 @@ runTest {test tkt-a4d9c7ee94-1.1 {LINQ w/BinaryGUID=false} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -binaryguid2 false
+        -success Success] -binaryguid2 false
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -52,6 +47,8 @@ runTest {test tkt-a4d9c7ee94-1.1 {LINQ w/BinaryGUID=false} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -60,7 +57,11 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 [haveConstraint buildFramework.netFx451] || \
 [haveConstraint buildFramework.netFx452] || \
 [haveConstraint buildFramework.netFx46] || \
-[haveConstraint buildFramework.netFx461]} \
+[haveConstraint buildFramework.netFx461] || \
+[haveConstraint buildFramework.netFx462] || \
+[haveConstraint buildFramework.netFx47] || \
+[haveConstraint buildFramework.netFx471] || \
+[haveConstraint buildFramework.netFx472]} \
 -result {0 {1581 1730 1833 2116 2139 2184 2903 3049 3801 6897 7960 8837 10019\
 10038 11747 14450 19428 19713 20852 27403 27511 29202 30346 31406 32859 33607\
 40222 44122 45839 48075 48084 48304 53404 55113 55439 60179 60601 72716 75234\
@@ -70,12 +71,7 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 ###############################################################################
 
 runTest {test tkt-a4d9c7ee94-1.2 {LINQ w/BinaryGUID=true} -body {
-  #
-  # NOTE: Re-copy the reference database file used for this unit test to the
-  #       build directory in case it has been changed by a previous test run.
-  #
-  file copy -force $northwindEfDbFile \
-      [file join [getBuildDirectory] [file tail $northwindEfDbFile]]
+  copySampleDatabaseFiles
 
   set result [list]
   set output ""
@@ -83,7 +79,7 @@ runTest {test tkt-a4d9c7ee94-1.2 {LINQ w/BinaryGUID=true} -body {
   set code [catch {
     testClrExec $testLinqExeFile [list -eventflags Wait -directory \
         [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
-        -success 0] -binaryguid2 true
+        -success Success] -binaryguid2 true
   } error]
 
   tlog "---- BEGIN STDOUT OUTPUT\n"
@@ -100,6 +96,8 @@ runTest {test tkt-a4d9c7ee94-1.2 {LINQ w/BinaryGUID=true} -body {
 
   set result
 } -cleanup {
+  catch {info previouspid true}
+
   unset -nocomplain code output error result
 } -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
 file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
@@ -108,7 +106,11 @@ file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
 [haveConstraint buildFramework.netFx451] || \
 [haveConstraint buildFramework.netFx452] || \
 [haveConstraint buildFramework.netFx46] || \
-[haveConstraint buildFramework.netFx461]} \
+[haveConstraint buildFramework.netFx461] || \
+[haveConstraint buildFramework.netFx462] || \
+[haveConstraint buildFramework.netFx47] || \
+[haveConstraint buildFramework.netFx471] || \
+[haveConstraint buildFramework.netFx472]} \
 -result {0 {1581 1730 1833 2116 2139 2184 2903 3049 3801 6897 7960 8837 10019\
 10038 11747 14450 19428 19713 20852 27403 27511 29202 30346 31406 32859 33607\
 40222 44122 45839 48075 48084 48304 53404 55113 55439 60179 60601 72716 75234\

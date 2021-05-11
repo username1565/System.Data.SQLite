@@ -25,6 +25,7 @@
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Platform.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets" />
   <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.targets" />
   <PropertyGroup Condition="'$(BinaryOutputPath)' != ''">
@@ -56,15 +57,19 @@
   <ItemGroup Condition="'$(UseEntityFramework6)' != 'false'">
     <Reference Include="EntityFramework"
                Condition="'$(NetFx40)' != 'false'">
-      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\lib\net40\EntityFramework.dll</HintPath>
+      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\v6.2\lib\net40\EntityFramework.dll</HintPath>
     </Reference>
     <Reference Include="EntityFramework"
                Condition="'$(NetFx45)' != 'false' Or
                           '$(NetFx451)' != 'false' Or
                           '$(NetFx452)' != 'false' Or
                           '$(NetFx46)' != 'false' Or
-                          '$(NetFx461)' != 'false'">
-      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\lib\net45\EntityFramework.dll</HintPath>
+                          '$(NetFx461)' != 'false' Or
+                          '$(NetFx462)' != 'false' Or
+                          '$(NetFx47)' != 'false' Or
+                          '$(NetFx471)' != 'false' Or
+                          '$(NetFx472)' != 'false'">
+      <HintPath>$(SQLiteNetDir)\Externals\EntityFramework\v6.2\lib\net45\EntityFramework.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -97,19 +102,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Condition="'$(TargetFrameworkVersion)' == 'v3.5'"
-          Include="2008\LINQ\App.Config" />
+          Include="2008\LINQ\App.config" />
     <None Condition="'$(UseEntityFramework6)' == 'false' And
                      ('$(TargetFrameworkVersion)' == 'v4.0' Or
                       '$(TargetFrameworkVersion)' == 'v4.5' Or
                       '$(TargetFrameworkVersion)' == 'v4.5.1')"
-          Include="2013\LINQ\App.Config" />
+          Include="2013\LINQ\App.config" />
     <None Condition="'$(UseEntityFramework6)' != 'false' And
                      ('$(TargetFrameworkVersion)' == 'v4.0' Or
                       '$(TargetFrameworkVersion)' == 'v4.5' Or
                       '$(TargetFrameworkVersion)' == 'v4.5.1')"
-          Include="2013\EF6\App.Config" />
+          Include="2013\EF6\App.config" />
     <None Include="northwindEF.db">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EntityDeploy Condition="'$(TargetFrameworkVersion)' == 'v3.5'"
                   Include="NorthwindModel.Linq.2008.edmx">

@@ -39,15 +39,15 @@ set params(results) [list \
     1048576 1048576 10\\} 0\$" \
     "0 \\{1 1048576 1048576 1048576 1048576 1048576 1048576 1048576 1048576\
     1048576 1048576 10\\} 0\$" \
-    "1 \\{SQL logic error or missing database -- no such table: t1" \
-    "1 \\{SQL logic error or missing database -- no such table: t1" \
+    "1 \\{SQL logic error( or missing database)? -- no such table: t1" \
+    "1 \\{SQL logic error( or missing database)? -- no such table: t1" \
     "0 \\{1 1048576 1048576 1048576 1048576 1048576 1048576 1048576 1048576\
     1048576 1048576 10\\} 0\$" \
     "0 \\{1 1048576 1048576 1048576 1048576 1048576 1048576 1048576 1048576\
     1048576 1048576 10\\} 10283\$" \
     "0 \\{1 1048576 1048576 1048576 1048576 1048576 1048576 1048576 1048576\
     1048576 1048576 10\\} 0\$" \
-    "1 \\{SQL logic error or missing database -- no such table: t1" \
+    "1 \\{SQL logic error( or missing database)? -- no such table: t1" \
     "0 \\{1 1048576 1048576 1048576 1048576 1048576 1048576 1048576 1048576\
     1048576 1048576 10\\} \\{\\}\$" \
     "0 \\{1 1048576 1048576 1048576 1048576 1048576 1048576 1048576 1048576\
@@ -147,7 +147,7 @@ for {set i 0} {$i < [llength $params(pages)]} {incr i} {
             )
           {
             using (SQLiteConnection destination = new SQLiteConnection(
-                "Data Source=${dataSource};[getFlagsProperty]"))
+                "Data Source=${dataSource};[getTestProperties]"))
             {
               destination.Open();
 
@@ -200,7 +200,7 @@ for {set i 0} {$i < [llength $params(pages)]} {incr i} {
           }
         }
       }
-    }] true true true results errors [list System.Data.SQLite.dll Eagle.dll]]
+    }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
 
     set callbackResults [list]
 

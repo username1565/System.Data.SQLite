@@ -20,27 +20,6 @@ runSQLiteTestPrologue
 
 ###############################################################################
 
-proc getSettingReadCount { name } {
-  if {[haveConstraint buildConfiguration.Debug] && [catch {
-    object invoke -flags +NonPublic -alias \
-        System.Data.SQLite.DebugData settingReadCounts
-  } settingReadCounts] == 0} then {
-    if {[$settingReadCounts TryGetValue $name value]} then {
-      tputs $::test_channel [appendArgs \
-          "---- setting \"" $name "\" was read " $value " times\n"]
-
-      return $value
-    }
-  }
-
-  tputs $::test_channel [appendArgs \
-      "---- setting \"" $name "\" was not read\n"]
-
-  return -1
-}
-
-###############################################################################
-
 reportSQLiteResources $test_channel true
 
 ###############################################################################
@@ -380,7 +359,64 @@ System.Data.SQLite buildConfiguration.Debug} -result {True}}
 
 ###############################################################################
 
-rename getSettingReadCount ""
+reportSQLiteResources $test_channel true
+
+###############################################################################
+
+runTest {test tkt-58ed318f2f-1.13 {zero settings usage} -setup {
+  saveGetSettingValueEnvironment
+
+  set env(No_SQLiteGetSettingValue) 1
+
+  setupDb [set fileName tkt-58ed318f2f-1.13.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(0);
+  }
+
+  sql execute -execute reader -format list $db "SELECT x FROM t1;"
+
+  expr {[getSettingReadCount ""] eq "0 0"}
+} -cleanup {
+  cleanupDb $fileName
+  restoreGetSettingValueEnvironment
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite buildConfiguration.Debug} -result {True}}
+
+###############################################################################
+
+reportSQLiteResources $test_channel true
+
+###############################################################################
+
+runTest {test tkt-58ed318f2f-1.14 {zero XML configuration file usage} -setup {
+  saveGetSettingValueEnvironment
+
+  set env(No_SQLiteXmlConfigFile) 1
+
+  setupDb [set fileName tkt-58ed318f2f-1.14.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(0);
+  }
+
+  sql execute -execute reader -format list $db "SELECT x FROM t1;"
+
+  set counts [getSettingReadCount ""]
+
+  expr {[lindex $counts 0] > 0 && [lindex $counts 1] > 0 && \
+      [getSettingReadCount "" true] eq "0 0"}
+} -cleanup {
+  cleanupDb $fileName
+  restoreGetSettingValueEnvironment
+
+  unset -nocomplain counts db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite buildConfiguration.Debug} -result {True}}
 
 ###############################################################################
 

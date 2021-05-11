@@ -1,9 +1,9 @@
 Installer.exe: #[getLineNumber]: Configuration.Process: No actual changes will be made to this system because "what-if" mode is enabled.
-Installer.exe: #[getLineNumber]: Configuration.IsSystemEf6AssemblyAvailable: Entity Framework 6 assembly was resolved to "[file nativename [file join [getBuildDirectory] EntityFramework.dll]]".
-Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory] SQLite.Designer.dll]]"
-Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory] System.Data.SQLite.EF6.dll]]"
-Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory] System.Data.SQLite.Linq.dll]]"
-Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory] System.Data.SQLite.dll]]"
+Installer.exe: #[getLineNumber]: Configuration.IsSystemEf6AssemblyAvailable: Entity Framework 6 assembly was resolved to "[file nativename [file join [getBuildDirectory true] EntityFramework.dll]]".
+Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory true] SQLite.Designer.dll]]"
+Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory true] System.Data.SQLite.EF6.dll]]"
+Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory true] System.Data.SQLite.Linq.dll]]"
+Installer.exe: #[getLineNumber]: Installer.Main: GacRemove: assemblyPath = "[file nativename [file join [getBuildDirectory true] System.Data.SQLite.dll]]"
 Installer.exe: #[getLineNumber]: RegistryHelper.OpenSubKey: rootKey = "HKEY_LOCAL_MACHINE", subKeyName = "Software${wow64}\Microsoft\.NETFramework\v4.5.50709", writable = False
 Installer.exe: #[getLineNumber]: RegistryHelper.OpenSubKey: rootKey = "HKEY_LOCAL_MACHINE", subKeyName = "Software${wow64}\Microsoft\.NETFramework\v4.5.50709\AssemblyFoldersEx", writable = True
 Installer.exe: #[getLineNumber]: RegistryHelper.DeleteSubKey: rootKey = "HKEY_LOCAL_MACHINE\Software${wow64}\Microsoft\.NETFramework\v4.5.50709\AssemblyFoldersEx", subKeyName = "System.Data.SQLite"
@@ -36,4 +36,5 @@ Installer.exe: #[getLineNumber]: Installer.RemoveVsDevEnvSetup: Preparing to run
 Installer.exe: #[getLineNumber]: Installer.AddVsDevEnvSetup: fileName = "[file nativename [file join [expr {$is64 ? ${::env(ProgramFiles(x86))} : $::env(ProgramFiles)}] {Microsoft Visual Studio 11.0} Common7 IDE devenv.exe]]", arguments = "/setup", workingDirectory = "[file nativename [file join [expr {$is64 ? ${::env(ProgramFiles(x86))} : $::env(ProgramFiles)}] {Microsoft Visual Studio 11.0} Common7 IDE]]\", useShellExecute = False, redirectStandardOutput = True, redirectStandardError = True
 Installer.exe: #[getLineNumber]: Installer.Main: subKeysCreated = 0, subKeysDeleted = 5, keyValuesRead = 5, keyValuesWritten = 0, keyValuesDeleted = 1
 Installer.exe: #[getLineNumber]: Installer.Main: filesCreated = 1, filesModified = 1, filesDeleted = 0
+Installer.exe: #[getLineNumber]: RegistryHelper.WriteOperationList: Operation log file name not set.
 Installer.exe: #[getLineNumber]: Installer.Main: Success.

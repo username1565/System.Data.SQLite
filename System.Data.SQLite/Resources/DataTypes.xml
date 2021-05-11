@@ -45,6 +45,23 @@
     <IsBestMatch>true</IsBestMatch>
   </DataTypes>
   <DataTypes>
+    <TypeName>mediumint</TypeName>
+    <ProviderDbType>11</ProviderDbType>
+    <ColumnSize>10</ColumnSize>
+    <DataType>System.Int32</DataType>
+    <CreateFormat>mediumint</CreateFormat>
+    <IsAutoIncrementable>false</IsAutoIncrementable>
+    <IsCaseSensitive>false</IsCaseSensitive>
+    <IsFixedLength>true</IsFixedLength>
+    <IsFixedPrecisionScale>true</IsFixedPrecisionScale>
+    <IsLong>false</IsLong>
+    <IsNullable>true</IsNullable>
+    <IsSearchable>true</IsSearchable>
+    <IsSearchableWithLike>false</IsSearchableWithLike>
+    <IsUnsigned>false</IsUnsigned>
+    <IsBestMatch>false</IsBestMatch>
+  </DataTypes>
+  <DataTypes>
     <TypeName>real</TypeName>
     <ProviderDbType>8</ProviderDbType>
     <ColumnSize>6</ColumnSize>
@@ -769,7 +786,7 @@
   </DataTypes>
   <DataTypes>
     <TypeName>uniqueidentifier</TypeName>
-    <ProviderDbType>4</ProviderDbType>
+    <ProviderDbType>9</ProviderDbType>
     <ColumnSize>16</ColumnSize>
     <DataType>System.Guid</DataType>
     <CreateFormat>uniqueidentifier</CreateFormat>
@@ -787,7 +804,7 @@
   </DataTypes>
   <DataTypes>
     <TypeName>guid</TypeName>
-    <ProviderDbType>4</ProviderDbType>
+    <ProviderDbType>9</ProviderDbType>
     <ColumnSize>16</ColumnSize>
     <DataType>System.Guid</DataType>
     <CreateFormat>guid</CreateFormat>

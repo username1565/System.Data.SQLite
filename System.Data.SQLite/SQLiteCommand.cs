@@ -635,6 +635,76 @@ namespace System.Data.SQLite
     }
 
     /// <summary>
+    /// Verifies that all SQL queries associated with the current command text
+    /// can be successfully compiled.  A <see cref="SQLiteException" /> will be
+    /// raised if any errors occur.
+    /// </summary>
+    public void VerifyOnly()
+    {
+        CheckDisposed();
+
+        SQLiteConnection connection = _cnn;
+        SQLiteConnection.Check(connection); /* throw */
+        SQLiteBase sqlBase = connection._sql;
+
+        if ((connection == null) || (sqlBase == null))
+            throw new SQLiteException("invalid or unusable connection");
+
+        List<SQLiteStatement> statements = null;
+        SQLiteStatement currentStatement = null;
+
+        try
+        {
+            string text = _commandText;
+            uint timeout = (uint)(_commandTimeout * 1000);
+            SQLiteStatement previousStatement = null;
+
+            while ((text != null) && (text.Length > 0))
+            {
+                currentStatement = sqlBase.Prepare(
+                    connection, text, previousStatement, timeout,
+                    ref text); /* throw */
+
+                previousStatement = currentStatement;
+
+                if (currentStatement != null)
+                {
+                    if (statements == null)
+                        statements = new List<SQLiteStatement>();
+
+                    statements.Add(currentStatement);
+                    currentStatement = null;
+                }
+
+                if (text == null) continue;
+                text = text.Trim();
+            }
+        }
+        finally
+        {
+            if (currentStatement != null)
+            {
+                currentStatement.Dispose();
+                currentStatement = null;
+            }
+
+            if (statements != null)
+            {
+                foreach (SQLiteStatement statement in statements)
+                {
+                    if (statement == null)
+                        continue;
+
+                    statement.Dispose();
+                }
+
+                statements.Clear();
+                statements = null;
+            }
+        }
+    }
+
+    /// <summary>
     /// This function ensures there are no active readers, that we have a valid connection,
     /// that the connection is open, that all statements are prepared and all parameters are assigned
     /// in preparation for allocating a data reader.
@@ -859,6 +929,90 @@ namespace System.Data.SQLite
     }
 
     /// <summary>
+    /// This method executes a query using the given execution type and command
+    /// behavior and returns the results.
+    /// </summary>
+    /// <param name="commandText">
+    /// The text of the command to be executed.
+    /// </param>
+    /// <param name="executeType">
+    /// The execution type for the command.  This is used to determine which method
+    /// of the command object to call, which then determines the type of results
+    /// returned, if any.
+    /// </param>
+    /// <param name="commandBehavior">
+    /// The command behavior flags for the command.
+    /// </param>
+    /// <param name="connection">
+    /// The connection used to create and execute the command.
+    /// </param>
+    /// <param name="args">
+    /// The SQL parameter values to be used when building the command object to be
+    /// executed, if any.
+    /// </param>
+    /// <returns>
+    /// The results of the query -OR- null if no results were produced from the
+    /// given execution type.
+    /// </returns>
+    public static object Execute(
+        string commandText,
+        SQLiteExecuteType executeType,
+        CommandBehavior commandBehavior,
+        SQLiteConnection connection,
+        params object[] args
+        )
+    {
+        SQLiteConnection.Check(connection);
+
+        using (SQLiteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = commandText;
+
+            if (args != null)
+            {
+                foreach (object arg in args)
+                {
+                    SQLiteParameter parameter = arg as SQLiteParameter;
+
+                    if (parameter == null)
+                    {
+                        parameter = command.CreateParameter();
+                        parameter.DbType = DbType.Object;
+                        parameter.Value = arg;
+                    }
+
+                    command.Parameters.Add(parameter);
+                }
+            }
+
+            switch (executeType)
+            {
+                case SQLiteExecuteType.None:
+                    {
+                        //
+                        // NOTE: Do nothing.
+                        //
+                        break;
+                    }
+                case SQLiteExecuteType.NonQuery:
+                    {
+                        return command.ExecuteNonQuery(commandBehavior);
+                    }
+                case SQLiteExecuteType.Scalar:
+                    {
+                        return command.ExecuteScalar(commandBehavior);
+                    }
+                case SQLiteExecuteType.Reader:
+                    {
+                        return command.ExecuteReader(commandBehavior);
+                    }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Overrides the default behavior to return a SQLiteDataReader specialization class
     /// </summary>
     /// <param name="behavior">The flags to be associated with the reader.</param>
@@ -953,7 +1107,7 @@ namespace System.Data.SQLite
       using (SQLiteDataReader reader = ExecuteReader(behavior |
           CommandBehavior.SingleRow | CommandBehavior.SingleResult))
       {
-        if (reader.Read())
+        if (reader.Read() && (reader.FieldCount > 0))
           return reader[0];
       }
       return null;

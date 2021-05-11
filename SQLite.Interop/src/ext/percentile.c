@@ -108,8 +108,8 @@ static void percentStep(sqlite3_context *pCtx, int argc, sqlite3_value **argv){
   /* Requirement 3:  P must be a number between 0 and 100 */
   eType = sqlite3_value_numeric_type(argv[1]);
   rPct = sqlite3_value_double(argv[1]);
-  if( (eType!=SQLITE_INTEGER && eType!=SQLITE_FLOAT) ||
-      ((rPct = sqlite3_value_double(argv[1]))<0.0 || rPct>100.0) ){
+  if( (eType!=SQLITE_INTEGER && eType!=SQLITE_FLOAT)
+   || rPct<0.0 || rPct>100.0 ){
     sqlite3_result_error(pCtx, "2nd argument to percentile() is not "
                          "a number between 0.0 and 100.0", -1);
     return;
@@ -151,7 +151,7 @@ static void percentStep(sqlite3_context *pCtx, int argc, sqlite3_value **argv){
   /* Allocate and store the Y */
   if( p->nUsed>=p->nAlloc ){
     unsigned n = p->nAlloc*2 + 250;
-    double *a = sqlite3_realloc(p->a, sizeof(double)*n);
+    double *a = sqlite3_realloc64(p->a, sizeof(double)*n);
     if( a==0 ){
       sqlite3_free(p->a);
       memset(p, 0, sizeof(*p));
@@ -167,7 +167,7 @@ static void percentStep(sqlite3_context *pCtx, int argc, sqlite3_value **argv){
 /*
 ** Compare to doubles for sorting using qsort()
 */
-static int doubleCmp(const void *pA, const void *pB){
+static int SQLITE_CDECL doubleCmp(const void *pA, const void *pB){
   double a = *(double*)pA;
   double b = *(double*)pB;
   if( a==b ) return 0;
@@ -213,7 +213,8 @@ int sqlite3_percentile_init(
   int rc = SQLITE_OK;
   SQLITE_EXTENSION_INIT2(pApi);
   (void)pzErrMsg;  /* Unused parameter */
-  rc = sqlite3_create_function(db, "percentile", 2, SQLITE_UTF8, 0,
+  rc = sqlite3_create_function(db, "percentile", 2, 
+                               SQLITE_UTF8|SQLITE_INNOCUOUS, 0,
                                0, percentStep, percentFinal);
   return rc;
 }

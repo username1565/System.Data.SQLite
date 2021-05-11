@@ -115,4 +115,5 @@ GOTO no_errors
   GOTO end_of_file
 
 :end_of_file
-%__ECHO% EXIT /B %ERRORLEVEL%
+::Do not exit, in the end.
+::%__ECHO% EXIT /B %ERRORLEVEL%

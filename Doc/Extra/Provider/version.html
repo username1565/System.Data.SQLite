@@ -43,6 +43,126 @@
     <div id="mainSection">
     <div id="mainBody">
     <h1 class="heading">Version History</h1>
+    <p><b>1.0.113.0 - June 1, 2020</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_32_1.html">SQLite 3.32.1</a>.</li>
+      <li>Add SQLite_ForceLogLifecycle environment variable to force logging of calls into key members pertaining to the lifecycle of connections and their associated classes (e.g. LINQ, EF6, etc).</li>
+      <li>Support automatic value conversions for columns with a declared type of MEDIUMINT or MEDIUMUINT. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/515cb60b10">[515cb60b10]</a>.</li>
+    </ul>
+    <p><b>1.0.112.2 - April 27, 2020</b></p>
+    <ul>
+      <li>Fix NuGet packaging for .NET Standard 2.1. Fix for <a href="https://system.data.sqlite.org/index.html/info/7c73262e6f">[7c73262e6f]</a>.</li>
+    </ul>
+    <p><b>1.0.112.1 - April 6, 2020</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_31_1.html">SQLite 3.31.1</a>.</li>
+      <li>Include the &quot;LINQ&quot; partial classes in the primary managed assembly for .NET Standard 2.1. Fix for <a href="https://system.data.sqlite.org/index.html/info/ad28d8e026">[ad28d8e026]</a>.</li>
+    </ul>
+    <p><b>1.0.112.0 - October 28, 2019</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_30_1.html">SQLite 3.30.1</a>.</li>
+      <li>Add preliminary support for .NET Core 3.0 and the .NET Standard 2.1. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/ce75d320d0">[ce75d320d0]</a>.</li>
+      <li>Updated to <a href="https://www.nuget.org/packages/EntityFramework/6.3.0">Entity Framework 6.3.0</a>.</li>
+      <li>Add support for new DBCONFIG options from the SQLite core library. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/03b6b0edd7">[03b6b0edd7]</a>.</li>
+      <li>Add SetLimitOption method to the SQLiteConnection class.</li>
+    </ul>
+    <p><b>1.0.111.0 - June 10, 2019</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_28_0.html">SQLite 3.28.0</a>.</li>
+      <li>Add No_SQLiteLog environment variable.</li>
+    </ul>
+    <p><b>1.0.110.0 - March 4, 2019</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_27_2.html">SQLite 3.27.2</a>.</li>
+      <li>Add HidePassword connection flag to remove the password from the connection string once the database is opened. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/23d8d6171e">[23d8d6171e]</a>.</li>
+      <li>Add experimental StrictConformance connection flag to force strict compliance to the ADO.NET standard. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/e36e05e299">[e36e05e299]</a>.</li>
+      <li>Add support for the <a href="https://www.sqlite.org/session/c_changesetstart_invert.html">sqlite3changeset_start_v2()</a> and <a href="https://www.sqlite.org/session/c_changesetstart_invert.html">sqlite3changeset_start_v2_strm()</a> interfaces.</li>
+    </ul>
+    <p><b>1.0.109.0 - August 15, 2018</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_24_0.html">SQLite 3.24.0</a>.</li>
+      <li>Updated to <a href="https://www.nuget.org/packages/EntityFramework/6.2.0">Entity Framework 6.2.0</a>.</li>
+      <li>Do not attempt to initialize the logging subsystem more than once.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Prevent GetSchemaTable from throwing InvalidCastException. Fix for <a href="https://system.data.sqlite.org/index.html/info/baf42ee135">[baf42ee135]</a>.</li>
+      <li>Add preliminary support for the .NET Framework 4.7.2.</li>
+      <li>Add preliminary support for .NET Core 2.0 and the .NET Standard 2.0. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/5c89cecd1b">[5c89cecd1b]</a>.</li>
+      <li>Add simpler overload for the SQLiteBlob.Create method. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/dfc8133ba2">[dfc8133ba2]</a>.</li>
+      <li>Add GetFieldAffinity method to the SQLiteDataReader class.</li>
+    </ul>
+    <p><b>1.0.108.0 - March 2, 2018</b></p>
+    <ul>
+      <li>Support extended result codes when messages are looked up without the SQLite core library.</li>
+      <li>Override System.Object members for the SQLiteException class to improve its ToString return value. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/53962f9eff">[53962f9eff]</a>.</li>
+      <li>More database connection configuration options for the <a href="https://www.sqlite.org/c3ref/db_config.html">sqlite3_db_config()</a> interface.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Set HResult property of SQLiteException based on the SQLite core library error code.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Modify experimental WaitForEnlistmentReset method to require a nullable boolean parameter for the value to return when the connection is disposed.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+    </ul>
+    <p><b>1.0.107.0 - January 30, 2018</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_22_0.html">SQLite 3.22.0</a>.</li>
+      <li>Improve performance of type name lookups by removing superfluous locking and string creation.</li>
+      <li>Support asynchronous completion of distributed transactions. Fix for <a href="https://system.data.sqlite.org/index.html/info/5cee5409f8">[5cee5409f8]</a>.</li>
+      <li>Add experimental WaitForEnlistmentReset method to the SQLiteConnection class. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/7e1dd697dc">[7e1dd697dc]</a>.</li>
+      <li>Fix some internal memory accounting present only in the debug build.</li>
+      <li>Make sure inbound native delegates are unhooked before adding a connection to the pool. Fix for <a href="https://system.data.sqlite.org/index.html/info/0e48e80333">[0e48e80333]</a>.</li>
+      <li>Add preliminary support for the .NET Framework 4.7.1.</li>
+      <li>Updates to internal DbType mapping related lookup tables. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/a799e3978f">[a799e3978f]</a>.</li>
+    </ul>
+    <p><b>1.0.106.0 - November 2, 2017</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_21_0.html">SQLite 3.21.0</a>.</li>
+      <li>Add full support for the native <a href="https://www.sqlite.org/sessionintro.html">session</a> extension.</li>
+      <li>Add BindDecimalAsText and GetDecimalAsText connection flags to force binding and returning of decimal values as text. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/b167206ad3">[b167206ad3]</a>.</li>
+      <li>Add BindInvariantDecimal and GetInvariantDecimal connection flags, enabled by default, to force binding and returning of decimal values using the invariant culture. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/b167206ad3">[b167206ad3]</a>.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Add preliminary support for Visual Studio 2017 and the .NET Framework 4.7. This does <b>not</b> include support for the design-time components for Visual Studio, see <a href="https://system.data.sqlite.org/index.html/info/8292431f51">[8292431f51]</a>.</li>
+    </ul>
+    <p><b>1.0.105.2 - June 12, 2017</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_19_3.html">SQLite 3.19.3</a>.</li>
+      <li>Fix issues that prevented SQLiteBlob creation from succeeding for tables that did not have an integer primary key.</li>
+    </ul>
+    <p><b>1.0.105.1 - May 15, 2017</b></p>
+    <ul>
+      <li>Prevent culture settings from negatively impacting integer connection string defaults.</li>
+      <li>Make sure the &quot;No_SQLiteConnectionNewParser&quot; and &quot;DefaultFlags_SQLiteConnection&quot; setting values end up being cached.</li>
+      <li>Cache the XML file name and assembly directory used by the configuration subsystem.</li>
+    </ul>
+    <p><b>1.0.105.0 - April 9, 2017</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_18_0.html">SQLite 3.18.0</a>.</li>
+      <li>Add experimental support for native sha1 extension.</li>
+    </ul>
+    <p><b>1.0.104.0 - December 16, 2016</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_15_2.html">SQLite 3.15.2</a>.</li>
+      <li>Add the &quot;%PreLoadSQLite_AssemblyDirectory%&quot;, &quot;%PreLoadSQLite_TargetFramework%&quot;, and &quot;%PreLoadSQLite_XmlConfigDirectory%&quot; <a href="https://system.data.sqlite.org/index.html/artifact?ci=trunk&filename=Doc/Extra/Provider/environment.html">replacement tokens</a> for use in configuration setting values. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/d4728aecb7">[d4728aecb7]</a>.</li>
+      <li>Prevent the GetByte, GetChar, and GetInt16 methods of the SQLiteDataReader class from throwing exceptions for large integer values. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/5535448538">[5535448538]</a>.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Use <a href="https://www.sqlite.org/lang_savepoint.html">SAVEPOINTs</a> to properly implement nested transactions when the new AllowNestedTransactions connection flag is used. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/1f7bfff467">[1f7bfff467]</a>.</li>
+      <li>When converting a Julian Day value to an integer, round to the nearest millisecond first. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/69cf6e5dc8">[69cf6e5dc8]</a>.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+    </ul>
+    <p><b>1.0.103.0 - September 15, 2016</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_14_2.html">SQLite 3.14.2</a>.</li>
+      <li>Add preliminary support for the .NET Framework 4.6.2.</li>
+      <li>Change the SQLiteReadValueCallback delegate &quot;eventArgs&quot; parameter to be of type SQLiteReadEventArgs.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Make SQLiteReadValueEventArgs and SQLiteReadArrayEventArgs derive from SQLiteReadEventArgs.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Rename SQLiteReadValueEventArgs.ArrayEventArgs property to ExtraEventArgs.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Add No_SQLiteGetSettingValue and No_SQLiteXmlConfigFile environment variables.</li>
+      <li>Reduce the number of calls to GetSettingValue from SQLiteConnection. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/25d53b48f6">[25d53b48f6]</a>.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Add NoVerifyTypeAffinity connection flag to disable all type affinity checking.</li>
+      <li>Add support for <a href="https://www.sqlite.org/c3ref/blob_open.html">incremental blob I/O</a>.</li>
+      <li>Improve support for the <a href="https://www.sqlite.org/c3ref/db_config.html">sqlite3_db_config()</a> interface. Pursuant to <a href="https://system.data.sqlite.org/index.html/info/f64f4aee95">[f64f4aee95]</a>.</li>
+    </ul>
+    <p><b>1.0.102.0 - June 23, 2016</b></p>
+    <ul>
+      <li>Updated to <a href="https://www.sqlite.org/releaselog/3_13_0.html">SQLite 3.13.0</a>.</li>
+      <li>Update the SQLiteConnection.EnableExtensions method to make use of the new SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION option, when available.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Prevent the SQLiteCommand.ExecuteScalar method from throwing an exception when there are no result columns.&nbsp;<b>** Potentially Incompatible Change **</b></li>
+      <li>Support per-connection customization for binding parameters and reading values, based on the database type name.</li>
+      <li>Add TypeName property to the SQLiteParameter class.</li>
+      <li>Add VerifyOnly method to the SQLiteCommand class.</li>
+      <li>Add IsReadOnly method to the SQLiteConnection class.</li>
+    </ul>
     <p><b>1.0.101.0 - April 19, 2016</b></p>
     <ul>
       <li>Updated to <a href="https://www.sqlite.org/releaselog/3_12_2.html">SQLite 3.12.2</a>.</li>
@@ -167,7 +287,7 @@
       <li>Fix bug in documentation generator automation that prevented some internal documentation links from working.</li>
       <li>Fix DateTime constant handling in the LINQ assembly. Fix for <a href="https://system.data.sqlite.org/index.html/info/da9f18d039">[da9f18d039]</a>.&nbsp;<b>** Potentially Incompatible Change **</b></li>
     </ul>
-    <p><b>1.0.92.0 - March 19, 2014</p>
+    <p><b>1.0.92.0 - March 19, 2014</b></p>
     <ul>
       <li>Updated to <a href="https://www.sqlite.org/releaselog/3_8_4_1.html">SQLite 3.8.4.1</a>.</li>
       <li>Update the list of keywords returned by SQLiteConnection.GetSchema(&quot;ReservedWords&quot;).&nbsp;<b>** Potentially Incompatible Change **</b></li>
@@ -221,7 +341,7 @@
       <li>Add SQLiteCommand.Execute, SQLiteCommand.ExecuteNonQuery, and SQLiteCommand.ExecuteScalar method overloads that take a CommandBehavior parameter.</li>
       <li>Revise how the extra object data is passed to the static SQLiteConnection.Changed event.&nbsp;<b>** Potentially Incompatible Change **</b></li>
       <li>Make sure the database cannot be changed by a query when the CommandBehavior.SchemaOnly flag is used. Fix for <a href="https://system.data.sqlite.org/index.html/info/f8dbab8baf">[f8dbab8baf]</a>.&nbsp;<b>** Potentially Incompatible Change **</b></li>
-      <li>Fix bug in <a href="http://sourceforge.net/projects/ndoc3/">NDoc3</a> that was preventing some of the MSDN documentation links from working.</li>
+      <li>Fix bug in <a href="https://sourceforge.net/projects/ndoc3/">NDoc3</a> that was preventing some of the MSDN documentation links from working.</li>
       <li>Include the XML documentation files in the NuGet packages. Fix for <a href="https://system.data.sqlite.org/index.html/info/5970d5b0a6">[5970d5b0a6]</a>.</li>
       <li>Add InteropVersion, InteropSourceId, ProviderVersion, and ProviderSourceId properties to the SQLiteConnection class.</li>
       <li>Add experimental support for interfacing with the authorizer callback in the SQLite core library.</li>

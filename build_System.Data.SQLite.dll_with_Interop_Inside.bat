@@ -22,7 +22,7 @@ set msbuild=%fdir%\v4.0.30319\msbuild.exe
 echo.
 echo See compiled files in "bin" and "obj" folders.
 echo System.Data.SQLite.dll with SQLite.Interop.dll inside, contains in:
-echo 	\bin\2010\Win32\Release\System.Data.SQLite.dll
+echo 	\bin\2010\Win32\Debug\System.Data.SQLite.dll
 echo This file have larger size, then \bin\2010\Release\bin\System.Data.SQLite.dll
 echo.
 

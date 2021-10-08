@@ -729,6 +729,10 @@ namespace System.Data.SQLite
       /// </summary>
       IoErr_Data = (IoErr | (32 << 8)),
       /// <summary>
+      /// File system corruption was detected during a read or write.
+      /// </summary>
+      IoErr_CorruptFs = (IoErr | (33 << 8)),
+      /// <summary>
       /// A database table is locked in shared-cache mode.
       /// </summary>
       Locked_SharedCache = (Locked | (1 << 8)),
@@ -772,6 +776,10 @@ namespace System.Data.SQLite
       /// A database file is a symbolic link and cannot be opened.
       /// </summary>
       CantOpen_SymLink = (CantOpen | (6 << 8)),
+      /// <summary>
+      /// A database file already exists and cannot be created.
+      /// </summary>
+      CantOpen_Exists = (CantOpen | (7 << 8)),
       /// <summary>
       /// A virtual table is malformed.
       /// </summary>
@@ -856,6 +864,10 @@ namespace System.Data.SQLite
       /// A database cursor is busy and cannot be moved.
       /// </summary>
       Constraint_Pinned = (Constraint |(11 << 8)),
+      /// <summary>
+      /// Value does not conform to specified data type.
+      /// </summary>
+      Constraint_DataType = (Constraint | (12 << 8)),
       /// <summary>
       /// Frames were recovered from the WAL log file.
       /// </summary>

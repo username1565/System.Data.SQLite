@@ -247,6 +247,11 @@ namespace System.Data.SQLite
     public static string UTF8ToString(IntPtr nativestring, int nativestringlen)
     {
       if (nativestring == IntPtr.Zero || nativestringlen == 0) return String.Empty;
+#if NET_STANDARD_21
+      return (nativestringlen < 0) ?
+        Marshal.PtrToStringUTF8(nativestring) :
+        Marshal.PtrToStringUTF8(nativestring, nativestringlen);
+#else
       if (nativestringlen < 0)
       {
         nativestringlen = 0;
@@ -262,6 +267,7 @@ namespace System.Data.SQLite
       Marshal.Copy(nativestring, byteArray, 0, nativestringlen);
 
       return _utf8.GetString(byteArray, 0, nativestringlen);
+#endif
     }
     #endregion
 
@@ -1672,7 +1678,7 @@ namespace System.Data.SQLite
       typeof(string),        // ?? (24)
       typeof(string),        // Xml (25)
       typeof(DateTime),      // DateTime2 (26)
-#if !PLATFORM_COMPACTFRAMEWORK && (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_STANDARD_20 || NET_STANDARD_21)
+#if !PLATFORM_COMPACTFRAMEWORK && (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_48 || NET_STANDARD_20 || NET_STANDARD_21)
       //
       // NOTE: This type is only available on the
       //       .NET Framework 2.0 SP1 and later.

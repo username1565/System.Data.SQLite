@@ -67,7 +67,7 @@ namespace System.Data.SQLite
         "d8215c18a4349a436dd499e3c385cc683015f886f6c10bd90115eb2bd61b67750839e3a19941dc9c";
 
 #if !PLATFORM_COMPACTFRAMEWORK
-    internal const string DesignerVersion = "1.0.113.0";
+    internal const string DesignerVersion = "1.0.115.0";
 #endif
 
     /// <summary>
@@ -81,7 +81,7 @@ namespace System.Data.SQLite
     protected int _poolVersion;
     private int _cancelCount;
 
-#if (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472) && !PLATFORM_COMPACTFRAMEWORK
+#if (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_48) && !PLATFORM_COMPACTFRAMEWORK
     private bool _buildingSchema;
 #endif
 
@@ -115,6 +115,17 @@ namespace System.Data.SQLite
     /// </summary>
     protected Dictionary<string, SQLiteModule> _modules;
 #endif
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    #region Query Preparation Diagnostics Support
+    /// <summary>
+    /// This field is used to keep track of whether or not the
+    /// "SQLite_ForceLogPrepare" environment variable has been queried.  If so,
+    /// it will only be non-zero if the environment variable was present.
+    /// </summary>
+    private bool _forceLogPrepare;
+    #endregion
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -154,6 +165,8 @@ namespace System.Data.SQLite
         )
       : base(fmt, kind, fmtString)
     {
+        InitializeForceLogPrepare();
+
         if (db != IntPtr.Zero)
         {
             _sql = new SQLiteConnectionHandle(db, ownHandle);
@@ -166,6 +179,34 @@ namespace System.Data.SQLite
                 ownHandle }));
         }
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    #region Query Preparation Diagnostics Support
+    /// <summary>
+    /// Determines if all calls to prepare a SQL query will be logged,
+    /// regardless of the flags for the associated connection.
+    /// </summary>
+    private void InitializeForceLogPrepare()
+    {
+        if (UnsafeNativeMethods.GetSettingValue(
+                "SQLite_ForceLogPrepare", null) != null)
+        {
+            _forceLogPrepare = true;
+        }
+        else
+        {
+            _forceLogPrepare = false;
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    internal override bool ForceLogPrepare
+    {
+        get { return _forceLogPrepare; }
+    }
+    #endregion
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1054,17 +1095,18 @@ namespace System.Data.SQLite
           SQLiteErrorCode n;
 
 #if !SQLITE_STANDARD
-          int extFuncs = HelperMethods.HasFlags(connectionFlags, SQLiteConnectionFlags.NoExtensionFunctions) ? 0 : 1;
+          int extFuncs = 0;
 
-          if (extFuncs != 0)
-          {
-            n = UnsafeNativeMethods.sqlite3_open_interop(ToUTF8(strFilename), ToUTF8(vfsName), openFlags, extFuncs, ref db);
-          }
-          else
+          if (!HelperMethods.HasFlags(connectionFlags, SQLiteConnectionFlags.NoExtensionFunctions))
+              extFuncs |= 1;
+
+          if (HelperMethods.HasFlags(connectionFlags, SQLiteConnectionFlags.NoCoreFunctions))
+              extFuncs |= 2;
+
+          n = UnsafeNativeMethods.sqlite3_open_interop(ToUTF8(strFilename), ToUTF8(vfsName), openFlags, extFuncs, ref db);
+#else
+          n = UnsafeNativeMethods.sqlite3_open_v2(ToUTF8(strFilename), ref db, openFlags, ToUTF8(vfsName));
 #endif
-          {
-            n = UnsafeNativeMethods.sqlite3_open_v2(ToUTF8(strFilename), ref db, openFlags, ToUTF8(vfsName));
-          }
 
 #if !NET_COMPACT_20 && TRACE_CONNECTION
           Trace.WriteLine(HelperMethods.StringFormat(
@@ -1336,52 +1378,13 @@ namespace System.Data.SQLite
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    #region Query Diagnostics Support
-    /// <summary>
-    /// This field is used to keep track of whether or not the
-    /// "SQLite_ForceLogPrepare" environment variable has been queried.  If so,
-    /// it will only be non-zero if the environment variable was present.
-    /// </summary>
-    private static bool? forceLogPrepare = null;
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
+    #region Lifecycle Diagnostics Support
     /// <summary>
     /// This field is used to keep track of whether or not the
     /// "SQLite_ForceLogLifecycle" environment variable has been queried.  If
     /// so, it will only be non-zero if the environment variable was present.
     /// </summary>
     private static bool? forceLogLifecycle = null;
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    /// <summary>
-    /// Determines if all calls to prepare a SQL query will be logged,
-    /// regardless of the flags for the associated connection.
-    /// </summary>
-    /// <returns>
-    /// Non-zero to log all calls to prepare a SQL query.
-    /// </returns>
-    internal static bool ForceLogPrepare()
-    {
-        lock (syncRoot)
-        {
-            if (forceLogPrepare == null)
-            {
-                if (UnsafeNativeMethods.GetSettingValue(
-                        "SQLite_ForceLogPrepare", null) != null)
-                {
-                    forceLogPrepare = true;
-                }
-                else
-                {
-                    forceLogPrepare = false;
-                }
-            }
-
-            return (bool)forceLogPrepare;
-        }
-    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1446,7 +1449,7 @@ namespace System.Data.SQLite
       SQLiteConnectionFlags flags =
           (cnn != null) ? cnn.Flags : SQLiteConnectionFlags.Default;
 
-      if (ForceLogPrepare() ||
+      if (_forceLogPrepare ||
           HelperMethods.LogPrepare(flags))
       {
           if ((strSql == null) || (strSql.Length == 0) || (strSql.Trim().Length == 0))
@@ -1558,7 +1561,7 @@ namespace System.Data.SQLite
 
               return cmd;
             }
-#if (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472) && !PLATFORM_COMPACTFRAMEWORK
+#if (NET_35 || NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_48) && !PLATFORM_COMPACTFRAMEWORK
             else if (_buildingSchema == false && String.Compare(GetLastError(), 0, "no such table: TEMP.SCHEMA", 0, 26, StringComparison.OrdinalIgnoreCase) == 0)
             {
               strRemain = String.Empty;
@@ -1715,7 +1718,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
@@ -1735,7 +1738,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
@@ -1748,7 +1751,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
@@ -1778,7 +1781,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
@@ -1798,7 +1801,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
@@ -1818,7 +1821,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
@@ -1833,14 +1836,14 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, value);
         }
 
         byte[] b = ToUTF8(value);
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, b);
         }
@@ -1853,7 +1856,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, dt);
         }
@@ -1877,7 +1880,7 @@ namespace System.Data.SQLite
                 {
                     long value = dt.Ticks;
 
-                    if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+                    if (_forceLogPrepare || HelperMethods.LogBind(flags))
                     {
                         LogBind(handle, index, value);
                     }
@@ -1898,7 +1901,7 @@ namespace System.Data.SQLite
                 {
                     double value = ToJulianDay(dt);
 
-                    if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+                    if (_forceLogPrepare || HelperMethods.LogBind(flags))
                     {
                         LogBind(handle, index, value);
                     }
@@ -1919,7 +1922,7 @@ namespace System.Data.SQLite
                 {
                     long value = Convert.ToInt64(dt.Subtract(UnixEpoch).TotalSeconds);
 
-                    if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+                    if (_forceLogPrepare || HelperMethods.LogBind(flags))
                     {
                         LogBind(handle, index, value);
                     }
@@ -1940,7 +1943,7 @@ namespace System.Data.SQLite
                 {
                     byte[] b = ToUTF8(dt);
 
-                    if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+                    if (_forceLogPrepare || HelperMethods.LogBind(flags))
                     {
                         LogBind(handle, index, b);
                     }
@@ -1956,7 +1959,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index, blobData);
         }
@@ -1969,7 +1972,7 @@ namespace System.Data.SQLite
     {
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             LogBind(handle, index);
         }
@@ -1983,7 +1986,7 @@ namespace System.Data.SQLite
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
         int value = UnsafeNativeMethods.sqlite3_bind_parameter_count(handle);
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             IntPtr handleIntPtr = handle;
 
@@ -2008,7 +2011,7 @@ namespace System.Data.SQLite
         name = UTF8ToString(UnsafeNativeMethods.sqlite3_bind_parameter_name(handle, index), -1);
 #endif
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             IntPtr handleIntPtr = handle;
 
@@ -2026,7 +2029,7 @@ namespace System.Data.SQLite
         SQLiteStatementHandle handle = stmt._sqlite_stmt;
         int index = UnsafeNativeMethods.sqlite3_bind_parameter_index(handle, ToUTF8(paramName));
 
-        if (ForceLogPrepare() || HelperMethods.LogBind(flags))
+        if (_forceLogPrepare || HelperMethods.LogBind(flags))
         {
             IntPtr handleIntPtr = handle;
 
@@ -3348,9 +3351,10 @@ namespace System.Data.SQLite
         }
     }
 
-    internal override void SetPassword(byte[] passwordBytes)
+    internal override void SetPassword(byte[] passwordBytes, bool asText)
     {
-      SQLiteErrorCode n = UnsafeNativeMethods.sqlite3_key(_sql, passwordBytes, passwordBytes.Length);
+      int length = asText ? -1 : ((passwordBytes == null) ? 0 : passwordBytes.Length);
+      SQLiteErrorCode n = UnsafeNativeMethods.sqlite3_key(_sql, passwordBytes, length);
 
       if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.HidePassword))
         ZeroPassword(passwordBytes);
@@ -3370,9 +3374,10 @@ namespace System.Data.SQLite
       }
     }
 
-    internal override void ChangePassword(byte[] newPasswordBytes)
+    internal override void ChangePassword(byte[] newPasswordBytes, bool asText)
     {
-      SQLiteErrorCode n = UnsafeNativeMethods.sqlite3_rekey(_sql, newPasswordBytes, (newPasswordBytes == null) ? 0 : newPasswordBytes.Length);
+      int length = asText ? -1 : ((newPasswordBytes == null) ? 0 : newPasswordBytes.Length);
+      SQLiteErrorCode n = UnsafeNativeMethods.sqlite3_rekey(_sql, newPasswordBytes, length);
 
       if (HelperMethods.HasFlags(_flags, SQLiteConnectionFlags.HidePassword))
         ZeroPassword(newPasswordBytes);
@@ -3441,7 +3446,25 @@ namespace System.Data.SQLite
             SQLiteConfigOpsEnum.SQLITE_CONFIG_LOG, func, IntPtr.Zero);
 
         if (rc == SQLiteErrorCode.Ok)
+        {
             _setLogCallback = (func != null);
+
+#if !NET_COMPACT_20 && TRACE_CONNECTION
+            Trace.WriteLine(HelperMethods.StringFormat(
+                CultureInfo.CurrentCulture,
+                "SetLogCallback: SUCCESS ==> {0}",
+                _setLogCallback ? "SET" : "UNSET"));
+#endif
+        }
+#if !NET_COMPACT_20 && TRACE_CONNECTION
+        else
+        {
+            Trace.WriteLine(HelperMethods.StringFormat(
+                CultureInfo.CurrentCulture,
+                "SetLogCallback: FAILURE ==> {0}",
+                rc));
+        }
+#endif
 
         return rc;
     }
@@ -4120,8 +4143,8 @@ namespace System.Data.SQLite
             // NOTE: Save the state of the logging class and then restore it
             //       after we are done to avoid logging too many false errors.
             //
-            bool savedEnabled = SQLiteLog.Enabled;
-            SQLiteLog.Enabled = false;
+            bool savedEnabled = SQLiteLog.InternalEnabled;
+            SQLiteLog.InternalEnabled = false;
 
             try
             {
@@ -4138,7 +4161,7 @@ namespace System.Data.SQLite
             }
             finally
             {
-                SQLiteLog.Enabled = savedEnabled;
+                SQLiteLog.InternalEnabled = savedEnabled;
             }
         }
     }
@@ -4157,6 +4180,28 @@ namespace System.Data.SQLite
             UnsafeNativeMethods.sqlite3_log(rc, SQLiteConvert.ToUTF8(
                 HelperMethods.StringFormat(CultureInfo.InvariantCulture,
                     "logging initialized via \"{0}\".", className)));
+        }
+        else if (rc == SQLiteErrorCode.Done)
+        {
+            rc = SQLiteErrorCode.Ok;
+        }
+
+        return rc;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    internal static SQLiteErrorCode UnConfigureLogForInterop(
+        string className
+        )
+    {
+        SQLiteErrorCode rc = UnsafeNativeMethods.sqlite3_unconfig_log_interop();
+
+        if (rc == SQLiteErrorCode.Ok)
+        {
+            UnsafeNativeMethods.sqlite3_log(rc, SQLiteConvert.ToUTF8(
+                HelperMethods.StringFormat(CultureInfo.InvariantCulture,
+                    "logging uninitialized via \"{0}\".", className)));
         }
         else if (rc == SQLiteErrorCode.Done)
         {

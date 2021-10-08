@@ -24,7 +24,7 @@ namespace System.Data.SQLite
 
   using System.Runtime.InteropServices;
 
-#if (NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_STANDARD_20 || NET_STANDARD_21) && !PLATFORM_COMPACTFRAMEWORK
+#if (NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_48 || NET_STANDARD_20 || NET_STANDARD_21) && !PLATFORM_COMPACTFRAMEWORK
   using System.Runtime.Versioning;
 #endif
 
@@ -1466,18 +1466,33 @@ namespace System.Data.SQLite
 
       /////////////////////////////////////////////////////////////////////////
       /// <summary>
-      /// The file extension used for the XML configuration file.
+      /// The primary file extension used for the XML configuration file.
       /// </summary>
       private static readonly string ConfigFileExtension = ".config";
 
       /////////////////////////////////////////////////////////////////////////
       /// <summary>
-      /// This is the name of the XML configuration file specific to the
-      /// System.Data.SQLite assembly.
+      /// The secondary file extension used for the XML configuration file.
+      /// </summary>
+      private static readonly string AltConfigFileExtension = ".altconfig";
+
+      /////////////////////////////////////////////////////////////////////////
+      /// <summary>
+      /// This is the name of the primary XML configuration file specific
+      /// to the System.Data.SQLite assembly.
       /// </summary>
       private static readonly string XmlConfigFileName =
           typeof(UnsafeNativeMethods).Namespace + DllFileExtension +
           ConfigFileExtension;
+
+      /////////////////////////////////////////////////////////////////////////
+      /// <summary>
+      /// This is the name of the secondary XML configuration file specific
+      /// to the System.Data.SQLite assembly.
+      /// </summary>
+      private static readonly string XmlAltConfigFileName =
+          typeof(UnsafeNativeMethods).Namespace + DllFileExtension +
+          AltConfigFileExtension;
 
       /////////////////////////////////////////////////////////////////////////
       /// <summary>
@@ -1597,6 +1612,23 @@ namespace System.Data.SQLite
       /// </summary>
       internal static void Initialize()
       {
+#if SQLITE_STANDARD || USE_INTEROP_DLL || PLATFORM_COMPACTFRAMEWORK
+#if PRELOAD_NATIVE_LIBRARY
+          //
+          // NOTE: If this method has already fully completed at least once
+          //       (and pre-loaded a native library), there is no reason to
+          //       continue.
+          //
+          lock (staticSyncRoot)
+          {
+              if (_SQLiteNativeModuleHandle != IntPtr.Zero)
+                  return;
+          }
+#endif
+#endif
+
+          /////////////////////////////////////////////////////////////////////
+
           #region Debug Build Only
 #if DEBUG
           //
@@ -1607,6 +1639,8 @@ namespace System.Data.SQLite
           DebugData.Initialize();
 #endif
           #endregion
+
+          /////////////////////////////////////////////////////////////////////
 
           //
           // NOTE: Check if a debugger needs to be attached before doing any
@@ -1624,6 +1658,8 @@ namespace System.Data.SQLite
               return;
 #endif
 #endif
+
+          /////////////////////////////////////////////////////////////////////
 
           lock (staticSyncRoot)
           {
@@ -1687,6 +1723,8 @@ namespace System.Data.SQLite
               }
 #endif
 
+              /////////////////////////////////////////////////////////////////
+
               if (processorArchitecturePlatforms == null)
               {
                   //
@@ -1708,6 +1746,8 @@ namespace System.Data.SQLite
                   processorArchitecturePlatforms.Add("IA64", "Itanium");
                   processorArchitecturePlatforms.Add("ARM", "WinCE");
               }
+
+              /////////////////////////////////////////////////////////////////
 
 #if SQLITE_STANDARD || USE_INTEROP_DLL || PLATFORM_COMPACTFRAMEWORK
 #if PRELOAD_NATIVE_LIBRARY
@@ -1863,10 +1903,34 @@ namespace System.Data.SQLite
 
               return fileName;
           }
+
+          fileName = MaybeCombinePath(directory, XmlAltConfigFileName);
+
+          if (File.Exists(fileName))
+          {
+              lock (staticSyncRoot)
+              {
+                  cachedXmlConfigFileName = fileName;
+              }
+
+              return fileName;
+          }
 #endif
 
           directory = GetCachedAssemblyDirectory();
           fileName = MaybeCombinePath(directory, XmlConfigFileName);
+
+          if (File.Exists(fileName))
+          {
+              lock (staticSyncRoot)
+              {
+                  cachedXmlConfigFileName = fileName;
+              }
+
+              return fileName;
+          }
+
+          fileName = MaybeCombinePath(directory, XmlAltConfigFileName);
 
           if (File.Exists(fileName))
           {
@@ -1912,36 +1976,39 @@ namespace System.Data.SQLite
           {
               if (!String.IsNullOrEmpty(fileName))
               {
-                  try
+                  if (value.IndexOf(XmlConfigDirectoryToken) != -1)
                   {
-                      string directory = Path.GetDirectoryName(fileName);
-
-                      if (!String.IsNullOrEmpty(directory))
-                      {
-                          value = value.Replace(
-                              XmlConfigDirectoryToken, directory);
-                      }
-                  }
-#if !NET_COMPACT_20 && TRACE_SHARED
-                  catch (Exception e)
-#else
-                  catch (Exception)
-#endif
-                  {
-#if !NET_COMPACT_20 && TRACE_SHARED
                       try
                       {
-                          Trace.WriteLine(HelperMethods.StringFormat(
-                              CultureInfo.CurrentCulture, "Native library " +
-                              "pre-loader failed to replace XML " +
-                              "configuration file \"{0}\" tokens: {1}",
-                              fileName, e)); /* throw */
+                          string directory = Path.GetDirectoryName(fileName);
+
+                          if (!String.IsNullOrEmpty(directory))
+                          {
+                              value = value.Replace(
+                                  XmlConfigDirectoryToken, directory);
+                          }
                       }
-                      catch
-                      {
-                          // do nothing.
-                      }
+#if !NET_COMPACT_20 && TRACE_SHARED
+                      catch (Exception e)
+#else
+                      catch (Exception)
 #endif
+                      {
+#if !NET_COMPACT_20 && TRACE_SHARED
+                          try
+                          {
+                              Trace.WriteLine(HelperMethods.StringFormat(
+                                  CultureInfo.CurrentCulture, "Native " +
+                                  "library pre-loader failed to replace XML " +
+                                  "configuration file \"{0}\" tokens: {1}",
+                                  fileName, e)); /* throw */
+                          }
+                          catch
+                          {
+                              // do nothing.
+                          }
+#endif
+                      }
                   }
               }
           }
@@ -1970,6 +2037,11 @@ namespace System.Data.SQLite
       /// the setting value to be returned.  This has no effect on the .NET
       /// Compact Framework.
       /// </param>
+      /// <param name="tokens">
+      /// Non-zero to replace any special token references contained in the
+      /// setting value to be returned.  This has no effect on the .NET Compact
+      /// Framework.
+      /// </param>
       /// <returns>
       /// The value of the setting -OR- the default value specified by
       /// <paramref name="default" /> if it has not been set explicitly or
@@ -1979,7 +2051,8 @@ namespace System.Data.SQLite
           string fileName, /* in */
           string name,     /* in */
           string @default, /* in */
-          bool expand      /* in */
+          bool expand,     /* in */
+          bool tokens      /* in */
           )
       {
           try
@@ -2009,10 +2082,12 @@ namespace System.Data.SQLite
                       if (expand)
                           value = Environment.ExpandEnvironmentVariables(value);
 
-                      value = ReplaceEnvironmentVariableTokens(value);
+                      if (tokens)
+                          value = ReplaceEnvironmentVariableTokens(value);
 #endif
 
-                      value = ReplaceXmlConfigFileTokens(fileName, value);
+                      if (tokens)
+                          value = ReplaceXmlConfigFileTokens(fileName, value);
                   }
 
                   if (value != null)
@@ -2069,7 +2144,7 @@ namespace System.Data.SQLite
       {
           if (assembly != null)
           {
-#if NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_STANDARD_20 || NET_STANDARD_21
+#if NET_40 || NET_45 || NET_451 || NET_452 || NET_46 || NET_461 || NET_462 || NET_47 || NET_471 || NET_472 || NET_48 || NET_STANDARD_20 || NET_STANDARD_21
               try
               {
                   if (assembly.IsDefined(
@@ -2179,14 +2254,47 @@ namespace System.Data.SQLite
       {
           if (!String.IsNullOrEmpty(value))
           {
-              string directory = GetCachedAssemblyDirectory();
-
-              if (!String.IsNullOrEmpty(directory))
+              if (value.IndexOf(AssemblyDirectoryToken) != -1)
               {
+                  string directory = GetCachedAssemblyDirectory();
+
+                  if (!String.IsNullOrEmpty(directory))
+                  {
+                      try
+                      {
+                          value = value.Replace(
+                              AssemblyDirectoryToken, directory);
+                      }
+#if !NET_COMPACT_20 && TRACE_SHARED
+                      catch (Exception e)
+#else
+                      catch (Exception)
+#endif
+                      {
+#if !NET_COMPACT_20 && TRACE_SHARED
+                          try
+                          {
+                              Trace.WriteLine(HelperMethods.StringFormat(
+                                  CultureInfo.CurrentCulture, "Native library " +
+                                  "pre-loader failed to replace assembly " +
+                                  "directory token: {0}", e)); /* throw */
+                          }
+                          catch
+                          {
+                              // do nothing.
+                          }
+#endif
+                      }
+                  }
+              }
+
+              if (value.IndexOf(TargetFrameworkToken) != -1)
+              {
+                  Assembly assembly = null;
+
                   try
                   {
-                      value = value.Replace(
-                          AssemblyDirectoryToken, directory);
+                      assembly = Assembly.GetExecutingAssembly();
                   }
 #if !NET_COMPACT_20 && TRACE_SHARED
                   catch (Exception e)
@@ -2199,8 +2307,8 @@ namespace System.Data.SQLite
                       {
                           Trace.WriteLine(HelperMethods.StringFormat(
                               CultureInfo.CurrentCulture, "Native library " +
-                              "pre-loader failed to replace assembly " +
-                              "directory token: {0}", e)); /* throw */
+                              "pre-loader failed to obtain executing " +
+                              "assembly: {0}", e)); /* throw */
                       }
                       catch
                       {
@@ -2208,64 +2316,37 @@ namespace System.Data.SQLite
                       }
 #endif
                   }
-              }
 
-              Assembly assembly = null;
+                  string targetFramework = AbbreviateTargetFramework(
+                      GetAssemblyTargetFramework(assembly));
 
-              try
-              {
-                  assembly = Assembly.GetExecutingAssembly();
-              }
-#if !NET_COMPACT_20 && TRACE_SHARED
-              catch (Exception e)
-#else
-              catch (Exception)
-#endif
-              {
-#if !NET_COMPACT_20 && TRACE_SHARED
-                  try
+                  if (!String.IsNullOrEmpty(targetFramework))
                   {
-                      Trace.WriteLine(HelperMethods.StringFormat(
-                          CultureInfo.CurrentCulture, "Native library " +
-                          "pre-loader failed to obtain executing " +
-                          "assembly: {0}", e)); /* throw */
-                  }
-                  catch
-                  {
-                      // do nothing.
-                  }
-#endif
-              }
-
-              string targetFramework = AbbreviateTargetFramework(
-                  GetAssemblyTargetFramework(assembly));
-
-              if (!String.IsNullOrEmpty(targetFramework))
-              {
-                  try
-                  {
-                      value = value.Replace(
-                          TargetFrameworkToken, targetFramework);
-                  }
-#if !NET_COMPACT_20 && TRACE_SHARED
-                  catch (Exception e)
-#else
-                  catch (Exception)
-#endif
-                  {
-#if !NET_COMPACT_20 && TRACE_SHARED
                       try
                       {
-                          Trace.WriteLine(HelperMethods.StringFormat(
-                              CultureInfo.CurrentCulture, "Native library " +
-                              "pre-loader failed to replace target " +
-                              "framework token: {0}", e)); /* throw */
+                          value = value.Replace(
+                              TargetFrameworkToken, targetFramework);
                       }
-                      catch
-                      {
-                          // do nothing.
-                      }
+#if !NET_COMPACT_20 && TRACE_SHARED
+                      catch (Exception e)
+#else
+                      catch (Exception)
 #endif
+                      {
+#if !NET_COMPACT_20 && TRACE_SHARED
+                          try
+                          {
+                              Trace.WriteLine(HelperMethods.StringFormat(
+                                  CultureInfo.CurrentCulture, "Native library " +
+                                  "pre-loader failed to replace target " +
+                                  "framework token: {0}", e)); /* throw */
+                          }
+                          catch
+                          {
+                              // do nothing.
+                          }
+#endif
+                      }
                   }
               }
           }
@@ -2335,6 +2416,7 @@ namespace System.Data.SQLite
           /////////////////////////////////////////////////////////////////////
 
           bool expand = true; /* SHARED: Environment -AND- XML config file. */
+          bool tokens = true; /* SHARED: Environment -AND- XML config file. */
 
           /////////////////////////////////////////////////////////////////////
 
@@ -2352,6 +2434,17 @@ namespace System.Data.SQLite
               expand = false;
           }
 
+          if (Environment.GetEnvironmentVariable("No_Tokens") != null)
+          {
+              tokens = false;
+          }
+          else if (Environment.GetEnvironmentVariable(
+                  HelperMethods.StringFormat(CultureInfo.InvariantCulture,
+                  "No_Tokens_{0}", name)) != null)
+          {
+              tokens = false;
+          }
+
           value = Environment.GetEnvironmentVariable(name);
 
           if (!String.IsNullOrEmpty(value))
@@ -2359,7 +2452,8 @@ namespace System.Data.SQLite
               if (expand)
                   value = Environment.ExpandEnvironmentVariables(value);
 
-              value = ReplaceEnvironmentVariableTokens(value);
+              if (tokens)
+                  value = ReplaceEnvironmentVariableTokens(value);
           }
 
           if (value != null)
@@ -2393,7 +2487,7 @@ namespace System.Data.SQLite
           /////////////////////////////////////////////////////////////////////
 
           return GetSettingValueViaXmlConfigFile(
-              GetCachedXmlConfigFileName(), name, @default, expand);
+              GetCachedXmlConfigFileName(), name, @default, expand, tokens);
       }
 
       /////////////////////////////////////////////////////////////////////////
@@ -2499,9 +2593,35 @@ namespace System.Data.SQLite
                   {
                       Trace.WriteLine(HelperMethods.StringFormat(
                           CultureInfo.CurrentCulture,
-                          "Native library pre-loader found XML configuration file " +
-                          "via code base for currently executing assembly: \"{0}\"",
+                          "Native library pre-loader found primary XML " +
+                          "configuration file via code base for currently " +
+                          "executing assembly: \"{0}\"",
                           xmlConfigFileName)); /* throw */
+                  }
+                  catch
+                  {
+                      // do nothing.
+                  }
+#endif
+
+                  fileName = localFileName;
+                  return true;
+              }
+
+              string xmlAltConfigFileName = MaybeCombinePath(
+                  directory, XmlAltConfigFileName);
+
+              if (File.Exists(xmlAltConfigFileName))
+              {
+#if !NET_COMPACT_20 && TRACE_DETECTION
+                  try
+                  {
+                      Trace.WriteLine(HelperMethods.StringFormat(
+                          CultureInfo.CurrentCulture,
+                          "Native library pre-loader found secondary XML " +
+                          "configuration file via code base for currently " +
+                          "executing assembly: \"{0}\"",
+                          xmlAltConfigFileName)); /* throw */
                   }
                   catch
                   {
@@ -3359,7 +3479,7 @@ namespace System.Data.SQLite
     //       System.Data.SQLite functionality (e.g. being able to bind
     //       parameters and handle column values of types Int64 and Double).
     //
-    internal const string SQLITE_DLL = "SQLite.Interop.113.dll";
+    internal const string SQLITE_DLL = "SQLite.Interop.115.dll";
 #elif SQLITE_STANDARD
     //
     // NOTE: Otherwise, if the standard SQLite library is enabled, use it.
@@ -3445,6 +3565,9 @@ namespace System.Data.SQLite
 #if INTEROP_LOG
     [DllImport(SQLITE_DLL)]
     internal static extern SQLiteErrorCode sqlite3_config_log_interop();
+
+    [DllImport(SQLITE_DLL)]
+    internal static extern SQLiteErrorCode sqlite3_unconfig_log_interop();
 #endif
 #endif
 // !SQLITE_STANDARD
@@ -3504,6 +3627,20 @@ namespace System.Data.SQLite
     #region standard versions of interop functions
 
 #if SQLITE_STANDARD
+
+#if !PLATFORM_COMPACTFRAMEWORK
+    [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
+#else
+    [DllImport(SQLITE_DLL)]
+#endif
+    internal static extern SQLiteErrorCode sqlite3_open_v2(byte[] utf8Filename, ref IntPtr db, SQLiteOpenFlagsEnum flags, byte[] vfsName);
+
+#if !PLATFORM_COMPACTFRAMEWORK
+    [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+#else
+    [DllImport(SQLITE_DLL, CharSet = CharSet.Unicode)]
+#endif
+    internal static extern SQLiteErrorCode sqlite3_open16(string fileName, ref IntPtr db);
 
 #if !PLATFORM_COMPACTFRAMEWORK
     [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -3869,20 +4006,6 @@ namespace System.Data.SQLite
     [DllImport(SQLITE_DLL)]
 #endif
     internal static extern void sqlite3_free(IntPtr p);
-
-#if !PLATFORM_COMPACTFRAMEWORK
-    [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
-#else
-    [DllImport(SQLITE_DLL)]
-#endif
-    internal static extern SQLiteErrorCode sqlite3_open_v2(byte[] utf8Filename, ref IntPtr db, SQLiteOpenFlagsEnum flags, byte[] vfsName);
-
-#if !PLATFORM_COMPACTFRAMEWORK
-    [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
-#else
-    [DllImport(SQLITE_DLL, CharSet = CharSet.Unicode)]
-#endif
-    internal static extern SQLiteErrorCode sqlite3_open16(string fileName, ref IntPtr db);
 
 #if !PLATFORM_COMPACTFRAMEWORK
     [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -4619,6 +4742,13 @@ namespace System.Data.SQLite
     internal delegate SQLiteErrorCode xSessionOutput(IntPtr context, IntPtr pData, int nData);
 
     ///////////////////////////////////////////////////////////////////////////
+
+#if !PLATFORM_COMPACTFRAMEWORK
+    [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
+#else
+    [DllImport(SQLITE_DLL)]
+#endif
+    internal static extern long sqlite3session_memory_used(IntPtr session);
 
 #if !PLATFORM_COMPACTFRAMEWORK
     [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
@@ -5424,6 +5554,12 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        internal int version;
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         public static implicit operator IntPtr(SQLiteConnectionHandle db)
         {
             if (db != null)
@@ -5449,6 +5585,10 @@ namespace System.Data.SQLite
             {
                 this.ownHandle = ownHandle;
                 SetHandle(db);
+
+#if INTEROP_LEGACY_CLOSE
+                BumpVersion();
+#endif
             }
         }
 
@@ -5465,6 +5605,15 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private void BumpVersion()
+        {
+            Interlocked.Increment(ref version);
+        }
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         protected override bool ReleaseHandle()
         {
 #if PLATFORM_COMPACTFRAMEWORK
@@ -5476,6 +5625,10 @@ namespace System.Data.SQLite
 
             try
             {
+#if INTEROP_LEGACY_CLOSE
+                BumpVersion();
+#endif
+
 #if !PLATFORM_COMPACTFRAMEWORK
                 IntPtr localHandle = Interlocked.Exchange(
                     ref handle, IntPtr.Zero);
@@ -5622,6 +5775,12 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private int version;
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         public static implicit operator IntPtr(SQLiteStatementHandle stmt)
         {
             if (stmt != null)
@@ -5647,6 +5806,10 @@ namespace System.Data.SQLite
             {
                 this.cnn = cnn;
                 SetHandle(stmt);
+
+#if INTEROP_LEGACY_CLOSE
+                SetVersion();
+#endif
             }
         }
 
@@ -5662,6 +5825,38 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private bool MatchVersion()
+        {
+#if PLATFORM_COMPACTFRAMEWORK
+            lock (syncRoot)
+#endif
+            {
+                return (cnn != null) ? (version == cnn.version) : false;
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private bool SetVersion()
+        {
+#if PLATFORM_COMPACTFRAMEWORK
+            lock (syncRoot)
+#endif
+            {
+                if (cnn != null)
+                {
+                    version = cnn.version;
+                    return true;
+                }
+
+                return false;
+            }
+        }
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         protected override bool ReleaseHandle()
         {
             try
@@ -5669,6 +5864,28 @@ namespace System.Data.SQLite
 #if !PLATFORM_COMPACTFRAMEWORK
                 IntPtr localHandle = Interlocked.Exchange(
                     ref handle, IntPtr.Zero);
+
+#if INTEROP_LEGACY_CLOSE
+                if (!MatchVersion())
+                {
+#if !NET_COMPACT_20 && TRACE_HANDLE
+                    try
+                    {
+                        Trace.WriteLine(HelperMethods.StringFormat(
+                            CultureInfo.CurrentCulture,
+                            "MatchVersion: {0} (statement handle)",
+                            localHandle)); /* throw */
+                    }
+                    catch
+                    {
+                    }
+#endif
+#if COUNT_HANDLE
+                    Interlocked.Decrement(ref DebugData.statementCount);
+#endif
+                    return false;
+                }
+#endif
 
                 if (localHandle != IntPtr.Zero)
                     SQLiteBase.FinalizeStatement(cnn, localHandle);
@@ -5792,6 +6009,12 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private int version;
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         public static implicit operator IntPtr(SQLiteBackupHandle backup)
         {
             if (backup != null)
@@ -5817,6 +6040,10 @@ namespace System.Data.SQLite
             {
                 this.cnn = cnn;
                 SetHandle(backup);
+
+#if INTEROP_LEGACY_CLOSE
+                SetVersion();
+#endif
             }
         }
 
@@ -5832,6 +6059,38 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private bool MatchVersion()
+        {
+#if PLATFORM_COMPACTFRAMEWORK
+            lock (syncRoot)
+#endif
+            {
+                return (cnn != null) ? (version == cnn.version) : false;
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private bool SetVersion()
+        {
+#if PLATFORM_COMPACTFRAMEWORK
+            lock (syncRoot)
+#endif
+            {
+                if (cnn != null)
+                {
+                    version = cnn.version;
+                    return true;
+                }
+
+                return false;
+            }
+        }
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         protected override bool ReleaseHandle()
         {
             try
@@ -5839,6 +6098,28 @@ namespace System.Data.SQLite
 #if !PLATFORM_COMPACTFRAMEWORK
                 IntPtr localHandle = Interlocked.Exchange(
                     ref handle, IntPtr.Zero);
+
+#if INTEROP_LEGACY_CLOSE
+                if (!MatchVersion())
+                {
+#if !NET_COMPACT_20 && TRACE_HANDLE
+                    try
+                    {
+                        Trace.WriteLine(HelperMethods.StringFormat(
+                            CultureInfo.CurrentCulture,
+                            "MatchVersion: {0} (backup handle)",
+                            localHandle)); /* throw */
+                    }
+                    catch
+                    {
+                    }
+#endif
+#if COUNT_HANDLE
+                    Interlocked.Decrement(ref DebugData.backupCount);
+#endif
+                    return false;
+                }
+#endif
 
                 if (localHandle != IntPtr.Zero)
                     SQLiteBase.FinishBackup(cnn, localHandle);
@@ -5962,6 +6243,12 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private int version;
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         public static implicit operator IntPtr(SQLiteBlobHandle blob)
         {
             if (blob != null)
@@ -5987,6 +6274,10 @@ namespace System.Data.SQLite
             {
                 this.cnn = cnn;
                 SetHandle(blob);
+
+#if INTEROP_LEGACY_CLOSE
+                SetVersion();
+#endif
             }
         }
 
@@ -6002,6 +6293,38 @@ namespace System.Data.SQLite
 
         ///////////////////////////////////////////////////////////////////////
 
+#if INTEROP_LEGACY_CLOSE
+        private bool MatchVersion()
+        {
+#if PLATFORM_COMPACTFRAMEWORK
+            lock (syncRoot)
+#endif
+            {
+                return (cnn != null) ? (version == cnn.version) : false;
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private bool SetVersion()
+        {
+#if PLATFORM_COMPACTFRAMEWORK
+            lock (syncRoot)
+#endif
+            {
+                if (cnn != null)
+                {
+                    version = cnn.version;
+                    return true;
+                }
+
+                return false;
+            }
+        }
+#endif
+
+        ///////////////////////////////////////////////////////////////////////
+
         protected override bool ReleaseHandle()
         {
             try
@@ -6009,6 +6332,28 @@ namespace System.Data.SQLite
 #if !PLATFORM_COMPACTFRAMEWORK
                 IntPtr localHandle = Interlocked.Exchange(
                     ref handle, IntPtr.Zero);
+
+#if INTEROP_LEGACY_CLOSE
+                if (!MatchVersion())
+                {
+#if !NET_COMPACT_20 && TRACE_HANDLE
+                    try
+                    {
+                        Trace.WriteLine(HelperMethods.StringFormat(
+                            CultureInfo.CurrentCulture,
+                            "MatchVersion: {0} (blob handle)",
+                            localHandle)); /* throw */
+                    }
+                    catch
+                    {
+                    }
+#endif
+#if COUNT_HANDLE
+                    Interlocked.Decrement(ref DebugData.blobCount);
+#endif
+                    return false;
+                }
+#endif
 
                 if (localHandle != IntPtr.Zero)
                     SQLiteBase.CloseBlob(cnn, localHandle);

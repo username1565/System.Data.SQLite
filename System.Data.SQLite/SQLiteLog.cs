@@ -5,6 +5,10 @@
  * Released to the public domain, use at your own risk!
  ********************************************************/
 
+#if PLATFORM_COMPACTFRAMEWORK
+using EventWaitHandle = System.Threading.ManualResetEvent;
+#endif
+
 namespace System.Data.SQLite
 {
     using System;
@@ -74,11 +78,30 @@ namespace System.Data.SQLite
     /// </summary>
     public static class SQLiteLog
     {
+        #region Private Constants
+        /// <summary>
+        /// Maximum number of milliseconds a non-primary thread should wait
+        /// for the <see cref="PrivateInitialize" /> method to be completed.
+        /// </summary>
+        private const int _initializeTimeout = 1000;
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Private Data
         /// <summary>
         /// Object used to synchronize access to the static instance data
         /// for this class.
         /// </summary>
         private static object syncRoot = new object();
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// This will be signaled when the <see cref="PrivateInitialize" />
+        /// method has been completed.
+        /// </summary>
+        private static EventWaitHandle _initializeEvent;
 
         ///////////////////////////////////////////////////////////////////////
 
@@ -124,11 +147,28 @@ namespace System.Data.SQLite
 
         /// <summary>
         /// The number of times that the <see cref="Initialize(string)" />
-        /// has been called when the logging subystem was actually eligible
-        /// to be initialized (i.e. without the "No_SQLiteLog" environment
-        /// variable being set).
+        /// method has been called when the logging subystem was actually
+        /// eligible to be initialized (i.e. without the "No_SQLiteLog"
+        /// environment variable being set).
         /// </summary>
         private static int _initializeCallCount;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// The number of times that the <see cref="Uninitialize()" /> method
+        /// has been called.
+        /// </summary>
+        private static int _uninitializeCallCount;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// The number of times that the <see cref="Initialize(string)" />
+        /// method has been completed (i.e. without the "No_SQLiteLog"
+        /// environment variable being set).
+        /// </summary>
+        private static int _initializeDoneCount;
 
         ///////////////////////////////////////////////////////////////////////
 
@@ -144,6 +184,56 @@ namespace System.Data.SQLite
         /// This will be non-zero if logging is currently enabled.
         /// </summary>
         private static bool _enabled;
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Creates the <see cref="EventWaitHandle" /> that will be used to
+        /// signal completion of the <see cref="PrivateInitialize" /> method,
+        /// if necessary, and then returns it.
+        /// </summary>
+        /// <returns>
+        /// The <see cref="EventWaitHandle" /> that will be used to signal
+        /// completion of the <see cref="PrivateInitialize" /> method.
+        /// </returns>
+        private static EventWaitHandle CreateAndOrGetTheEvent()
+        {
+            bool created = false;
+            EventWaitHandle newEvent = null;
+
+            try
+            {
+                EventWaitHandle oldEvent;
+
+                oldEvent = Interlocked.CompareExchange(
+                    ref _initializeEvent, null, null);
+
+                if (oldEvent == null)
+                {
+                    newEvent = new ManualResetEvent(false);
+
+                    oldEvent = Interlocked.CompareExchange(
+                        ref _initializeEvent, newEvent, null);
+                }
+
+                if (oldEvent == null)
+                {
+                    oldEvent = newEvent;
+                    created = true;
+                }
+
+                return oldEvent;
+            }
+            finally
+            {
+                if (!created && (newEvent != null))
+                {
+                    newEvent.Close();
+                    newEvent = null;
+                }
+            }
+        }
 
         ///////////////////////////////////////////////////////////////////////
 
@@ -158,7 +248,8 @@ namespace System.Data.SQLite
         ///////////////////////////////////////////////////////////////////////
 
         /// <summary>
-        /// Initializes the SQLite logging facilities.
+        /// Initializes the SQLite logging facilities -OR- waits for the
+        /// SQLite logging facilities to be initialized by another thread.
         /// </summary>
         /// <param name="className">
         /// The name of the managed class that called this method.  This
@@ -178,15 +269,71 @@ namespace System.Data.SQLite
                 return;
             }
 
-            ///////////////////////////////////////////////////////////////
+            ///////////////////////////////////////////////////////////////////
 
+            //
+            // NOTE: Before doing anything else, see if this method was
+            //       fully completed before.  If so, do nothing.
+            //
+            EventWaitHandle theEvent = CreateAndOrGetTheEvent();
+
+            if (Interlocked.Increment(ref _initializeDoneCount) == 1)
+            {
+                bool success = false;
+
+                try
+                {
+                    success = PrivateInitialize(className);
+                }
+                finally
+                {
+                    if (theEvent != null)
+                        theEvent.Set();
+
+                    if (!success)
+                        Interlocked.Decrement(ref _initializeDoneCount);
+                }
+            }
+            else
+            {
+                Interlocked.Decrement(ref _initializeDoneCount);
+            }
+
+            if ((theEvent != null) &&
+                !theEvent.WaitOne(_initializeTimeout, false))
+            {
+#if !NET_COMPACT_20
+                Trace.WriteLine(HelperMethods.StringFormat(
+                    CultureInfo.CurrentCulture,
+                    "TIMED OUT ({0}) waiting for logging subsystem",
+                    _initializeTimeout));
+#endif
+            }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Initializes the SQLite logging facilities.
+        /// </summary>
+        /// <param name="className">
+        /// The name of the managed class that called this method.  This
+        /// parameter may be null.
+        /// </param>
+        /// <returns>
+        /// Non-zero if everything was fully initialized successfully.
+        /// </returns>
+        private static bool PrivateInitialize(
+            string className
+            )
+        {
             //
             // NOTE: Keep track of exactly how many times this method is
             //       called (i.e. per-AppDomain, of course).
             //
             Interlocked.Increment(ref _initializeCallCount);
 
-            ///////////////////////////////////////////////////////////////
+            ///////////////////////////////////////////////////////////////////
 
             //
             // NOTE: First, check if the managed logging subsystem is always
@@ -202,7 +349,7 @@ namespace System.Data.SQLite
                 if (Interlocked.Increment(ref _attemptedInitialize) > 1)
                 {
                     Interlocked.Decrement(ref _attemptedInitialize);
-                    return;
+                    return false;
                 }
             }
 
@@ -214,7 +361,7 @@ namespace System.Data.SQLite
             //         the process (see ticket [2ce0870fad]).
             //
             if (SQLite3.StaticIsInitialized())
-                return;
+                return false;
 
             ///////////////////////////////////////////////////////////////////
 
@@ -232,7 +379,7 @@ namespace System.Data.SQLite
             if (!AppDomain.CurrentDomain.IsDefaultAppDomain() &&
                 UnsafeNativeMethods.GetSettingValue("Force_SQLiteLog", null) == null)
             {
-                return;
+                return false;
             }
 #endif
 
@@ -240,6 +387,17 @@ namespace System.Data.SQLite
 
             lock (syncRoot)
             {
+                //
+                // BUFXIX: In order to prevent a subtle race condition within
+                //         this method, check (again) if the core library has
+                //         already been initialized anywhere in the process,
+                //         this time while holding the lock.
+                //
+                if (SQLite3.StaticIsInitialized())
+                    return false;
+
+                ///////////////////////////////////////////////////////////////
+
 #if !PLATFORM_COMPACTFRAMEWORK
                 //
                 // NOTE: Add an event handler for the DomainUnload event so
@@ -326,6 +484,148 @@ namespace System.Data.SQLite
                 //
                 AddDefaultHandler();
             }
+
+            ///////////////////////////////////////////////////////////////////
+
+            return true;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Uninitializes the SQLite logging facilities.
+        /// </summary>
+        public static void Uninitialize()
+        {
+            Uninitialize(null, false);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Uninitializes the SQLite logging facilities.
+        /// </summary>
+        /// <param name="className">
+        /// The name of the managed class that called this method.  This
+        /// parameter may be null.
+        /// </param>
+        /// <param name="shutdown">
+        /// Non-zero if the native SQLite library should be shutdown prior
+        /// to attempting to unset its logging callback.
+        /// </param>
+        internal static void Uninitialize(
+            string className,
+            bool shutdown
+            )
+        {
+            //
+            // NOTE: Keep track of exactly how many times this method is
+            //       called (i.e. per-AppDomain, of course).
+            //
+            Interlocked.Increment(ref _uninitializeCallCount);
+
+            ///////////////////////////////////////////////////////////////////
+
+            lock (syncRoot)
+            {
+                //
+                // NOTE: Remove the default log event handler.
+                //
+                RemoveDefaultHandler();
+
+                ///////////////////////////////////////////////////////////////
+
+                //
+                // NOTE: Disable logging.  If necessary, it can be re-enabled
+                //       later by the Initialize method.
+                //
+                _enabled = false;
+
+                ///////////////////////////////////////////////////////////////
+
+#if USE_INTEROP_DLL && INTEROP_LOG
+                //
+                // NOTE: Attempt to unset interop assembly log callback.
+                //       This may fail, e.g. if the SQLite core library
+                //       has somehow been initialized.  An exception will
+                //       be raised in that case.
+                //
+                SQLiteErrorCode rc = SQLite3.UnConfigureLogForInterop(
+                    className);
+
+                if (rc != SQLiteErrorCode.Ok)
+                {
+                    throw new SQLiteException(rc,
+                        "Failed to unconfigure interop assembly logging.");
+                }
+#else
+                //
+                // BUGBUG: This may cause serious problems if other AppDomains
+                //         have any open SQLite connections; however, there is
+                //         currently no way around this limitation.
+                //
+                if (_sql != null)
+                {
+                    SQLiteErrorCode rc;
+
+                    if (shutdown)
+                    {
+                        rc = _sql.Shutdown();
+
+                        if (rc != SQLiteErrorCode.Ok)
+                            throw new SQLiteException(rc,
+                                "Failed to shutdown interface.");
+                    }
+
+                    rc = _sql.SetLogCallback(null);
+
+                    if (rc != SQLiteErrorCode.Ok)
+                        throw new SQLiteException(rc,
+                            "Failed to shutdown logging.");
+                }
+
+                ///////////////////////////////////////////////////////////////
+
+                //
+                // BUGFIX: Make sure to reset the callback for next time.  This
+                //         must be done after it has been succesfully removed
+                //         as logging callback by the SQLite core library as we
+                //         cannot allow native code to refer to a delegate that
+                //         has been garbage collected.
+                //
+                if (_callback != null)
+                {
+                    _callback = null;
+                }
+#endif
+
+                ///////////////////////////////////////////////////////////////
+
+#if !PLATFORM_COMPACTFRAMEWORK
+                //
+                // NOTE: Remove the event handler for the DomainUnload event
+                //       that we added earlier.
+                //
+                if (_domainUnload != null)
+                {
+                    AppDomain.CurrentDomain.DomainUnload -= _domainUnload;
+                    _domainUnload = null;
+                }
+#endif
+
+                ///////////////////////////////////////////////////////////////
+
+                //
+                // NOTE: Reset the event for this AppDomain so that future
+                //       (non-primary) threads will once again wait for the
+                //       PrivateInitialize method to be completed.
+                //
+                EventWaitHandle theEvent = CreateAndOrGetTheEvent();
+
+                if (theEvent != null)
+                    theEvent.Reset();
+
+            }
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -341,63 +641,7 @@ namespace System.Data.SQLite
             EventArgs e
             )
         {
-            lock (syncRoot)
-            {
-                //
-                // NOTE: Remove the default log event handler.
-                //
-                RemoveDefaultHandler();
-
-                //
-                // NOTE: Disable logging.  If necessary, it can be re-enabled
-                //       later by the Initialize method.
-                //
-                _enabled = false;
-
-#if !USE_INTEROP_DLL || !INTEROP_LOG
-                //
-                // BUGBUG: This will cause serious problems if other AppDomains
-                //         have any open SQLite connections; however, there is
-                //         currently no way around this limitation.
-                //
-                if (_sql != null)
-                {
-                    SQLiteErrorCode rc = _sql.Shutdown();
-
-                    if (rc != SQLiteErrorCode.Ok)
-                        throw new SQLiteException(rc,
-                            "Failed to shutdown interface.");
-
-                    rc = _sql.SetLogCallback(null);
-
-                    if (rc != SQLiteErrorCode.Ok)
-                        throw new SQLiteException(rc,
-                            "Failed to shutdown logging.");
-                }
-
-                //
-                // BUGFIX: Make sure to reset the callback for next time.  This
-                //         must be done after it has been succesfully removed
-                //         as logging callback by the SQLite core library as we
-                //         cannot allow native code to refer to a delegate that
-                //         has been garbage collected.
-                //
-                if (_callback != null)
-                {
-                    _callback = null;
-                }
-#endif
-
-                //
-                // NOTE: Remove the event handler for the DomainUnload event
-                //       that we added earlier.
-                //
-                if (_domainUnload != null)
-                {
-                    AppDomain.CurrentDomain.DomainUnload -= _domainUnload;
-                    _domainUnload = null;
-                }
-            }
+            Uninitialize(null, true);
         }
 #endif
 
@@ -440,8 +684,21 @@ namespace System.Data.SQLite
         /// </summary>
         public static bool Enabled
         {
-            get { lock (syncRoot) { return _enabled; } }
-            set { lock (syncRoot) { _enabled = value; } }
+            get { lock (syncRoot) { return InternalEnabled; } }
+            set { lock (syncRoot) { InternalEnabled = value; } }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// If this property is true, logging is enabled; otherwise, logging is
+        /// disabled.  When logging is disabled, no logging events will fire.
+        /// For internal use only.
+        /// </summary>
+        internal static bool InternalEnabled
+        {
+            get { return _enabled; }
+            set { _enabled = value; }
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -511,12 +768,16 @@ namespace System.Data.SQLite
 
             lock (syncRoot)
             {
-                enabled = _enabled;
-
-                if (_handlers != null)
+                if (_enabled && (_handlers != null))
+                {
+                    enabled = true;
                     handlers = _handlers.Clone() as SQLiteLogEventHandler;
+                }
                 else
+                {
+                    enabled = false;
                     handlers = null;
+                }
             }
 
             if (enabled && (handlers != null))
@@ -545,8 +806,11 @@ namespace System.Data.SQLite
         /// </summary>
         public static void AddDefaultHandler()
         {
-            InitializeDefaultHandler();
-            Log += _defaultHandler;
+            lock (syncRoot)
+            {
+                InitializeDefaultHandler();
+                Log += _defaultHandler;
+            }
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -556,8 +820,11 @@ namespace System.Data.SQLite
         /// </summary>
         public static void RemoveDefaultHandler()
         {
-            InitializeDefaultHandler();
-            Log -= _defaultHandler;
+            lock (syncRoot)
+            {
+                InitializeDefaultHandler();
+                Log -= _defaultHandler;
+            }
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -589,12 +856,16 @@ namespace System.Data.SQLite
 
             lock (syncRoot)
             {
-                enabled = _enabled;
-
-                if (_handlers != null)
+                if (_enabled && (_handlers != null))
+                {
+                    enabled = true;
                     handlers = _handlers.Clone() as SQLiteLogEventHandler;
+                }
                 else
+                {
+                    enabled = false;
                     handlers = null;
+                }
             }
 
             if (enabled && (handlers != null))

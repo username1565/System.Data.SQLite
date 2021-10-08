@@ -5,8 +5,8 @@
 </head>
 <body>
 ADO.NET SQLite Data Provider<br />
-Version 1.0.113.0 - June 1, 2020<br />
-Using <a href="https://www.sqlite.org/releaselog/3_32_1.html">SQLite 3.32.1</a><br />Originally written by Robert Simpson<br />
+Version 1.0.115.0 - August 25, 2021<br />
+Using <a href="https://www.sqlite.org/releaselog/3_36_0.html">SQLite 3.36.0</a><br />Originally written by Robert Simpson<br />
 Released to the public domain, use at your own risk!<br />
 Official provider website:&nbsp;<a href="https://system.data.sqlite.org/">https://system.data.sqlite.org/</a><br />
 Legacy versions:&nbsp;<a href="https://sourceforge.net/projects/sqlite-dotnet2/">https://sourceforge.net/projects/sqlite-dotnet2/</a><br />
@@ -145,7 +145,7 @@ app.config file:<br />
         &lt;DbProviderFactories&gt;
             &lt;remove invariant="System.Data.SQLite" /&gt;
             &lt;add name="SQLite Data Provider" invariant="System.Data.SQLite" description=".NET Framework Data Provider for SQLite"
-                 type="System.Data.SQLite.SQLiteFactory, System.Data.SQLite, Version=1.0.113.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139" /&gt;
+                 type="System.Data.SQLite.SQLiteFactory, System.Data.SQLite, Version=1.0.115.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139" /&gt;
         &lt;/DbProviderFactories&gt;
     &lt;/system.data&gt;
 &lt;/configuration&gt;
@@ -207,6 +207,23 @@ released versions of System.Data.SQLite.
 
 <h2><b>Version History</b></h2>
 
+<p>
+    <b>1.0.115.0 - August 25, 2021</b>
+</p>
+<ul>
+    <li>Updated to <a href="https://www.sqlite.org/releaselog/3_36_0.html">SQLite 3.36.0</a>.</li>
+</ul>
+<p>
+    <b>1.0.114.0 - May 22, 2021</b>
+</p>
+<ul>
+    <li>Updated to <a href="https://www.sqlite.org/releaselog/3_35_5.html">SQLite 3.35.5</a>.</li>
+    <li>Updated to <a href="https://www.nuget.org/packages/EntityFramework/6.4.4">Entity Framework 6.4.4</a>.</li>
+    <li>Add preliminary support for the .NET Framework 4.8.</li>
+    <li>Add support for math functions now provided by the SQLite core library.</li>
+    <li>Add support for <a href="https://www.sqlite.org/compile.html#enable_update_delete_limit">ORDER BY and LIMIT for UPDATE and DELETE</a>.</li>
+    <li>Add TextPassword connection string property for use with <a href="https://www.sqlite.org/see">SEE</a>.</li>
+</ul>
 <p>
     <b>1.0.113.0 - June 1, 2020</b>
 </p>

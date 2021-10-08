@@ -51,6 +51,7 @@ Busy_Timeout 773
 CantOpen 14
 CantOpen_ConvPath 1038
 CantOpen_DirtyWal 1294
+CantOpen_Exists 1806
 CantOpen_FullPath 782
 CantOpen_IsDir 526
 CantOpen_NoTempDir 270
@@ -58,6 +59,7 @@ CantOpen_SymLink 1550
 Constraint 19
 Constraint_Check 275
 Constraint_CommitHook 531
+Constraint_DataType 3091
 Constraint_ForeignKey 787
 Constraint_Function 1043
 Constraint_NotNull 1299
@@ -90,6 +92,7 @@ IoErr_CheckReservedLock 3594
 IoErr_Close 4106
 IoErr_Commit_Atomic 7690
 IoErr_ConvPath 6666
+IoErr_CorruptFs 8458
 IoErr_Data 8202
 IoErr_Delete 2570
 IoErr_Delete_NoEnt 5898

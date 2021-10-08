@@ -50,9 +50,9 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
   unset -nocomplain result thread index workload priority journalMode \
       pageSize noWorkload priorities srcDb db fileName compiled options \
       count times logFileName logListener event timeout connection \
-      indicators iterations exitOnFail coTaskMem noTrace beginTransaction \
-      endTransaction errorTransaction failures status workloadNames \
-      workloadCallbacks
+      indicators iterations exitOnFail coTaskMem noTrace noProgress \
+      beginTransaction endTransaction errorTransaction failures status \
+      workloadNames workloadCallbacks
 
   #############################################################################
 
@@ -211,7 +211,9 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
   #############################################################################
 
   proc showTestWithDelay { indicator base extra } {
-    tputs $::test_channel $indicator
+    if {!$::noProgress} then {
+      tputs $::test_channel $indicator
+    }
     append ::indicators $indicator
     delayTest $base $extra
   }
@@ -249,7 +251,9 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
           \n [info level $level] ": " \n\t $error \n \
           "\n---- END TEST FAILURE OUTPUT\n"]
 
-      tputs $::test_channel $indicator
+      if {!$::noProgress} then {
+        tputs $::test_channel $indicator
+      }
 
       if {![info exists ::failures($indicator)]} then {
         set ::failures($indicator) 0
@@ -401,6 +405,7 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
   set exitOnFail false;    # Halt testing and exit process on test failure?
   set coTaskMem true;      # Use AllocCoTaskMem/FreeCoTaskMem for memory?
   set noTrace false;       # Disable SQLite trace logging to a file?
+  set noProgress false;    # Disable emitting of progress indicators?
   set beginTransaction ""; # SQL just before modifying the database.
   set endTransaction "";   # SQL just after modifying the database.
   set errorTransaction ""; # SQL just after a database modification error.
@@ -431,6 +436,7 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
         [list null MustHaveBooleanValue -1 -1 -exitOnFail $exitOnFail] \
         [list null MustHaveBooleanValue -1 -1 -coTaskMem $coTaskMem] \
         [list null MustHaveBooleanValue -1 -1 -noTrace $noTrace] \
+        [list null MustHaveBooleanValue -1 -1 -noProgress $noProgress] \
         [list null MustHaveValue -1 -1 -beginTransaction $beginTransaction] \
         [list null MustHaveValue -1 -1 -endTransaction $endTransaction] \
         [list null MustHaveValue -1 -1 -errorTransaction $errorTransaction]] \
@@ -452,6 +458,7 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
     set exitOnFail $options(-exitOnFail,value)
     set coTaskMem $options(-coTaskMem,value)
     set noTrace $options(-noTrace,value)
+    set noProgress $options(-noProgress,value)
     set beginTransaction $options(-beginTransaction,value)
     set endTransaction $options(-endTransaction,value)
     set errorTransaction $options(-errorTransaction,value)
@@ -587,6 +594,10 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
   tputs $test_channel [appendArgs \
       "---- trace logging to a file is " \
       [expr {$noTrace ? "disabled" : "enabled"}] \n]
+
+  tputs $test_channel [appendArgs \
+      "---- progress indicators are " \
+      [expr {$noProgress ? "disabled" : "enabled"}] \n]
 
   tputs $test_channel [appendArgs \
       "---- begin transaction SQL is " \
@@ -1076,10 +1087,10 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
       for {set index 1} {$index <= $count1} {incr index} {
         if {[string is integer -strict $::compiled(12)]} then {
           set id $::compiled(12); # NOTE: Already compiled.
-          if {[catch {
+          if {[catchCSharp {
             object invoke _Dynamic${id}.Test${id} BackupAndGetData
             showTest L
-          } error]} then {
+          } error "" false]} then {
             if {[isExpectedError $error]} then {
               showTest l
             } else {
@@ -1098,12 +1109,12 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
                 public static void BackupAndGetData()
                 {
                   using (SQLiteConnection source = new SQLiteConnection(
-                      "FullUri=${dstFileName};[getTestProperties {} true]"))
+                      "FullUri=${dstFileName};[getTestProperties {} {} true]"))
                   {
                     source.Open();
 
                     using (SQLiteConnection destination = new SQLiteConnection(
-                        "FullUri=${srcFileName};[getTestProperties {} true]"))
+                        "FullUri=${srcFileName};[getTestProperties {} {} true]"))
                     {
                       destination.Open();
 
@@ -1124,10 +1135,10 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
           }] true false true results errors System.Data.SQLite.dll]
           if {$code eq "Ok"} then {
             set ::compiled(12) $id; # NOTE: Compiled OK.
-            if {[catch {
+            if {[catchCSharp {
               object invoke _Dynamic${id}.Test${id} BackupAndGetData
               showTest L
-            } error]} then {
+            } error "" false]} then {
               if {[isExpectedError $error]} then {
                 showTest l
               } else {
@@ -1159,10 +1170,10 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
       for {set index 1} {$index <= $count1} {incr index} {
         if {[string is integer -strict $::compiled(13)]} then {
           set id $::compiled(13); # NOTE: Already compiled.
-          if {[catch {
+          if {[catchCSharp {
             object invoke _Dynamic${id}.Test${id} BackupAndGetData
             showTest M
-          } error]} then {
+          } error "" false]} then {
             if {[isExpectedError $error]} then {
               showTest m
             } else {
@@ -1181,12 +1192,12 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
                 public static void BackupAndGetData()
                 {
                   using (SQLiteConnection source = new SQLiteConnection(
-                      "FullUri=${srcFileName};[getTestProperties {} true]"))
+                      "FullUri=${srcFileName};[getTestProperties {} {} true]"))
                   {
                     source.Open();
 
                     using (SQLiteConnection destination = new SQLiteConnection(
-                        "FullUri=${dstFileName};[getTestProperties {} true]"))
+                        "FullUri=${dstFileName};[getTestProperties {} {} true]"))
                     {
                       destination.Open();
 
@@ -1207,10 +1218,10 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
           }] true false true results errors System.Data.SQLite.dll]
           if {$code eq "Ok"} then {
             set ::compiled(13) $id; # NOTE: Compiled OK.
-            if {[catch {
+            if {[catchCSharp {
               object invoke _Dynamic${id}.Test${id} BackupAndGetData
               showTest M
-            } error]} then {
+            } error "" false]} then {
               if {[isExpectedError $error]} then {
                 showTest m
               } else {
@@ -1658,7 +1669,7 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
       "==== WARNING: this stress test may take several minutes...\n"]
 
   for {set index(0) 1} {$index(0) <= $count(0)} {incr index(0)} {
-    if {$index(0) > 1} then {
+    if {!$noProgress && $index(0) > 1} then {
       #
       # NOTE: Advance output to the next line due to the workload
       #       iteration progress indicators from the previous run.
@@ -1747,11 +1758,13 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
 
   #############################################################################
 
-  #
-  # NOTE: Advance output to the next line due to the workload
-  #       iteration progress indicators from the final run.
-  #
-  tputs $test_channel \n
+  if {!$noProgress} then {
+    #
+    # NOTE: Advance output to the next line due to the workload
+    #       iteration progress indicators from the final run.
+    #
+    tputs $test_channel \n
+  }
 
   #############################################################################
 
@@ -1850,9 +1863,9 @@ runTest {test stress-1.1 {multithreaded stress testing} -setup {
   unset -nocomplain result thread index workload priority journalMode \
       pageSize noWorkload priorities srcDb db fileName compiled options \
       count times logFileName logListener event timeout connection \
-      indicators iterations exitOnFail coTaskMem noTrace beginTransaction \
-      endTransaction errorTransaction failures status workloadNames \
-      workloadCallbacks
+      indicators iterations exitOnFail coTaskMem noTrace noProgress \
+      beginTransaction endTransaction errorTransaction failures status \
+      workloadNames workloadCallbacks
 } -time true -constraints {eagle command.object monoBug40 command.sql\
 compile.DATA compile.THREADING SQLite System.Data.SQLite compileCSharp} \
 -result {0}}

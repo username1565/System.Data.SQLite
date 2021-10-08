@@ -59,6 +59,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>False</Deterministic>
     <EnableDefaultItems>false</EnableDefaultItems>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <!--
@@ -223,7 +224,7 @@
   -->
 
   <ItemGroup>
-    <PackageReference Include="EntityFramework" Version="6.3.0" />
+    <PackageReference Include="EntityFramework" Version="6.4.4" />
   </ItemGroup>
 
   <!--

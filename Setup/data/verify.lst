@@ -26,68 +26,6 @@ set sds_manifests(source) {
   Doc/Extra/Core/
   Doc/Extra/Core/images/
   Doc/Extra/Core/images/sqlite370_banner.gif
-  Doc/Extra/Core/images/syntax/
-  Doc/Extra/Core/images/syntax/alter-table-stmt.gif
-  Doc/Extra/Core/images/syntax/analyze-stmt.gif
-  Doc/Extra/Core/images/syntax/attach-stmt.gif
-  Doc/Extra/Core/images/syntax/begin-stmt.gif
-  Doc/Extra/Core/images/syntax/column-constraint.gif
-  Doc/Extra/Core/images/syntax/column-def.gif
-  Doc/Extra/Core/images/syntax/column-name-list.gif
-  Doc/Extra/Core/images/syntax/comment-syntax.gif
-  Doc/Extra/Core/images/syntax/commit-stmt.gif
-  Doc/Extra/Core/images/syntax/common-table-expression.gif
-  Doc/Extra/Core/images/syntax/compound-operator.gif
-  Doc/Extra/Core/images/syntax/compound-select-stmt.gif
-  Doc/Extra/Core/images/syntax/conflict-clause.gif
-  Doc/Extra/Core/images/syntax/create-index-stmt.gif
-  Doc/Extra/Core/images/syntax/create-table-stmt.gif
-  Doc/Extra/Core/images/syntax/create-trigger-stmt.gif
-  Doc/Extra/Core/images/syntax/create-view-stmt.gif
-  Doc/Extra/Core/images/syntax/create-virtual-table-stmt.gif
-  Doc/Extra/Core/images/syntax/cte-table-name.gif
-  Doc/Extra/Core/images/syntax/delete-stmt-limited.gif
-  Doc/Extra/Core/images/syntax/delete-stmt.gif
-  Doc/Extra/Core/images/syntax/detach-stmt.gif
-  Doc/Extra/Core/images/syntax/drop-index-stmt.gif
-  Doc/Extra/Core/images/syntax/drop-table-stmt.gif
-  Doc/Extra/Core/images/syntax/drop-trigger-stmt.gif
-  Doc/Extra/Core/images/syntax/drop-view-stmt.gif
-  Doc/Extra/Core/images/syntax/expr.gif
-  Doc/Extra/Core/images/syntax/factored-select-stmt.gif
-  Doc/Extra/Core/images/syntax/foreign-key-clause.gif
-  Doc/Extra/Core/images/syntax/indexed-column.gif
-  Doc/Extra/Core/images/syntax/insert-stmt.gif
-  Doc/Extra/Core/images/syntax/join-clause.gif
-  Doc/Extra/Core/images/syntax/join-constraint.gif
-  Doc/Extra/Core/images/syntax/join-operator.gif
-  Doc/Extra/Core/images/syntax/literal-value.gif
-  Doc/Extra/Core/images/syntax/numeric-literal.gif
-  Doc/Extra/Core/images/syntax/ordering-term.gif
-  Doc/Extra/Core/images/syntax/pragma-stmt.gif
-  Doc/Extra/Core/images/syntax/pragma-value.gif
-  Doc/Extra/Core/images/syntax/qualified-table-name.gif
-  Doc/Extra/Core/images/syntax/raise-function.gif
-  Doc/Extra/Core/images/syntax/recursive-cte.gif
-  Doc/Extra/Core/images/syntax/reindex-stmt.gif
-  Doc/Extra/Core/images/syntax/release-stmt.gif
-  Doc/Extra/Core/images/syntax/result-column.gif
-  Doc/Extra/Core/images/syntax/rollback-stmt.gif
-  Doc/Extra/Core/images/syntax/savepoint-stmt.gif
-  Doc/Extra/Core/images/syntax/select-core.gif
-  Doc/Extra/Core/images/syntax/select-stmt.gif
-  Doc/Extra/Core/images/syntax/signed-number.gif
-  Doc/Extra/Core/images/syntax/simple-select-stmt.gif
-  Doc/Extra/Core/images/syntax/sql-stmt-list.gif
-  Doc/Extra/Core/images/syntax/sql-stmt.gif
-  Doc/Extra/Core/images/syntax/table-constraint.gif
-  Doc/Extra/Core/images/syntax/table-or-subquery.gif
-  Doc/Extra/Core/images/syntax/type-name.gif
-  Doc/Extra/Core/images/syntax/update-stmt-limited.gif
-  Doc/Extra/Core/images/syntax/update-stmt.gif
-  Doc/Extra/Core/images/syntax/upsert-clause.gif
-  Doc/Extra/Core/images/syntax/vacuum-stmt.gif
-  Doc/Extra/Core/images/syntax/with-clause.gif
   Doc/Extra/Core/lang.html
   Doc/Extra/Core/lang_aggfunc.html
   Doc/Extra/Core/lang_altertable.html
@@ -113,20 +51,23 @@ set sds_manifests(source) {
   Doc/Extra/Core/lang_indexedby.html
   Doc/Extra/Core/lang_insert.html
   Doc/Extra/Core/lang_keywords.html
+  Doc/Extra/Core/lang_mathfunc.html
   Doc/Extra/Core/lang_naming.html
   Doc/Extra/Core/lang_reindex.html
   Doc/Extra/Core/lang_replace.html
+  Doc/Extra/Core/lang_returning.html
   Doc/Extra/Core/lang_savepoint.html
   Doc/Extra/Core/lang_select.html
   Doc/Extra/Core/lang_transaction.html
   Doc/Extra/Core/lang_update.html
-  Doc/Extra/Core/lang_UPSERT.html
+  Doc/Extra/Core/lang_upsert.html
   Doc/Extra/Core/lang_vacuum.html
   Doc/Extra/Core/lang_with.html
   Doc/Extra/Core/pragma.html
   Doc/Extra/Core/sqlite.css
   Doc/Extra/Core/syntax.html
   Doc/Extra/Core/syntax/
+  Doc/Extra/Core/syntax/aggregate-function-invocation.html
   Doc/Extra/Core/syntax/alter-table-stmt.html
   Doc/Extra/Core/syntax/analyze-stmt.html
   Doc/Extra/Core/syntax/attach-stmt.html
@@ -155,7 +96,9 @@ set sds_manifests(source) {
   Doc/Extra/Core/syntax/drop-view-stmt.html
   Doc/Extra/Core/syntax/expr.html
   Doc/Extra/Core/syntax/factored-select-stmt.html
+  Doc/Extra/Core/syntax/filter-clause.html
   Doc/Extra/Core/syntax/foreign-key-clause.html
+  Doc/Extra/Core/syntax/frame-spec.html
   Doc/Extra/Core/syntax/indexed-column.html
   Doc/Extra/Core/syntax/insert-stmt.html
   Doc/Extra/Core/syntax/join-clause.html
@@ -164,6 +107,7 @@ set sds_manifests(source) {
   Doc/Extra/Core/syntax/literal-value.html
   Doc/Extra/Core/syntax/numeric-literal.html
   Doc/Extra/Core/syntax/ordering-term.html
+  Doc/Extra/Core/syntax/over-clause.html
   Doc/Extra/Core/syntax/pragma-stmt.html
   Doc/Extra/Core/syntax/pragma-value.html
   Doc/Extra/Core/syntax/qualified-table-name.html
@@ -172,11 +116,13 @@ set sds_manifests(source) {
   Doc/Extra/Core/syntax/reindex-stmt.html
   Doc/Extra/Core/syntax/release-stmt.html
   Doc/Extra/Core/syntax/result-column.html
+  Doc/Extra/Core/syntax/returning-clause.html
   Doc/Extra/Core/syntax/rollback-stmt.html
   Doc/Extra/Core/syntax/savepoint-stmt.html
   Doc/Extra/Core/syntax/select-core.html
   Doc/Extra/Core/syntax/select-stmt.html
   Doc/Extra/Core/syntax/signed-number.html
+  Doc/Extra/Core/syntax/simple-function-invocation.html
   Doc/Extra/Core/syntax/simple-select-stmt.html
   Doc/Extra/Core/syntax/sql-stmt-list.html
   Doc/Extra/Core/syntax/sql-stmt.html
@@ -185,7 +131,10 @@ set sds_manifests(source) {
   Doc/Extra/Core/syntax/type-name.html
   Doc/Extra/Core/syntax/update-stmt-limited.html
   Doc/Extra/Core/syntax/update-stmt.html
+  Doc/Extra/Core/syntax/upsert-clause.html
   Doc/Extra/Core/syntax/vacuum-stmt.html
+  Doc/Extra/Core/syntax/window-defn.html
+  Doc/Extra/Core/syntax/window-function-invocation.html
   Doc/Extra/Core/syntax/with-clause.html
   Doc/Extra/Core/syntaxdiagrams.html
   Doc/Extra/Include/
@@ -212,9 +161,10 @@ set sds_manifests(source) {
   Externals/
   Externals/Eagle/
   Externals/Eagle/bin/
+  Externals/Eagle/bin/netFramework20/
+  Externals/Eagle/bin/netFramework20/EagleShell.exe.config
   Externals/Eagle/bin/netFramework40/
   Externals/Eagle/bin/netFramework40/EagleShell.exe.config
-  Externals/Eagle/bin/netFramework40/EagleShell.exe.mda.config
   Externals/Eagle/lib/
   Externals/Eagle/lib/Eagle1.0/
   Externals/Eagle/lib/Eagle1.0/vendor.eagle
@@ -235,17 +185,21 @@ set sds_manifests(source) {
   NuGet/shared/
   NuGet/shared/Core/
   NuGet/shared/Core/build/
-  NuGet/shared/Core/build/System.Data.SQLite.Core.targets
+  NuGet/shared/Core/build/System.Data.SQLite.Core.NetFramework.targets
+  NuGet/shared/Core/buildTransitive/
+  NuGet/shared/Core/buildTransitive/System.Data.SQLite.Core.NetFramework.targets
   NuGet/shared/Core/content/
   NuGet/shared/Core/content/config.install.xdt
   NuGet/shared/Core/content/config.transform
   NuGet/shared/Core/lib/
-  NuGet/shared/Core/lib/System.Data.SQLite.dll.config
+  NuGet/shared/Core/lib/System.Data.SQLite.dll.altconfig
   NuGet/SQLite.Beta.nuspec
   NuGet/SQLite.Core.Beta.nuspec
   NuGet/SQLite.Core.MSIL.Beta.nuspec
   NuGet/SQLite.Core.MSIL.nuspec
   NuGet/SQLite.Core.MSIL.Test.nuspec
+  NuGet/SQLite.Core.NetFramework.nuspec
+  NuGet/SQLite.Core.NetStandard.nuspec
   NuGet/SQLite.Core.nuspec
   NuGet/SQLite.Core.Test.nuspec
   NuGet/SQLite.EF6.Beta.nuspec
@@ -360,6 +314,7 @@ set sds_manifests(source) {
   Setup/set_netFx47.bat
   Setup/set_netFx471.bat
   Setup/set_netFx472.bat
+  Setup/set_netFx48.bat
   Setup/set_netStandard20.bat
   Setup/set_netStandard21.bat
   Setup/set_Release.bat
@@ -996,8 +951,17 @@ set sds_manifests(source) {
 #       suite.
 #
 set sds_manifests(eagle) {
+  Externals/Eagle/bin/netFramework20/Eagle.dll
+  Externals/Eagle/bin/netFramework20/EagleShell.exe
+  Externals/Eagle/bin/netFramework20/EagleShell.exe.mda.config
+  Externals/Eagle/bin/netFramework20/EagleShell32.exe
+  Externals/Eagle/bin/netFramework20/x64/
+  Externals/Eagle/bin/netFramework20/x64/Spilornis.dll
+  Externals/Eagle/bin/netFramework20/x86/
+  Externals/Eagle/bin/netFramework20/x86/Spilornis.dll
   Externals/Eagle/bin/netFramework40/Eagle.dll
   Externals/Eagle/bin/netFramework40/EagleShell.exe
+  Externals/Eagle/bin/netFramework40/EagleShell.exe.mda.config
   Externals/Eagle/bin/netFramework40/EagleShell32.exe
   Externals/Eagle/bin/netFramework40/x64/
   Externals/Eagle/bin/netFramework40/x64/Spilornis.dll
@@ -1047,6 +1011,13 @@ set sds_manifests(eagle) {
   Externals/Eagle/lib/Test1.0/pkgIndex.eagle
   Externals/Eagle/lib/Test1.0/pkgIndex.tcl
   Externals/Eagle/lib/Test1.0/prologue.eagle
+  Externals/Eagle/Targets/
+  Externals/Eagle/Targets/Eagle.Builds.targets
+  Externals/Eagle/Targets/Eagle.Presets.targets
+  Externals/Eagle/Targets/Eagle.Sample.targets
+  Externals/Eagle/Targets/Eagle.Settings.targets
+  Externals/Eagle/Targets/Eagle.targets
+  Externals/Eagle/Targets/Eagle.tasks
 }
 
 ###############################################################################
@@ -1405,9 +1376,9 @@ set sds_manifests(nuGetMetadata) {
 #
 # NOTE: This is the list of all files that should be present in all NuGet
 #       packages that include the primary assembly, whether managed only
-#       or mixed-mode.
+#       or mixed-mode, for the .NET Framework.
 #
-set sds_manifests(nuGetCoreCommon) {
+set sds_manifests(nuGetCoreNetFrameworkManagedOnly) {
   lib/net20/System.Data.SQLite.dll
   lib/net20/System.Data.SQLite.xml
   lib/net40/System.Data.SQLite.dll
@@ -1422,10 +1393,11 @@ set sds_manifests(nuGetCoreCommon) {
 
 ###############################################################################
 #
-# NOTE: This is the list of all files that should be present in all NuGet
-#       packages that include the primary managed-only assembly.
+# NOTE: This is the list of all files that should be present in all core
+#       NuGet packages that include the primary managed-only assembly,
+#       for the .NET Standard.
 #
-set sds_manifests(nuGetCoreManagedOnly) {
+set sds_manifests(nuGetCoreNetStandardManagedOnly) {
   lib/netstandard2.0/System.Data.SQLite.dll
   lib/netstandard2.0/System.Data.SQLite.xml
   lib/netstandard2.1/System.Data.SQLite.dll
@@ -1435,9 +1407,10 @@ set sds_manifests(nuGetCoreManagedOnly) {
 ###############################################################################
 #
 # NOTE: This is the list of all files that should be present in all core
-#       NuGet packages that include the primary interop assemblies.
+#       NuGet packages that include the primary interop assemblies, for
+#       the .NET Framework.
 #
-set sds_manifests(nuGetCoreNative) {
+set sds_manifests(nuGetCoreNetFrameworkNativeOnly) {
   build/net20/x64/SQLite.Interop.dll
   build/net20/x86/SQLite.Interop.dll
   build/net40/x64/SQLite.Interop.dll
@@ -1448,26 +1421,29 @@ set sds_manifests(nuGetCoreNative) {
   build/net451/x86/SQLite.Interop.dll
   build/net46/x64/SQLite.Interop.dll
   build/net46/x86/SQLite.Interop.dll
-  build/net20/System.Data.SQLite.Core.targets
-  build/net40/System.Data.SQLite.Core.targets
-  build/net45/System.Data.SQLite.Core.targets
-  build/net451/System.Data.SQLite.Core.targets
-  build/net46/System.Data.SQLite.Core.targets
-  lib/net20/System.Data.SQLite.dll.config
-  lib/net40/System.Data.SQLite.dll.config
-  lib/net45/System.Data.SQLite.dll.config
-  lib/net451/System.Data.SQLite.dll.config
-  lib/net46/System.Data.SQLite.dll.config
-  lib/netstandard2.0/System.Data.SQLite.dll.config
-  lib/netstandard2.1/System.Data.SQLite.dll.config
-  runtimes/win-x86/native/netstandard2.0/SQLite.Interop.dll
-  runtimes/win-x64/native/netstandard2.0/SQLite.Interop.dll
-  runtimes/linux-x64/native/netstandard2.0/SQLite.Interop.dll
-  runtimes/osx-x64/native/netstandard2.0/SQLite.Interop.dll
-  runtimes/win-x86/native/netstandard2.1/SQLite.Interop.dll
-  runtimes/win-x64/native/netstandard2.1/SQLite.Interop.dll
-  runtimes/linux-x64/native/netstandard2.1/SQLite.Interop.dll
-  runtimes/osx-x64/native/netstandard2.1/SQLite.Interop.dll
+  build/net20/Stub.System.Data.SQLite.Core.NetFramework.targets
+  build/net40/Stub.System.Data.SQLite.Core.NetFramework.targets
+  build/net45/Stub.System.Data.SQLite.Core.NetFramework.targets
+  build/net451/Stub.System.Data.SQLite.Core.NetFramework.targets
+  build/net46/Stub.System.Data.SQLite.Core.NetFramework.targets
+  buildTransitive/net20/Stub.System.Data.SQLite.Core.NetFramework.targets
+  buildTransitive/net40/Stub.System.Data.SQLite.Core.NetFramework.targets
+  buildTransitive/net45/Stub.System.Data.SQLite.Core.NetFramework.targets
+  buildTransitive/net451/Stub.System.Data.SQLite.Core.NetFramework.targets
+  buildTransitive/net46/Stub.System.Data.SQLite.Core.NetFramework.targets
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in all core
+#       NuGet packages that include the primary interop assemblies, for
+#       the the .NET Standard.
+#
+set sds_manifests(nuGetCoreNetStandardNativeOnly) {
+  runtimes/win-x86/native/SQLite.Interop.dll
+  runtimes/win-x64/native/SQLite.Interop.dll
+  runtimes/linux-x64/native/SQLite.Interop.dll
+  runtimes/osx-x64/native/SQLite.Interop.dll
 }
 
 ###############################################################################
@@ -1553,6 +1529,31 @@ set sds_manifests(nuGetCore) {
 #
 set sds_manifests(nuGetCoreMsil) {
   System.Data.SQLite.Core.MSIL.nuspec
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the core
+#       NuGet package for the .NET Framework.
+#
+set sds_manifests(nuGetCoreNetFramework) {
+  Stub.System.Data.SQLite.Core.NetFramework.nuspec
+  lib/net20/System.Data.SQLite.dll.altconfig
+  lib/net40/System.Data.SQLite.dll.altconfig
+  lib/net45/System.Data.SQLite.dll.altconfig
+  lib/net451/System.Data.SQLite.dll.altconfig
+  lib/net46/System.Data.SQLite.dll.altconfig
+}
+
+###############################################################################
+#
+# NOTE: This is the list of all files that should be present in the core
+#       NuGet package for the .NET Standard.
+#
+set sds_manifests(nuGetCoreNetStandard) {
+  Stub.System.Data.SQLite.Core.NetStandard.nuspec
+  lib/netstandard2.0/System.Data.SQLite.dll.altconfig
+  lib/netstandard2.1/System.Data.SQLite.dll.altconfig
 }
 
 ###############################################################################
@@ -2271,6 +2272,76 @@ set manifests(sqlite-netFx472-setup-bundle-x64-2017-.exe) [list sds \
     setupEf6Bundle setupX64Vs2017]
 
 ###############################################################################
+################### Visual Studio 2017 / .NET Framework 4.8 ###################
+############################### Binary Packages ###############################
+###############################################################################
+
+set manifests(sqlite-netFx48-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-static-binary-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-static-binary-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra binaryInterop]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-static-binary-bundle-Win32-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-static-binary-bundle-x64-2017-.zip) [list sds \
+    binaryCore binaryLinq binaryEf6 binaryExtra]
+
+###############################################################################
+################### Visual Studio 2017 / .NET Framework 4.8 ###################
+############################### Setup Packages ################################
+###############################################################################
+
+set manifests(sqlite-netFx48-setup-x86-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-setup-x64-2017-.exe) [list sds \
+    setupCore setupInterop setupLinqCore setupEf6Core setupLinqInterop \
+    setupEf6Interop setupX64Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-setup-bundle-x86-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX86Vs2017]
+
+###############################################################################
+
+set manifests(sqlite-netFx48-setup-bundle-x64-2017-.exe) [list sds \
+    setupCore setupBundle setupLinqCore setupEf6Core setupLinqBundle \
+    setupEf6Bundle setupX64Vs2017]
+
+###############################################################################
 ################### Visual Studio 2017 / .NET Standard 2.0 ####################
 ############################### Binary Packages ###############################
 ###############################################################################
@@ -2295,13 +2366,26 @@ set manifests(System.Data.SQLite..nupkg) [list sds \
 ###############################################################################
 
 set manifests(System.Data.SQLite.Core..nupkg) [list sds \
-    nuGetMetadata nuGetCoreCommon nuGetCoreManagedOnly nuGetCoreNative \
-    nuGetCore]
+    nuGetMetadata nuGetCore]
 
 ###############################################################################
 
 set manifests(System.Data.SQLite.Core.MSIL..nupkg) [list sds \
-    nuGetMetadata nuGetCoreCommon nuGetCoreManagedOnly nuGetCoreMsil]
+    nuGetMetadata nuGetCoreNetFrameworkManagedOnly \
+    nuGetCoreNetFrameworkManagedOnly nuGetCoreNetStandardManagedOnly \
+    nuGetCoreMsil]
+
+###############################################################################
+
+set manifests(Stub.System.Data.SQLite.Core.NetFramework..nupkg) [list sds \
+    nuGetMetadata nuGetCoreNetFrameworkManagedOnly \
+    nuGetCoreNetFrameworkNativeOnly nuGetCoreNetFramework]
+
+###############################################################################
+
+set manifests(Stub.System.Data.SQLite.Core.NetStandard..nupkg) [list sds \
+    nuGetMetadata nuGetCoreNetStandardManagedOnly \
+    nuGetCoreNetStandardNativeOnly nuGetCoreNetStandard]
 
 ###############################################################################
 
@@ -2321,12 +2405,12 @@ set manifests(System.Data.SQLite.MSIL..nupkg) [list sds \
 ###############################################################################
 
 set manifests(System.Data.SQLite.x64..nupkg) [list sds \
-    nuGetMetadata nuGetCoreCommon nuGetX64]
+    nuGetMetadata nuGetCoreNetFrameworkManagedOnly nuGetX64]
 
 ###############################################################################
 
 set manifests(System.Data.SQLite.x86..nupkg) [list sds \
-    nuGetMetadata nuGetCoreCommon nuGetX86]
+    nuGetMetadata nuGetCoreNetFrameworkManagedOnly nuGetX86]
 
 ###############################################################################
 # end of file

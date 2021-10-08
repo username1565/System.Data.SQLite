@@ -313,7 +313,7 @@ namespace eval ::Eagle {
               return netFx46; # TODO: Or "netFx461" / "netFx462"?
             }
             2017 {
-              return netFx47; # TODO: Or "netFx471" / "netFx472"?
+              return netFx47; # TODO: Or "netFx471" / "netFx472" / "netFx48"?
             }
             NetStandard20 {
               return netStandard20
@@ -548,9 +548,20 @@ namespace eval ::Eagle {
       } elseif {[isDotNetCore]} then {
         #
         # NOTE: Running on .NET Core, use the extra output directory for
-        #       library files.
+        #       (managed) library files.
         #
-        return netstandard2.0
+        if {[info exists ::eagle_platform(targetFramework)]} then {
+          switch -exact -- $::eagle_platform(targetFramework) {
+            .NETStandard,Version=v2.0 {
+              return netstandard2.0
+            }
+            .NETStandard,Version=v2.1 {
+              return netstandard2.1
+            }
+          }
+        }
+
+        return netstandard2.0; # TODO: Good "fallback" default?
       } else {
         #
         # NOTE: No extra output directory is required.
@@ -2576,6 +2587,11 @@ namespace eval ::Eagle {
       set exception [object invoke \
           -alias -flags +NonPublic Interpreter.GetActive Exception]
 
+      if {[isNonNullObjectHandle $exception] && [$exception GetType] \
+              eq "Eagle._Components.Public.ScriptException"} then {
+        set exception [$exception -alias InnerException]
+      }
+
       return ""
     }
 
@@ -2638,6 +2654,42 @@ namespace eval ::Eagle {
           catch {info previouspid true}
         }
       }
+    }
+
+    proc catchCSharp {
+            script {resultVarName ""} {optionsVarName ""} {verbose true} } {
+      if {[string length $resultVarName] > 0} then {
+        upvar 1 $resultVarName result
+      }
+
+      if {[string length $optionsVarName] > 0} then {
+        upvar 1 $optionsVarName options
+      }
+
+      set code [catch [list uplevel 1 $script] result options]
+
+      if {$code && $verbose} then {
+        set error [string map [list \r\n \n] [string trim $result]]
+        set errorLine [lindex [split $error \n] 0]
+
+        if {[regexp -- \
+            { System\.Data\.SQLite\.SQLiteException: (.+?)\n} \
+            $errorLine dummy message] || [regexp -nocase -- \
+            { code = \w+ \(\d+\), message = (.+?)\n\s+at\s+} \
+            $error dummy message]} then {
+          set message [string map [list \n " ==> "] $message]
+
+          tputs $::test_channel [appendArgs \
+              "==== WARNING: SQLite error while invoking " \
+              "compiled C# code: " \n\t $message \n]
+        } else {
+          tputs $::test_channel [appendArgs \
+              "==== WARNING: other error while invoking " \
+              "compiled C# code: " \n\t $result \n]
+        }
+      }
+
+      return $code
     }
 
     proc isMemoryDb { fileName } {
@@ -2788,14 +2840,24 @@ namespace eval ::Eagle {
       }
     }
 
-    proc hasNoFlags { varName none } {
-      upvar 1 $varName flags
+    proc hasNoValue { varName } {
+      upvar 1 $varName extra
 
-      if {![info exists flags]} then {
+      if {![info exists extra]} then {
         return true
       }
 
-      if {[string length $flags] == 0} then {
+      if {[string length $extra] == 0} then {
+        return true
+      }
+
+      return false
+    }
+
+    proc hasNoFlags { varName none } {
+      upvar 1 $varName flags
+
+      if {[hasNoValue flags]} then {
         return true
       }
 
@@ -2804,6 +2866,22 @@ namespace eval ::Eagle {
       }
 
       return false
+    }
+
+    proc combineExtra { extra1 extra2 } {
+      if {[string length $extra1] > 0} then {
+        if {[string length $extra2] > 0} then {
+          return [appendArgs $extra1 \; $extra2]
+        } else {
+          return $extra1
+        }
+      } else {
+        if {[string length $extra2] > 0} then {
+          return $extra2
+        } else {
+          return ""
+        }
+      }
     }
 
     proc getConnectionFlags { fileName flags {quiet false} } {
@@ -2915,6 +2993,83 @@ namespace eval ::Eagle {
       return $flags
     }
 
+    proc getConnectionExtra { fileName extra {quiet false} } {
+      #
+      # NOTE: Figure out which database file name or connection string these
+      #       connection props will actually apply to.  This is not necessary
+      #       in quiet mode because this information is only used for logging
+      #       and reporting purposes.
+      #
+      if {!$quiet} then {
+        if {[string length $fileName] > 0} then {
+          set database [appendArgs "file name \"" $fileName \"]
+        } elseif {[info exists ::dataSource] && \
+            ![array exists ::dataSource]} then {
+          set database [appendArgs "data source \"" $::dataSource \"]
+        } else {
+          set database <unknown>
+        }
+      }
+
+      #
+      # NOTE: Show (and log) the local connection props and the associated
+      #       data source or file name.
+      #
+      if {!$quiet} then {
+        if {![info exists ::no(emitLocalExtra)] && \
+            (![info exists ::no(emitLocalExtraIfNone)] || \
+             ![hasNoValue extra])} then {
+          tputs $::test_channel [appendArgs \
+              "---- local connection properties for " $database \
+              " are: " [expr {[string length $extra] > 0 ? \
+              [appendArgs \" $extra \"] : "<none>"}] \n]
+        }
+      }
+
+      #
+      # NOTE: Show (and log) the detected global connection props, if any.
+      #
+      if {!$quiet} then {
+        if {![info exists ::no(emitGlobalExtra)] && \
+            (![info exists ::no(emitGlobalExtraIfNone)] || \
+             ![hasNoValue ::connection_extra])} then {
+          tputs $::test_channel [appendArgs \
+              "---- global connection properties are: " \
+              [expr {![hasNoValue ::connection_extra] ? \
+              [appendArgs \" $::connection_extra \"] : "<none>"}] \n]
+        }
+      }
+
+      #
+      # NOTE: If there are any global (per test run) connection props currently
+      #       set, use them now (i.e. by combining them with the ones for this
+      #       connection).
+      #
+      if {[info exists ::connection_extra]} then {
+        #
+        # NOTE: Combine and/or replace the connection props and then show the
+        #       new value.
+        #
+        set extra [combineExtra $::connection_extra $extra]
+
+        #
+        # NOTE: Show (and log) the new effective connection props.
+        #
+        if {!$quiet} then {
+          if {![info exists ::no(emitCombinedExtra)] && \
+              (![info exists ::no(emitCombinedExtraIfNone)] || \
+               ![hasNoValue extra])} then {
+            tputs $::test_channel [appendArgs \
+                "---- combined connection properties for " $database \
+                " are: " [expr {![hasNoValue extra] ? \
+                [appendArgs \" $extra \"] : "<none>"}] \n]
+          }
+        }
+      }
+
+      return $extra
+    }
+
     proc getFlagsProperty { {flags ""} {quiet false} } {
       #
       # NOTE: Determine what the combined (global and local) connection
@@ -2976,26 +3131,56 @@ namespace eval ::Eagle {
       return ""
     }
 
-    proc getTestProperties { {flags ""} {quiet false} } {
+    proc getExtraProperties { {extra ""} {quiet false} } {
+      #
+      # NOTE: Determine what the combined (global and local) connection
+      #       props should be, possibly quietly.
+      #
+      return [getConnectionExtra "" $extra $quiet]
+    }
+
+    proc getTestProperties { {flags ""} {extra ""} {quiet false} } {
+      #
+      # NOTE: Initially, no (extra?) connection string properties for the
+      #       test.
+      #
+      set result ""
+
       #
       # NOTE: Start with "Flags" property for the new connection, if any.
       #
-      set result [getFlagsProperty $flags $quiet]
+      set flags [getFlagsProperty $flags $quiet]
+
+      if {[string length $flags] > 0} then {
+        append result $flags
+      }
 
       #
-      # NOTE: Add the name of the current test file, if available.  This is
-      #       only used for debugging.
+      # NOTE: Next, the name of the current test file, if available.  This
+      #       is only used for debugging.
       #
-      if {[info exists ::test_file]} then {
+      if {[info exists ::test_file] && \
+          [string length $::test_file] > 0} then {
         append result TestFile= $::test_file \;
       }
 
       #
-      # NOTE: Add the name of the current test, if available.  This is only
-      #       used for debugging.
+      # NOTE: Next, the name of the current test, if available.  This is
+      #       only used for debugging.
       #
-      if {[info exists ::eagle_tests(CurrentName)]} then {
+      if {[info exists ::eagle_tests(CurrentName)] && \
+          [string length $::eagle_tests(CurrentName)] > 0} then {
         append result TestName= $::eagle_tests(CurrentName) \;
+      }
+
+      #
+      # NOTE: Finally, with the extra properties for the new connection, if
+      #       any.
+      #
+      set extra [getExtraProperties $extra $quiet]
+
+      if {[string length $extra] > 0} then {
+        append result $extra
       }
 
       return $result
@@ -3148,6 +3333,11 @@ namespace eval ::Eagle {
       if {[string length $flags] > 0} then {
         append connection {;Flags=${flags}}
       }
+
+      #
+      # NOTE: Figure out what the final props for this connection need to be.
+      #
+      set extra [getConnectionExtra $fileName $extra $quiet]
 
       #
       # NOTE: If our caller specified an extra payload to the connection
@@ -3650,6 +3840,14 @@ namespace eval ::Eagle {
       } else {
         unset -nocomplain savedConnectionFlags
       }
+
+      upvar 1 savedConnectionExtra savedConnectionExtra
+
+      if {[info exists ::connection_extra]} then {
+        set savedConnectionExtra $::connection_extra
+      } else {
+        unset -nocomplain savedConnectionExtra
+      }
     }
 
     proc restoreSQLiteConnectionEnvironment {} {
@@ -3666,6 +3864,15 @@ namespace eval ::Eagle {
         unset -nocomplain savedConnectionFlags
       } else {
         unset -nocomplain ::connection_flags
+      }
+
+      upvar 1 savedConnectionExtra savedConnectionExtra
+
+      if {[info exists savedConnectionExtra]} then {
+        set ::connection_extra $savedConnectionExtra
+        unset -nocomplain savedConnectionExtra
+      } else {
+        unset -nocomplain ::connection_extra
       }
     }
 
@@ -4620,6 +4827,23 @@ namespace eval ::Eagle {
       }
     }
 
+    proc checkForSQLiteC99MathFunctions { channel } {
+      tputs $channel \
+          "---- checking for SQLite C99 math functions... "
+
+      if {[isSQLiteReady] && [catch {
+        object invoke \
+            System.Data.SQLite.SQLiteCommand Execute \
+            "SELECT trunc(0);" NonQuery "Data Source=:memory:;"
+      }] == 0} then {
+        addConstraint sqlite3_c99_math
+
+        tputs $channel yes\n
+      } else {
+        tputs $channel no\n
+      }
+    }
+
     proc loadSQLiteTestSettings { channel {suffix ""} {quiet false} } {
       #
       # NOTE: Skip loading the settings if their usage has been disabled.
@@ -4961,7 +5185,7 @@ namespace eval ::Eagle {
         #
         if {[isDotNetCore]} then {
           set externalFileNames [list \
-              [file join EntityFramework v6.3 lib [string map [list \
+              [file join EntityFramework v6.4 lib [string map [list \
               netStandard21 netstandard2.1] [getBuildNetFx]] \
               EntityFramework.dll]]
         } else {
@@ -4970,7 +5194,8 @@ namespace eval ::Eagle {
               Fx ""] [string map [list netFx451 netFx45 netFx452 \
               netFx45 netFx46 netFx45 netFx461 netFx45 netFx462 \
               netFx45 netFx47 netFx45 netFx471 netFx45 netFx472 \
-              netFx45] [getBuildNetFx]]] EntityFramework.dll]]
+              netFx45 netFx48 netFx45] [getBuildNetFx]]] \
+              EntityFramework.dll]]
         }
 
         #
@@ -5624,6 +5849,12 @@ namespace eval ::Eagle {
         checkForSQLiteDirectories $::test_channel
 
         #
+        # NOTE: Check if the SQLite core library was compiled with support for
+        #       the math functions from the ANSI C99 standard.
+        #
+        checkForSQLiteC99MathFunctions $::test_channel
+
+        #
         # NOTE: Attempt to determine if various compile-time options needed for
         #       test constraints were enabled for the managed assembly.  There
         #       are some compile-time options that must also have been enabled
@@ -5641,12 +5872,13 @@ namespace eval ::Eagle {
             INTEROP_SHA1_EXTENSION INTEROP_TEST_EXTENSION \
             INTEROP_TOTYPE_EXTENSION INTEROP_VIRTUAL_TABLE \
             NET_20 NET_35 NET_40 NET_45 NET_451 NET_452 NET_46 NET_461 \
-            NET_462 NET_47 NET_471 NET_472 NET_COMPACT_20 NET_STANDARD_20 \
-            NET_STANDARD_21 PLATFORM_COMPACTFRAMEWORK PRELOAD_NATIVE_LIBRARY \
-            RETARGETABLE SQLITE_STANDARD THROW_ON_DISPOSED \
-            TRACE TRACE_CONNECTION TRACE_DETECTION TRACE_HANDLE TRACE_PRELOAD \
-            TRACE_SHARED TRACE_STATEMENT TRACE_WARNING TRACK_MEMORY_BYTES \
-            USE_ENTITY_FRAMEWORK_6 USE_INTEROP_DLL USE_PREPARE_V2 WINDOWS] {
+            NET_462 NET_47 NET_471 NET_472 NET_48 NET_COMPACT_20 \
+            NET_STANDARD_20 NET_STANDARD_21 PLATFORM_COMPACTFRAMEWORK \
+            PRELOAD_NATIVE_LIBRARY RETARGETABLE SQLITE_STANDARD \
+            THROW_ON_DISPOSED TRACE TRACE_CONNECTION TRACE_DETECTION \
+            TRACE_HANDLE TRACE_PRELOAD TRACE_SHARED TRACE_STATEMENT \
+            TRACE_WARNING TRACK_MEMORY_BYTES USE_ENTITY_FRAMEWORK_6 \
+            USE_INTEROP_DLL USE_PREPARE_V2 WINDOWS] {
           #
           # NOTE: Check if the compile-time option is listed in the list of
           #       "define constants" kept track of by the managed assembly.

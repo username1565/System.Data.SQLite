@@ -33,6 +33,19 @@
 #
 namespace eval ::Eagle {
   if {[isEagle]} then {
+    #
+    # NOTE: This procedure is designed to make it easy to use strings from
+    #       the various batch tools that may contain characters or strings
+    #       that cannot be (easily) escaped in Win32 batch files.
+    #
+    proc setToolVariables {} {
+      #
+      # NOTE: This [regexp] pattern is used by the "build_nuget.bat" batch
+      #       tool.
+      #
+      set ::nuget_version_pattern {<version>(\d+\.\d+\.\d+\.\d+)</version>}
+    }
+
     proc checkForVendorQuiet { {name ""} } {
       if {![interp issafe]} then {
         if {[info exists ::env(checkForVendorQuiet)]} then {
@@ -100,6 +113,11 @@ namespace eval ::Eagle {
 
           set allSecurityProtocols [object invoke \
               Enum GetNames System.Net.SecurityProtocolType]
+
+          if {[info exists ::eagle_platform(runtimeVersion)] && [string \
+              match 2.0.50727.* $::eagle_platform(runtimeVersion)]} then {
+            append allSecurityProtocols " 0xC00"
+          }
 
           set allSecurityProtocols [string map \
               [list SystemDefault ""] $allSecurityProtocols]
@@ -418,20 +436,20 @@ namespace eval ::Eagle {
     checkForTestOverrides stdout [expr {[info exists test_overrides] ? \
         $test_overrides : [list binary_directory build_base_directory \
         build_directory common_directory compile_option_prefix \
-        connection_flags core_library_version database_directory \
-        datetime_format define_constant_prefix execute_on_setup \
-        interop_assembly_file_names native_library_file_names \
-        release_version scratch_directory temporary_directory test_clr \
-        test_clr_v2 test_clr_v4 test_configuration test_configurations \
-        test_configuration_suffix test_configuration_suffixes \
-        test_constraints test_extra test_extras test_machine test_native \
-        test_native_configuration_suffix test_native_extra \
-        test_native_extras test_native_year test_net_fx test_net_fx_2005 \
-        test_net_fx_2008 test_net_fx_2010 test_net_fx_2012 test_net_fx_2013 \
-        test_net_fx_2015 test_net_fx_2017 test_overrides test_platform \
-        test_suite test_year test_years test_year_clr_v2 test_year_clr_v4 \
-        vendor_directory vendor_test_directory]}] [checkForVendorQuiet \
-        checkForTestOverrides]
+        connection_extra connection_flags core_library_version \
+        database_directory datetime_format define_constant_prefix \
+        execute_on_setup interop_assembly_file_names \
+        native_library_file_names release_version scratch_directory \
+        temporary_directory test_clr test_clr_v2 test_clr_v4 \
+        test_configuration test_configurations test_configuration_suffix \
+        test_configuration_suffixes test_constraints test_extra test_extras \
+        test_machine test_native test_native_configuration_suffix \
+        test_native_extra test_native_extras test_native_year test_net_fx \
+        test_net_fx_2005 test_net_fx_2008 test_net_fx_2010 test_net_fx_2012 \
+        test_net_fx_2013 test_net_fx_2015 test_net_fx_2017 test_overrides \
+        test_platform test_suite test_year test_years test_year_clr_v2 \
+        test_year_clr_v4 vendor_directory vendor_test_directory]}] \
+        [checkForVendorQuiet checkForTestOverrides]
 
     #
     # NOTE: Set the name of the running test suite, if necessary.
@@ -514,29 +532,12 @@ namespace eval ::Eagle {
     }
 
     #
-    # HACK: When the Eagle core test suite infrastructure is beta 45 or
-    #       lower, override the list of "known" Mono runtime versions.
-    #       Eventually, this override should be removed (i.e. once the
-    #       Eagle core library included in "Externals" is updated).
-    #
-    if {[package vcompare \
-        $eagle_platform(patchLevel) 1.0.7213.50727] <= 0} then {
-      set test_well_known(monoVersions) [list \
-          [list 2 0] [list 2 2] [list 2 4] [list 2 6] [list 2 8] \
-          [list 2 10] [list 2 11] [list 3 0] [list 3 1] [list 3 2] \
-          [list 3 4] [list 3 6] [list 3 8] [list 3 10] [list 3 12] \
-          [list 4 0] [list 4 2] [list 4 4] [list 4 6] [list 4 8] \
-          [list 5 0] [list 5 2] [list 5 4] [list 5 8] [list 5 10] \
-          [list 5 12] [list 5 14] [list 5 16] [list 5 18] [list 5 20] \
-          [list 6 0] [list 6 4] [list 6 6] [list 6 8] [list 6 10]]
-    }
-
-    #
     # HACK: When using [compileCSharp] on .NET Core 3.0, it will produce
     #       compiler warnings complaining about mismatched versions of the
     #       .NET Standard reference assemblies, e.g. 2.0 versus 2.1; Since
     #       the test suite considers these warnings to be an indication of
-    #       test failure, we disable them here.
+    #       test failure, we disable them here.  When everything has been
+    #       updated to support both, remove this.
     #
     if {![info exists no(disableWarning1701)] && [isDotNetCore]} then {
       lappend eagle_platform(csharpOptions) nowarn:1701
@@ -565,12 +566,25 @@ namespace eval ::Eagle {
     set no(excelUsable) 1
 
     #
-    # NOTE: Make the per-test connection flag output a little less noisy.
+    # NOTE: Prevent the System.Data.SQLite assembly from being loaded via
+    #       the Eagle core test suite infrastructure.
+    #
+    set no(System.Data.SQLite) 1
+
+    #
+    # NOTE: Make the per-test connection flags output a little less noisy.
     #
     set no(emitLocalFlagsIfNone) 1
     set no(emitSharedFlagsIfNone) 1
     set no(emitGlobalFlagsIfNone) 1
     set no(emitCombinedFlagsIfNone) 1
+
+    #
+    # NOTE: Make the per-test connection props output a little less noisy.
+    #
+    set no(emitLocalExtraIfNone) 1
+    set no(emitGlobalExtraIfNone) 1
+    set no(emitCombinedExtraIfNone) 1
 
     #
     # NOTE: Force use of the native library pre-loader when applicable.

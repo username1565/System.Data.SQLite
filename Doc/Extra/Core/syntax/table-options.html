@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 <link href="../sqlite.css" rel="stylesheet">
-<title>SQLite Syntax: detach-stmt</title>
+<title>SQLite Syntax: table-options</title>
 <!-- path=../ -->
 </head>
 <body>
@@ -90,33 +90,38 @@ b.innerHTML='hide';
 return false;
 }
 </script>
-<h1 align='center'>detach-stmt</h1>
+<h1 align='center'>table-options</h1>
 <div class='imgcontainer'>
-<div style="max-width:456px"><svg xmlns='http://www.w3.org/2000/svg' class="pikchr" viewBox="0 0 456.595 47.952">
-<circle cx="5" cy="17" r="3.6"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<polygon points="32,17 20,21 20,12" style="fill:rgb(0,0,0)"/>
-<path d="M9,17L26,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<path d="M47,32L104,32A15 15 0 0 0 119 17A15 15 0 0 0 104 2L47,2A15 15 0 0 0 32 17A15 15 0 0 0 47 32Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<text x="75" y="17" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">DETACH</text>
-<polygon points="155,17 143,21 143,12" style="fill:rgb(0,0,0)"/>
-<path d="M119,17L149,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<path d="M170,32L246,32A15 15 0 0 0 261 17A15 15 0 0 0 246 2L170,2A15 15 0 0 0 155 17A15 15 0 0 0 170 32Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<text x="208" y="17" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">DATABASE</text>
-<polygon points="297,17 286,21 286,12" style="fill:rgb(0,0,0)"/>
-<path d="M261,17L291,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<path d="M312,32L409,32A15 15 0 0 0 424 17A15 15 0 0 0 409 2L312,2A15 15 0 0 0 297 17A15 15 0 0 0 312 32Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<text x="360" y="17" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">schema-name</text>
-<polygon points="447,17 435,21 435,12" style="fill:rgb(0,0,0)"/>
-<path d="M424,17L441,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<circle cx="450" cy="17" r="3.6"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<polygon points="208,41 196,45 196,37" style="fill:rgb(0,0,0)"/>
-<path d="M119,17 L 126,17 Q 134,17 134,29 Q 134,41 149,41 L 187,41 L 202,41"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
-<path d="M208,41 L 255,41 Q 270,41 270,29 Q 270,17 278,17 L 285,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<div style="max-width:324px"><svg xmlns='http://www.w3.org/2000/svg' class="pikchr" viewBox="0 0 324.036 98.31">
+<circle cx="5" cy="36" r="3.6"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<polygon points="77,17 66,21 66,12" style="fill:rgb(0,0,0)"/>
+<path d="M9,36 L 40,36 Q 55,36 55,26 Q 55,17 63,17 L 72,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<path d="M93,32L161,32A15 15 0 0 0 177 17A15 15 0 0 0 161 2L93,2A15 15 0 0 0 77 17A15 15 0 0 0 93 32Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="127" y="17" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">WITHOUT</text>
+<polygon points="194,17 182,21 182,12" style="fill:rgb(0,0,0)"/>
+<path d="M177,17L188,17"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<path d="M209,32L253,32A15 15 0 0 0 268 17A15 15 0 0 0 253 2L209,2A15 15 0 0 0 194 17A15 15 0 0 0 209 32Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="231" y="17" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">ROWID</text>
+<path d="M268,17 L 274,17 Q 280,17 280,26 Q 280,36 295,36 L 299,36 L 314,36"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<circle cx="318" cy="36" r="3.6"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<polygon points="77,54 66,59 66,50" style="fill:rgb(0,0,0)"/>
+<path d="M9,36 L 40,36 Q 55,36 55,45 Q 55,54 63,54 L 72,54"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<path d="M93,69L139,69A15 15 0 0 0 154 54A15 15 0 0 0 139 39L93,39A15 15 0 0 0 77 54A15 15 0 0 0 93 69Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="116" y="54" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">STRICT</text>
+<polygon points="314,36 303,40 303,31" style="fill:rgb(0,0,0)"/>
+<path d="M154,54 L 253,54 Q 268,54 274,54 Q 280,54 280,45 Q 280,36 294,36 L 308,36"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<polygon points="194,81 205,76 205,85" style="fill:rgb(0,0,0)"/>
+<path d="M285,36 L 293,36 Q 300,36 300,51 L 300,66 Q 300,81 285,81 L 215,81 L 200,81"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<path d="M179,96A15 15 0 0 0 194 81A15 15 0 0 0 179 65A15 15 0 0 0 164 81A15 15 0 0 0 179 96Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="179" y="81" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">,</text>
+<polygon points="77,81 89,76 89,85" style="fill:rgb(0,0,0)"/>
+<path d="M164,81L83,81"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<path d="M77,81 L 31,81 Q 16,81 16,66 L 16,51 Q 16,36 28,36 L 39,36"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
 </svg>
 </div><br>
 
-Used by:&nbsp;&nbsp; <a href='./sql-stmt.html'>sql-stmt</a><br></br>
-See also:&nbsp;&nbsp; <a href='../lang_detach.html'>lang_detach.html</a>
+Used by:&nbsp;&nbsp; <a href='./create-table-stmt.html'>create-table-stmt</a><br></br>
+See also:&nbsp;&nbsp; <a href='../lang_createtable.html'>lang_createtable.html</a>
 </div>
 
 <p align="center"><font size="6" color="red">*** DRAFT ***</font></p>

@@ -2849,6 +2849,33 @@ namespace System.Data.SQLite
 
       /////////////////////////////////////////////////////////////////////////
 
+      #region Native SQLite Library Helper Methods
+      /// <summary>
+      /// Determines the (possibly fully qualified) file name for the native
+      /// SQLite library that was loaded by this class.
+      /// </summary>
+      /// <returns>
+      /// The file name for the native SQLite library that was loaded by
+      /// this class -OR- null if its value cannot be determined.
+      /// </returns>
+      internal static string GetNativeModuleFileName()
+      {
+#if SQLITE_STANDARD || USE_INTEROP_DLL || PLATFORM_COMPACTFRAMEWORK
+#if PRELOAD_NATIVE_LIBRARY
+          lock (staticSyncRoot)
+          {
+              if (_SQLiteNativeModuleFileName != null)
+                  return _SQLiteNativeModuleFileName;
+          }
+#endif
+#endif
+
+          return SQLITE_DLL; /* COMPAT */
+      }
+      #endregion
+
+      /////////////////////////////////////////////////////////////////////////
+
       #region Optional Native SQLite Library Pre-Loading Code
       //
       // NOTE: If we are looking for the standard SQLite DLL ("sqlite3.dll"),
@@ -2878,7 +2905,7 @@ namespace System.Data.SQLite
       /// <summary>
       /// The native module file name for the native SQLite library or null.
       /// </summary>
-      internal static string _SQLiteNativeModuleFileName = null;
+      private static string _SQLiteNativeModuleFileName = null;
 
       /////////////////////////////////////////////////////////////////////////
       /// <summary>
@@ -4393,6 +4420,13 @@ namespace System.Data.SQLite
 #endif
     internal static extern void zipvfsInit_v3(int regDflt);
 #endif
+
+#if !PLATFORM_COMPACTFRAMEWORK
+    [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]
+#else
+    [DllImport(SQLITE_DLL)]
+#endif
+    internal static extern void sqlite3_busy_handler(IntPtr db, SQLiteBusyCallback func, IntPtr pvUser);
 
 #if !PLATFORM_COMPACTFRAMEWORK
     [DllImport(SQLITE_DLL, CallingConvention = CallingConvention.Cdecl)]

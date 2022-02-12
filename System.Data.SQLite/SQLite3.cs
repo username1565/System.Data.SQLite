@@ -67,7 +67,7 @@ namespace System.Data.SQLite
         "d8215c18a4349a436dd499e3c385cc683015f886f6c10bd90115eb2bd61b67750839e3a19941dc9c";
 
 #if !PLATFORM_COMPACTFRAMEWORK
-    internal const string DesignerVersion = "1.0.115.0";
+    internal const string DesignerVersion = "1.0.115.5";
 #endif
 
     /// <summary>
@@ -75,9 +75,12 @@ namespace System.Data.SQLite
     /// </summary>
     protected internal SQLiteConnectionHandle _sql;
     protected string _fileName;
+    protected string _returnToFileName;
+    protected int _maxPoolSize;
     protected SQLiteConnectionFlags _flags;
     private bool _setLogCallback;
     protected bool _usePool;
+    private bool _returnToPool;
     protected int _poolVersion;
     private int _cancelCount;
 
@@ -171,6 +174,7 @@ namespace System.Data.SQLite
         {
             _sql = new SQLiteConnectionHandle(db, ownHandle);
             _fileName = fileName;
+            _returnToFileName = fileName;
 
             SQLiteConnection.OnChanged(null, new ConnectionEventArgs(
                 SQLiteConnectionEventType.NewCriticalHandle, null,
@@ -264,8 +268,9 @@ namespace System.Data.SQLite
     public override string ToString()
     {
         return HelperMethods.StringFormat(
-            CultureInfo.InvariantCulture, "fileName = {0}, flags = {1}",
-            _fileName, _flags);
+            CultureInfo.InvariantCulture,
+            "fileName = {0}, returnToFileName = {1}, flags = {2}",
+            _fileName, _returnToFileName, _flags);
     }
 #endif
 
@@ -321,7 +326,7 @@ namespace System.Data.SQLite
 
       retry:
 
-          if (_usePool)
+          if (_returnToPool || _usePool)
           {
               if (SQLiteBase.ResetConnection(_sql, _sql, !disposing) &&
                   UnhookNativeCallbacks(true, !disposing))
@@ -352,12 +357,12 @@ namespace System.Data.SQLite
                   DisposeModules();
 #endif
 
-                  SQLiteConnectionPool.Add(_fileName, _sql, _poolVersion);
+                  SQLiteConnectionPool.Add(_returnToFileName, _sql, _poolVersion);
 
                   SQLiteConnection.OnChanged(null, new ConnectionEventArgs(
                       SQLiteConnectionEventType.ClosedToPool, null, null,
-                      null, null, _sql, _fileName, new object[] {
-                      typeof(SQLite3), !disposing, _fileName, _poolVersion }));
+                      null, null, _sql, _returnToFileName, new object[] {
+                      typeof(SQLite3), !disposing, _returnToFileName, _poolVersion }));
 
 #if !NET_COMPACT_20 && TRACE_CONNECTION
                   Trace.WriteLine(HelperMethods.StringFormat(
@@ -380,7 +385,10 @@ namespace System.Data.SQLite
                   //       therefore, just use the normal disposal
                   //       procedure on it.
                   //
+                  _returnToFileName = _fileName;
+                  _returnToPool = false;
                   _usePool = false;
+
                   goto retry;
               }
           }
@@ -1029,7 +1037,7 @@ namespace System.Data.SQLite
     /// Non-zero if the connection should (eventually) be allowed into the
     /// connection pool; otherwise, zero.
     /// </returns>
-    private static bool IsAllowedToUsePool(
+    protected static bool IsAllowedToUsePool(
         SQLiteOpenFlagsEnum openFlags
         )
     {
@@ -1053,6 +1061,8 @@ namespace System.Data.SQLite
       if (_sql != null)
           throw new SQLiteException("connection handle is still active");
 
+      _maxPoolSize = maxPoolSize;
+      _returnToPool = false;
       _usePool = usePool;
 
       //
@@ -1064,6 +1074,7 @@ namespace System.Data.SQLite
           _usePool = false;
 
       _fileName = strFilename;
+      _returnToFileName = strFilename;
       _flags = connectionFlags;
 
       if (usePool)
@@ -3386,7 +3397,9 @@ namespace System.Data.SQLite
 
       if (_usePool)
       {
+        _returnToFileName = _fileName;
         _usePool = false;
+        _returnToPool = false;
 
 #if !NET_COMPACT_20 && TRACE_CONNECTION
         Trace.WriteLine(HelperMethods.StringFormat(
@@ -3397,6 +3410,11 @@ namespace System.Data.SQLite
       }
     }
 #endif
+
+    internal override void SetBusyHook(SQLiteBusyCallback func)
+    {
+        UnsafeNativeMethods.sqlite3_busy_handler(_sql, func, IntPtr.Zero);
+    }
 
     internal override void SetProgressHook(int nOps, SQLiteProgressCallback func)
     {
@@ -3708,6 +3726,40 @@ namespace System.Data.SQLite
 #endif
 
             AppendError(builder, "failed to unset authorizer hook");
+            rc = SQLiteErrorCode.Error;
+
+            result = false;
+        }
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////////////////////////
+
+        #region Busy Hook (Per-Connection)
+        try
+        {
+            SetBusyHook(null); /* throw */
+        }
+#if !NET_COMPACT_20 && TRACE_CONNECTION
+        catch (Exception e)
+#else
+        catch (Exception)
+#endif
+        {
+#if !NET_COMPACT_20 && TRACE_CONNECTION
+            try
+            {
+                Trace.WriteLine(HelperMethods.StringFormat(
+                    CultureInfo.CurrentCulture,
+                    "Failed to unset busy hook: {0}",
+                    e)); /* throw */
+            }
+            catch
+            {
+                // do nothing.
+            }
+#endif
+
+            AppendError(builder, "failed to unset busy hook");
             rc = SQLiteErrorCode.Error;
 
             result = false;

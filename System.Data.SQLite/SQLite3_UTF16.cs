@@ -147,8 +147,19 @@ namespace System.Data.SQLite
       if (_sql != null)
           throw new SQLiteException("connection handle is still active");
 
+      _maxPoolSize = maxPoolSize;
       _usePool = usePool;
+
+      //
+      // BUGFIX: Do not allow a connection into the pool if it was opened
+      //         with flags that are incompatible with the default flags
+      //         (e.g. read-only).
+      //
+      if (_usePool && !IsAllowedToUsePool(openFlags))
+          _usePool = false;
+
       _fileName = strFilename;
+      _returnToFileName = strFilename;
       _flags = connectionFlags;
 
       if (usePool)
@@ -318,6 +329,37 @@ namespace System.Data.SQLite
 #else
       return UTF16ToString(p, -1);
 #endif
+    }
+
+    internal override string ColumnType(SQLiteStatement stmt, int index, ref TypeAffinity nAffinity)
+    {
+        int len;
+#if !SQLITE_STANDARD
+        len = 0;
+        IntPtr p = UnsafeNativeMethods.sqlite3_column_decltype16_interop(stmt._sqlite_stmt, index, ref len);
+#else
+        len = -1;
+        IntPtr p = UnsafeNativeMethods.sqlite3_column_decltype16(stmt._sqlite_stmt, index);
+#endif
+        nAffinity = ColumnAffinity(stmt, index);
+
+        if ((p != IntPtr.Zero) && ((len > 0) || (len == -1)))
+        {
+            string declType = UTF16ToString(p, len);
+
+            if (!String.IsNullOrEmpty(declType))
+                return declType;
+        }
+
+        string[] ar = stmt.TypeDefinitions;
+
+        if (ar != null)
+        {
+            if (index < ar.Length && ar[index] != null)
+                return ar[index];
+        }
+
+        return String.Empty;
     }
 
     internal override string GetText(SQLiteStatement stmt, int index)
